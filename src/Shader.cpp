@@ -5,12 +5,12 @@ namespace GeneralApp {
 
 Shader::Shader() {
 
-};
+}
 
 
 Shader::~Shader() {
 
-};
+}
 
 
 void Shader::use() const { 

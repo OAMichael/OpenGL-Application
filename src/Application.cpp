@@ -7,12 +7,12 @@ Application* Application::m_Application;
 
 Application::Application() {
 
-};
+}
 
 
 Application::~Application() {
     Application::terminateWindow();
-};
+}
 
 
 GLFWwindow* Application::createWindow(const unsigned& GLFWVerMaj, const unsigned& GLFWVerMin, const unsigned& winWidth,
@@ -56,11 +56,11 @@ GLFWwindow* Application::createWindow(const unsigned& GLFWVerMaj, const unsigned
     }
 
     return window_;
-};
+}
 
 
 void Application::terminateWindow() {
     glfwTerminate();
-};
+}
 
 }

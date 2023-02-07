@@ -29,5 +29,8 @@ target_link_libraries(App.exe PUBLIC Camera)
 add_library(Cube ${SRC_DIR}/Cube.cpp)
 target_link_libraries(App.exe PUBLIC Cube)
 
+add_library(SceneObject ${SRC_DIR}/SceneObject.cpp)
+target_link_libraries(App.exe PUBLIC SceneObject)
+
 add_compile_options(App.exe ${COMPILE_OPT})
 target_link_libraries(App.exe PUBLIC ${LINK_OPT})

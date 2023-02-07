@@ -7,17 +7,21 @@ namespace Geometry {
 
 Cube::Cube() {
 
-};
+}
 
 
 Cube::~Cube() {
 
-};
+}
 
 
-Cube::Cube(const glm::vec3& pos) : Position_{pos} {
+Cube::Cube(const glm::vec3& pos) {
+    Position_ = pos;
 
-};
+    boundingBox_ = { glm::vec3(-0.5f, -0.5f, -0.5f) + pos, glm::vec3(0.5f, 0.5f, 0.5f) + pos };
+
+    calculateModelMatrix();
+}
 
 
 void Cube::generateTextures(const std::vector<std::string>& textureNames) {
@@ -59,21 +63,6 @@ unsigned Cube::getCubemapTextureHandle() const {
 
 const std::vector<float>& Cube::getVertices() const {
 	return vertices_;
-};
-
-
-glm::vec3 Cube::getPosition() {
-	return Position_;
-}
-
-
-void Cube::setVisibility(bool vis) {
-    isVisible_ = vis;
-}
-
-
-bool Cube::getVisibility() {
-    return isVisible_;
 }
 
 }

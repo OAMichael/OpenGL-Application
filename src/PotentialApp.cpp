@@ -37,9 +37,8 @@ void PotentialApp::renderToWindow() {
         glm::mat4 view  = glm::lookAt(Camera_.getPosition(), Camera_.getTarget(), Camera_.getUp());
         glm::mat4 proj  = glm::perspective(glm::radians(Camera_.getFov()), Camera_.getAspect(), Camera_.getZNear(), Camera_.getZFar());
 
-        glm::mat4 viewProj = proj * view;
-
-        glm::mat4 transform = glm::mat4(1.0f);
+        CubemapShader_.setMat4("view", view);
+        CubemapShader_.setMat4("proj", proj);
 
 
         if(blocksUpdated_) {
@@ -49,10 +48,7 @@ void PotentialApp::renderToWindow() {
 
         for(iterCube it = GrassBlocks_.begin(), end = GrassBlocks_.end(); it < end; ++it) {
             if(it->getVisibility()) {
-                glm::mat4 model = glm::translate(glm::mat4(1.0f), 2.0f * static_cast<glm::vec3>(it->getPosition()));
-                transform = viewProj * model;
-
-                CubemapShader_.setMat4("transform", transform);
+                CubemapShader_.setMat4("model", it->getModelMatrix());
                 
                 glDrawArrays(GL_TRIANGLES, 0, 36);
             }
@@ -65,7 +61,10 @@ void PotentialApp::renderToWindow() {
         glBindVertexArray(VAOs_[1]);
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_CUBE_MAP, Skybox_.getCubemapTextureHandle());
-        SkyboxShader_.setMat4("transform", proj * static_cast<glm::mat4>(static_cast<glm::mat3>(view)));
+
+        SkyboxShader_.setMat4("view",  view);
+        SkyboxShader_.setMat4("proj",  proj);
+
         glDrawArrays(GL_TRIANGLES, 0, 36);
         
         glBindVertexArray(0);
