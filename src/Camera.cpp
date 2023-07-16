@@ -3,22 +3,11 @@
 
 namespace GeneralApp {
 
-Camera::Camera() {
-
-}
-
-
-Camera::~Camera() {
-
-}
-
-
-Camera::Camera(const glm::vec3& pos, const glm::vec3& tar, const glm::vec3& u, const glm::vec3& r) { 
+Camera::Camera(const glm::vec3& pos, const glm::vec3& dir, const glm::vec3& u, const glm::vec3& r) { 
     Position_  = pos;
-    Direction_ = glm::normalize(tar - pos);
+    Direction_ = dir;
     Up_ = u;
     Right_ = r;
-    Target_ = tar;
 }
 
 
@@ -56,16 +45,6 @@ glm::vec3 Camera::getUp() const {
 void Camera::setUp(const glm::vec3& u) { 
     Up_ = u; 
 }
-
-
-glm::vec3 Camera::getTarget() const { 
-    return Target_; 
-}
-
-void Camera::setTarget(const glm::vec3& t) { 
-    Target_ = t; 
-}
-
 
 float Camera::getSensitivity() const { 
     return Sensitivity_; 
@@ -141,13 +120,11 @@ void Camera::setPitch(const float& pitch) {
 
 void Camera::moveFront(const float& delta) { 
     Position_ += Direction_ * delta * DirSpeedFactor_;
-    Target_ = Position_ + Direction_;
 }
 
 
 void Camera::moveRight(const float& delta) { 
     Position_ += Right_ * delta * RightSpeedFactor_; 
-    Target_ = Position_ + Direction_;
 }
 
 
@@ -159,7 +136,6 @@ void Camera::updateVectors() {
     Direction_ = glm::normalize(Front);
     Right_ = glm::normalize(glm::cross(Direction_, glm::vec3(0.0, 1.0, 0.0)));
     Up_    = glm::normalize(glm::cross(Right_, Direction_));
-    Target_ = Position_ + Direction_;
 }
 
 
@@ -168,10 +144,10 @@ std::ostream& operator<<(std::ostream& os, const Camera& camera) {
     glm::vec3 direction = camera.getDirection();
     glm::vec3 right     = camera.getRight();
     glm::vec3 up        = camera.getUp();
-    os << "Position = ("  << position.x  << ", " << position.y  << ", " << position.z  << ");   " << 
-          "Direction = (" << direction.x << ", " << direction.y << ", " << direction.z << ");   " <<
-          "Right = ("     << right.x     << ", " << right.y     << ", " << right.z     << ");   " <<
-          "Up = ("        << up.x        << ", " << up.y        << ", " << up.z        << ")";
+    os << "Position = (" << position.x  << ", " << position.y  << ", " << position.z  << ");   " << 
+          "Direction =(" << direction.x << ", " << direction.y << ", " << direction.z << ");   " <<
+          "Right =    (" << right.x     << ", " << right.y     << ", " << right.z     << ");   " <<
+          "Up =       (" << up.x        << ", " << up.y        << ", " << up.z        << ")";
 
     return os;
 }

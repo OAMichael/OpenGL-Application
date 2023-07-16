@@ -16,8 +16,6 @@ private:
     glm::vec3 Right_;
     glm::vec3 Up_;
 
-    glm::vec3 Target_;
-
     float Sensitivity_ = 0.15f;
 
     float Aspect_;
@@ -32,9 +30,9 @@ private:
     float Fov_ = 90.0f;
 
 public:
-    Camera();
-    Camera(const glm::vec3& pos, const glm::vec3& tar, const glm::vec3& u, const glm::vec3& r);
-    ~Camera();
+    Camera() {};
+    Camera(const glm::vec3& pos, const glm::vec3& dir, const glm::vec3& u, const glm::vec3& r);
+    ~Camera() {};
 
     glm::vec3 getPosition() const;
     void setPosition(const glm::vec3& pos);
@@ -47,9 +45,6 @@ public:
     
     glm::vec3 getUp() const;
     void setUp(const glm::vec3& u);
-
-    glm::vec3 getTarget() const;
-    void setTarget(const glm::vec3& t);
 
     float getSensitivity() const;
     void setSensitivity(const float& s);

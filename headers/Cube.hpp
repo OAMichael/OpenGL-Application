@@ -1,5 +1,5 @@
-#ifndef CUDE_HPP
-#define CUDE_HPP
+#ifndef CUBE_HPP
+#define CUBE_HPP
 
 #include <iostream>
 #include <string>
@@ -11,12 +11,12 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
-#include "../headers/SceneObject.hpp"
+#include "../headers/ISceneObject.hpp"
 
 
 namespace Geometry {
 
-class Cube : public SceneObject {
+class Cube : public ISceneObject {
 private:
 	const std::vector<float> vertices_ = {
         // positions          

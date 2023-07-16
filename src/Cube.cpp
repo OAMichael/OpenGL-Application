@@ -1,6 +1,6 @@
 #include "../headers/Cube.hpp"
 
-#include "../external/stb_image.h"
+#include "../3rdparty/stb_image.h"
 
 
 namespace Geometry {
@@ -20,7 +20,7 @@ Cube::Cube(const glm::vec3& pos) {
 
     boundingBox_ = { glm::vec3(-0.5f, -0.5f, -0.5f) + pos, glm::vec3(0.5f, 0.5f, 0.5f) + pos };
 
-    calculateModelMatrix();
+    calculateLocalModelMatrix();
 }
 
 
