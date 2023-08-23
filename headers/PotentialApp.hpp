@@ -27,7 +27,6 @@
 
 class PotentialApp : public GeneralApp::IApplication {
 private:
-    GeneralApp::Shader Shader_;
     
     std::vector<unsigned> VBOs_;
     std::vector<unsigned> VAOs_; 
@@ -38,9 +37,6 @@ private:
     float MouseLastX_ = windowWidth_ / 2.0f, MouseLastY_ = windowHeight_ / 2.0f;
     bool FirstMouse_ = true;
     bool IsFullscreen_ = false;
-
-    Geometry::Cube Cube_{glm::vec3(0.0f)};
-    GeneralApp::Shader CubemapShader_;
 
     Geometry::Cube Skybox_{glm::vec3(0.0f)};
     GeneralApp::Shader SkyboxShader_;

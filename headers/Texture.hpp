@@ -7,9 +7,8 @@
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 
-#include <tinygltf/tiny_gltf.h>
-
 #include "../headers/Image.hpp"
+#include "../headers/Sampler.hpp"
 
 
 namespace Resources {
@@ -20,6 +19,8 @@ struct Texture {
 
     Image* image = nullptr;
     glm::vec4 factor = glm::vec4(1.0f);
+
+    Sampler* sampler;
 
     Texture() {};
 

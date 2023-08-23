@@ -29,6 +29,10 @@ private:
     float Pitch_ = 0.0f;
     float Fov_ = 90.0f;
 
+    glm::mat4 View_;
+    glm::mat4 Proj_;
+    glm::mat4 Model_;
+
 public:
     Camera() {};
     Camera(const glm::vec3& pos, const glm::vec3& dir, const glm::vec3& u, const glm::vec3& r);
@@ -60,6 +64,12 @@ public:
     
     float getFov() const;
     void setFov(const float& f);
+
+    glm::mat4 getView() const;
+    glm::mat4 getProj() const;
+    glm::mat4 getModel() const;
+
+    void updateMatrices();
 
     void setDirSpeed(const float& new_speed);
     void setRightSpeed(const float& new_speed);

@@ -17,7 +17,7 @@ else()
 endif()
 
 add_executable(
-	App.exe ${SRC_DIR}/App.cpp
+	App ${SRC_DIR}/App.cpp
 	${GLAD_DIR}/glad.c
 	${SRC_DIR}/IApplication.cpp
 	${SRC_DIR}/Shader.cpp
@@ -31,12 +31,14 @@ add_executable(
 	${SRC_DIR}/SceneNode.cpp
 	${SRC_DIR}/Image.cpp
 	${SRC_DIR}/Texture.cpp
+	${SRC_DIR}/Sampler.cpp
 	${SRC_DIR}/ResourceManager.cpp
 	${SRC_DIR}/Material.cpp
+	${SRC_DIR}/SceneManager.cpp
 )
 
-target_include_directories(App.exe PUBLIC ${SRC_DIR})
-target_include_directories(App.exe PUBLIC ${GLAD_DIR})
+target_include_directories(App PUBLIC ${SRC_DIR})
+target_include_directories(App PUBLIC ${GLAD_DIR})
 
 include_directories(${INCLUDE_DIR})
 link_directories(${LIB_DIR})
@@ -46,6 +48,6 @@ if(MSVC)
 	set(CMAKE_VS_SDK_LIBRARY_DIRECTORIES $(LibraryPath) ${LIB_DIR})
 endif()
 
-add_compile_options(App.exe ${COMPILE_OPT})
-target_link_libraries(App.exe PUBLIC ${LINK_OPT})
-target_link_directories(App.exe PUBLIC ${LIB_DIR})
+add_compile_options(App ${COMPILE_OPT})
+target_link_libraries(App PUBLIC ${LINK_OPT})
+target_link_directories(App PUBLIC ${LIB_DIR})

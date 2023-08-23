@@ -102,12 +102,21 @@ void Shader::checkCompileErrors(const GLuint& shader, const std::string& type) {
 }
 
 
+void Shader::bindUBO(const unsigned binding, const std::string& name) {
+    unsigned int uboIndex = glGetUniformBlockIndex(ID_, name.c_str());
+    glUniformBlockBinding(ID_, uboIndex, binding);
+}
+
 void Shader::setBool(const std::string& name, const bool& value) const {         
     glUniform1i(glGetUniformLocation(ID_, name.c_str()), (int)value); 
 }
 
 void Shader::setInt(const std::string& name, const int& value) const { 
     glUniform1i(glGetUniformLocation(ID_, name.c_str()), value); 
+}
+
+void Shader::setUint(const std::string& name, const uint32_t& value) const {
+    glUniform1ui(glGetUniformLocation(ID_, name.c_str()), value);
 }
 
 void Shader::setFloat(const std::string& name, const float& value) const { 

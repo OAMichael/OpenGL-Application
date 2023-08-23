@@ -5,8 +5,11 @@ layout(location = 0) in vec3 aPos;
 layout(location = 0) out vec3 TexCoords;
 
 
-uniform mat4 view;
-uniform mat4 proj;
+layout (std140) uniform Matrices {
+    mat4 view;
+    mat4 proj;
+    mat4 model;
+};
 
 
 void main()

@@ -9,7 +9,9 @@ Image& ResourceManager::createImage(const ImageDesc& imageDesc) {
     if (auto it = images_.find(imageDesc.name); it != images_.end())
         return *images_[imageDesc.name];
 
+#ifdef DEBUG_MODEL
     std::cout << "Creating image \'" << imageDesc.name << "\'" << std::endl;
+#endif
 
     Image* newImage = new Image();
 
@@ -27,12 +29,42 @@ Image& ResourceManager::createImage(const ImageDesc& imageDesc) {
     return *newImage;
 }
 
+Sampler& ResourceManager::createSampler(const SamplerDesc& samplerDesc) {
+    if (auto it = samplers_.find(samplerDesc.name); it != samplers_.end())
+        return *samplers_[samplerDesc.name];
+
+#ifdef DEBUG_MODEL
+    std::cout << "Creating sampler \'" << samplerDesc.name << "\'" << std::endl;
+#endif
+
+    Sampler* newSampler = new Sampler();
+    
+    newSampler->name = samplerDesc.name;
+    newSampler->minFilter = samplerDesc.minFilter;
+    newSampler->magFilter = samplerDesc.magFilter;
+    newSampler->wrapS = samplerDesc.wrapS;
+    newSampler->wrapT = samplerDesc.wrapT;
+    newSampler->wrapR = samplerDesc.wrapR;
+
+    glGenSamplers(1, &newSampler->GL_id);
+    glSamplerParameteri(newSampler->GL_id, GL_TEXTURE_WRAP_S, samplerDesc.wrapS);
+    glSamplerParameteri(newSampler->GL_id, GL_TEXTURE_WRAP_T, samplerDesc.wrapT);
+    glSamplerParameteri(newSampler->GL_id, GL_TEXTURE_WRAP_R, samplerDesc.wrapR);
+    glSamplerParameteri(newSampler->GL_id, GL_TEXTURE_MIN_FILTER, samplerDesc.minFilter);
+    glSamplerParameteri(newSampler->GL_id, GL_TEXTURE_MAG_FILTER, samplerDesc.magFilter);
+
+    samplers_[newSampler->name] = newSampler;
+
+    return *newSampler;
+}
 
 Texture& ResourceManager::createTexture(const TextureDesc& textureDesc) {
     if (auto it = textures_.find(textureDesc.name); it != textures_.end())
         return *textures_[textureDesc.name];
 
+#ifdef DEBUG_MODEL
     std::cout << "Creating texture \'" << textureDesc.name << "\'" << std::endl;
+#endif
 
     Texture* newTexture = new Texture();
 
@@ -52,10 +84,11 @@ Texture& ResourceManager::createTexture(const TextureDesc& textureDesc) {
 
     glBindTexture(GL_TEXTURE_2D, newTexture->GL_id);
     glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
-    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    
+    newTexture->sampler = textureDesc.p_sampler;
+    if (!newTexture->sampler) {
+        newTexture->sampler = &getSampler(defaultSamplersNames[Sampler::DefaultSamplers::DEFAULT_SAMPLER_LINEAR_REPEAT]);
+    }
 
     GLenum format = GL_RGBA;
 
@@ -82,9 +115,9 @@ Texture& ResourceManager::createTexture(const TextureDesc& textureDesc) {
 
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, newTexture->image->width, newTexture->image->height, 0, format, type, newTexture->image->image.data());
 
+    glBindTexture(GL_TEXTURE_2D, 0);
     return *newTexture;
 }
-
 
 Material& ResourceManager::createMaterial(const MaterialDesc& matDesc) {
     if (auto it = materials_.find(matDesc.name); it != materials_.end())
@@ -92,7 +125,9 @@ Material& ResourceManager::createMaterial(const MaterialDesc& matDesc) {
 
     Material* newMaterial = new Material();
 
+#ifdef DEBUG_MODEL
     std::cout << "Creating material \'" << matDesc.name << "\'" << std::endl;
+#endif
 
     for(int i = 0; i < Material::TextureIdx::COUNT; ++i)
         newMaterial->textures[i] = matDesc.p_TexArray[i];
@@ -108,6 +143,13 @@ void ResourceManager::deleteImage(const std::string& name) {
     if (auto it = images_.find(name); it != images_.end()) {
         delete images_[name];
         images_.erase(it);
+    }
+}
+
+void ResourceManager::deleteSampler(const std::string& name) {
+    if (auto it = samplers_.find(name); it != samplers_.end()) {
+        delete samplers_[name];
+        samplers_.erase(it);
     }
 }
 
@@ -135,6 +177,15 @@ Image& ResourceManager::getImage(const std::string& name) {
     return *emptyImage;
 }
 
+Sampler& ResourceManager::getSampler(const std::string& name) {
+    if (auto it = samplers_.find(name); it != samplers_.end())
+        return *samplers_[name];
+
+    auto emptySampler = new Sampler();
+    samplers_[name] = emptySampler;
+    return *emptySampler;
+}
+
 Texture& ResourceManager::getTexture(const std::string& name) {
     if (auto it = textures_.find(name); it != textures_.end())
         return *textures_[name];
@@ -159,6 +210,11 @@ bool ResourceManager::hasImage(const std::string& name) {
     return it != images_.end();
 }
 
+bool ResourceManager::hasSampler(const std::string& name) {
+    auto it = samplers_.find(name);
+    return it != samplers_.end();
+}
+
 bool ResourceManager::hasTexture(const std::string& name) {
     auto it = textures_.find(name);
     return it != textures_.end();
@@ -172,6 +228,7 @@ bool ResourceManager::hasMaterial(const std::string& name) {
 
 ResourceManager::ResourceManager() {
     createDefaultImages();
+    createDefaultSamplers();
     createDefaultTextures();
     createDefaultMaterials();
 }
@@ -180,6 +237,11 @@ ResourceManager::~ResourceManager() {
     for (auto& im : images_) {
         delete im.second;
         images_.erase(im.first);
+    }
+
+    for (auto& samp : samplers_) {
+        delete samp.second;
+        samplers_.erase(samp.first);
     }
 
     for (auto& tex : textures_) {
@@ -199,20 +261,62 @@ void ResourceManager::createDefaultImages() {
     ImageDesc defaultDesc;
     defaultDesc.width = 1;
     defaultDesc.height = 1;
-    defaultDesc.components = 1;
+    defaultDesc.components = 4;
     defaultDesc.bits = 8;
 
     std::vector<unsigned char> defaultValue;
-    defaultValue.resize(1);
+    defaultValue.resize(4);
     defaultDesc.p_data = &defaultValue;
 
     defaultDesc.name = defaultImagesNames[Image::DefaultImages::DEFAULT_IMAGE_WHITE];
     defaultValue[0] = 255;
+    defaultValue[1] = 255;
+    defaultValue[2] = 255;
+    defaultValue[3] = 255;
     createImage(defaultDesc);
 
     defaultDesc.name = defaultImagesNames[Image::DefaultImages::DEFAULT_IMAGE_BLACK];
     defaultValue[0] = 0;
+    defaultValue[1] = 0;
+    defaultValue[2] = 0;
+    defaultValue[3] = 0;
     createImage(defaultDesc);
+}
+
+void ResourceManager::createDefaultSamplers() {
+    SamplerDesc defaultDesc;
+
+    defaultDesc.name = defaultSamplersNames[Sampler::DefaultSamplers::DEFAULT_SAMPLER_NEAREST_CLAMP];
+    defaultDesc.minFilter = Sampler::NEAREST;
+    defaultDesc.magFilter = Sampler::NEAREST;
+    defaultDesc.wrapS = Sampler::CLAMP_TO_EDGE;
+    defaultDesc.wrapT = Sampler::CLAMP_TO_EDGE;
+    defaultDesc.wrapR = Sampler::CLAMP_TO_EDGE;
+    createSampler(defaultDesc);
+
+    defaultDesc.name = defaultSamplersNames[Sampler::DefaultSamplers::DEFAULT_SAMPLER_NEAREST_REPEAT];
+    defaultDesc.minFilter = Sampler::NEAREST;
+    defaultDesc.magFilter = Sampler::NEAREST;
+    defaultDesc.wrapS = Sampler::REPEAT;
+    defaultDesc.wrapT = Sampler::REPEAT;
+    defaultDesc.wrapR = Sampler::REPEAT;
+    createSampler(defaultDesc);
+
+    defaultDesc.name = defaultSamplersNames[Sampler::DefaultSamplers::DEFAULT_SAMPLER_LINEAR_REPEAT];
+    defaultDesc.minFilter = Sampler::LINEAR;
+    defaultDesc.magFilter = Sampler::LINEAR;
+    defaultDesc.wrapS = Sampler::REPEAT;
+    defaultDesc.wrapT = Sampler::REPEAT;
+    defaultDesc.wrapR = Sampler::REPEAT;
+    createSampler(defaultDesc);
+
+    defaultDesc.name = defaultSamplersNames[Sampler::DefaultSamplers::DEFAULT_SAMPLER_LINEAR_CLAMP];
+    defaultDesc.minFilter = Sampler::LINEAR;
+    defaultDesc.magFilter = Sampler::LINEAR;
+    defaultDesc.wrapS = Sampler::CLAMP_TO_EDGE;
+    defaultDesc.wrapT = Sampler::CLAMP_TO_EDGE;
+    defaultDesc.wrapR = Sampler::CLAMP_TO_EDGE;
+    createSampler(defaultDesc);
 }
 
 void ResourceManager::createDefaultTextures() {

@@ -17,6 +17,12 @@ struct Material {
 		COUNT
 	};
 
+	enum MaterialFlags : uint32_t {
+		MATERIAL_FLAG_NORMAL_MAP_BIT = 1 << 0
+	};
+
+	uint32_t materialFlags;
+
 	std::string name;
 	Texture* textures[TextureIdx::COUNT];
 

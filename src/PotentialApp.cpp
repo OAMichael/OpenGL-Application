@@ -1,5 +1,5 @@
 #include "../headers/PotentialApp.hpp"
-
+#include "../headers/ResourceManager.hpp"
 
 void PotentialApp::renderToWindow() {
     
@@ -11,6 +11,17 @@ void PotentialApp::renderToWindow() {
     GLTFloader_->load(Model_.getModelRef(), Model_.getFilename());
     Model_.init();
 
+    struct Matrices {
+        glm::mat4 view;
+        glm::mat4 proj;
+        glm::mat4 model;
+    } ubo;
+
+    auto resourceManager = Resources::ResourceManager::getInstance();
+    resourceManager->createUBO<Matrices>(0, &ubo, sizeof(ubo), "Matrices");
+    ModelShader_.bindUBO(0, "Matrices");
+    SkyboxShader_.bindUBO(0, "Matrices");
+
     while(!glfwWindowShouldClose(window_)) {
 
         this->showFPS();
@@ -18,17 +29,16 @@ void PotentialApp::renderToWindow() {
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
 
+        Camera_.updateMatrices();
+        ubo.view = Camera_.getView();
+        ubo.proj = Camera_.getProj();
+        ubo.model = glm::mat4(1.0f);
+        resourceManager->updateUBO(&ubo, sizeof(ubo), 0, "Matrices");
 
-        glm::mat4 view  = glm::lookAt(Camera_.getPosition(), Camera_.getPosition() + Camera_.getDirection(), Camera_.getUp());
-        glm::mat4 proj  = glm::perspective(glm::radians(Camera_.getFov()), Camera_.getAspect(), Camera_.getZNear(), Camera_.getZFar());
-        glm::mat4 model = glm::mat4(1.0f);
-        
         ModelShader_.use();
-        ModelShader_.setMat4("view", view);
-        ModelShader_.setMat4("proj", proj);
-        ModelShader_.setMat4("model", model);
 
         ModelShader_.setFloat("time", lastFrame_);
+        ModelShader_.setVec3("cameraWorldPos", Camera_.getPosition());
 
         Model_.draw(ModelShader_);
 
@@ -39,11 +49,8 @@ void PotentialApp::renderToWindow() {
 
         SkyboxShader_.use();
         glActiveTexture(GL_TEXTURE0);
-        glBindVertexArray(VAOs_[1]);
+        glBindVertexArray(VAOs_[0]);
         glBindTexture(GL_TEXTURE_CUBE_MAP, Skybox_.getCubemapTextureHandle());
-
-        SkyboxShader_.setMat4("view",  view);
-        SkyboxShader_.setMat4("proj",  proj);
 
         glDrawArrays(GL_TRIANGLES, 0, 36);
         
@@ -178,48 +185,16 @@ PotentialApp::PotentialApp() {
 
 
 void PotentialApp::initRender() {
-
-    /*
-    unsigned VAO, VBO;
-    VAOs_.push_back(VAO);
-    VBOs_.push_back(VBO);
+    unsigned VAOSkybox, VBOSkybox;
+    VAOs_.push_back(VAOSkybox);
+    VBOs_.push_back(VBOSkybox);
 
     glGenVertexArrays(1, &VAOs_[0]);
     glGenBuffers(1, &VBOs_[0]);
     glBindVertexArray(VAOs_[0]);
 
-    std::vector<float> verts = Cube_.getVertices();
-    glBindBuffer(GL_ARRAY_BUFFER, VBOs_[0]);
-    glBufferData(GL_ARRAY_BUFFER, verts.size() * sizeof(float), verts.data(), GL_STATIC_DRAW);
-
-    glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
-    
-
-    CubemapShader_ = GeneralApp::Shader("../shaders/Cubemap.vert", "../shaders/Cubemap.frag");
-
-    const std::vector<std::string> textures = {
-        "../textures/cobble.jpg",
-        "../textures/cobble.jpg",
-        "../textures/grass.jpg",
-        "../textures/cobble.jpg",
-        "../textures/cobble.jpg",
-        "../textures/cobble.jpg"
-    };
-
-    Cube_.generateTextures(textures);
-    */
-
-    unsigned VAOSkybox, VBOSkybox;
-    VAOs_.push_back(VAOSkybox);
-    VBOs_.push_back(VBOSkybox);
-
-    glGenVertexArrays(1, &VAOs_[1]);
-    glGenBuffers(1, &VBOs_[1]);
-    glBindVertexArray(VAOs_[1]);
-
     std::vector<float> vertsSkybox = Skybox_.getVertices();
-    glBindBuffer(GL_ARRAY_BUFFER, VBOs_[1]);
+    glBindBuffer(GL_ARRAY_BUFFER, VBOs_[0]);
     glBufferData(GL_ARRAY_BUFFER, vertsSkybox.size() * sizeof(float), vertsSkybox.data(), GL_STATIC_DRAW);
 
     glEnableVertexAttribArray(0);

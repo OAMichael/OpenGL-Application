@@ -9,8 +9,6 @@
 
 #include <tinygltf/tiny_gltf.h>
 
-#include "../headers/ResourceManager.hpp"
-
 #define BUFFER_OFFSET(i) ((char *)NULL + (i))
 
 

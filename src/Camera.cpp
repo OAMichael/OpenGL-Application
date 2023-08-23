@@ -16,7 +16,7 @@ glm::vec3 Camera::getPosition() const {
 }
 
 void Camera::setPosition(const glm::vec3& pos) { 
-    Position_ = pos;   
+    Position_ = pos;
 }
 
 
@@ -25,7 +25,7 @@ glm::vec3 Camera::getDirection() const {
 }
 
 void Camera::setDirection(const glm::vec3& dir) { 
-    Direction_ = dir;  
+    Direction_ = dir;
 }
 
 
@@ -34,7 +34,7 @@ glm::vec3 Camera::getRight() const {
 }
 
 void Camera::setRight(const glm::vec3& r) { 
-    Right_ = r; 
+    Right_ = r;
 };
 
 
@@ -43,7 +43,7 @@ glm::vec3 Camera::getUp() const {
 }
 
 void Camera::setUp(const glm::vec3& u) { 
-    Up_ = u; 
+    Up_ = u;
 }
 
 float Camera::getSensitivity() const { 
@@ -60,7 +60,7 @@ float Camera::getAspect() const {
 }
 
 void Camera::setAspect(const float& a) { 
-    Aspect_ = a; 
+    Aspect_ = a;
 }
 
 
@@ -69,7 +69,7 @@ float Camera::getZNear() const {
 }
 
 void Camera::setZNear(const float& n) { 
-    ZNear_ = n; 
+    ZNear_ = n;
 }
 
 
@@ -78,7 +78,7 @@ float Camera::getZFar() const {
 }
 
 void Camera::setZFar(const float& f) { 
-    ZFar_ = f; 
+    ZFar_ = f;
 }
 
 
@@ -87,25 +87,36 @@ float Camera::getFov() const {
 }
 
 void Camera::setFov(const float& f) { 
-    Fov_ = f; 
+    Fov_ = f;
 }
 
+glm::mat4 Camera::getView() const {
+    return View_;
+}
+
+glm::mat4 Camera::getProj() const {
+    return Proj_;
+}
+
+glm::mat4 Camera::getModel() const {
+    return Model_;
+}
 
 void Camera::setDirSpeed(const float& new_speed) { 
     DirSpeedFactor_ = new_speed; 
 }
 
 void Camera::setRightSpeed(const float& new_speed) { 
-    RightSpeedFactor_ = new_speed; 
+    RightSpeedFactor_ = new_speed;
 }
 
 
 float Camera::getYaw() const { 
-    return Yaw_; 
+    return Yaw_;
 }
 
 void Camera::setYaw(const float& yaw) { 
-    Yaw_ = yaw; 
+    Yaw_ = yaw;
 }
 
 
@@ -114,7 +125,7 @@ float Camera::getPitch() const {
 }
 
 void Camera::setPitch(const float& pitch) { 
-    Pitch_ = pitch; 
+    Pitch_ = pitch;
 }
 
 
@@ -124,7 +135,7 @@ void Camera::moveFront(const float& delta) {
 
 
 void Camera::moveRight(const float& delta) { 
-    Position_ += Right_ * delta * RightSpeedFactor_; 
+    Position_ += Right_ * delta * RightSpeedFactor_;
 }
 
 
@@ -136,6 +147,13 @@ void Camera::updateVectors() {
     Direction_ = glm::normalize(Front);
     Right_ = glm::normalize(glm::cross(Direction_, glm::vec3(0.0, 1.0, 0.0)));
     Up_    = glm::normalize(glm::cross(Right_, Direction_));
+}
+
+
+void Camera::updateMatrices() {
+    View_ = glm::lookAt(Position_, Position_ + Direction_, Up_);
+    Proj_ = glm::perspective(glm::radians(Fov_), Aspect_, ZNear_, ZFar_);
+    Model_ = glm::mat4(1.0f);
 }
 
 

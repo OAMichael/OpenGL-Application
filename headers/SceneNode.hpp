@@ -30,6 +30,8 @@ public:
 
 	void calculateGlobalModelMatrix();
 	glm::mat4 getGlobalModelMatrix() { return globalMatrix_; };
+
+	void printNode(const int level = 0);
 };
 
 }

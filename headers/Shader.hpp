@@ -28,9 +28,13 @@ public:
 
     unsigned getID() const;
 
+    void bindUBO(const unsigned binding, const std::string& name);
+
     void setBool(const std::string& name, const bool& value) const;
 
     void setInt(const std::string& name, const int& value) const;
+
+    void setUint(const std::string& name, const uint32_t& value) const;
 
     void setFloat(const std::string& name, const float& value) const;
 
