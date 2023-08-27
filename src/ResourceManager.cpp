@@ -1,4 +1,5 @@
 #include "../headers/ResourceManager.hpp"
+#include "../3rdparty/stb_image.h"
 
 
 namespace Resources {
@@ -21,12 +22,44 @@ Image& ResourceManager::createImage(const ImageDesc& imageDesc) {
     newImage->height = imageDesc.height;
     newImage->name = imageDesc.name;
 
-    newImage->image.resize(imageDesc.p_data->size());
-    std::copy(imageDesc.p_data->begin(), imageDesc.p_data->end(), newImage->image.begin());
+    size_t bytesize = imageDesc.width * imageDesc.height * imageDesc.components * (imageDesc.bits / 8);
+    newImage->image.resize(bytesize);
+    std::copy(imageDesc.p_data, imageDesc.p_data + bytesize, newImage->image.begin());
 
     images_[newImage->name] = newImage;
 
     return *newImage;
+}
+
+Image& ResourceManager::createImage(const char* filename) {
+    if (hasImage(filename))
+        return getImage(filename);
+
+    int width, height, nrChannels;
+    unsigned char* data = stbi_load(filename, &width, &height, &nrChannels, 0);
+    if (data) {
+        ImageDesc imageDesc;
+        imageDesc.name = filename;
+        imageDesc.width = width;
+        imageDesc.height = height;
+        imageDesc.components = nrChannels;
+        imageDesc.bits = 8;                     // stb_image automatically converts
+        imageDesc.p_data = data;
+
+        auto& im = createImage(imageDesc);
+
+        stbi_image_free(data);
+        return im;
+    }
+    else {
+        printf("Failed to load image: \'%s\'\n", filename);
+        stbi_image_free(data);
+        return getImage(defaultImagesNames[Image::DefaultImages::DEFAULT_IMAGE_WHITE]);
+    }
+}
+
+Image& ResourceManager::createImage(const std::string& filename) {
+    return createImage(filename.c_str());
 }
 
 Sampler& ResourceManager::createSampler(const SamplerDesc& samplerDesc) {
@@ -70,19 +103,28 @@ Texture& ResourceManager::createTexture(const TextureDesc& textureDesc) {
 
     newTexture->name = textureDesc.name;
     newTexture->factor = textureDesc.factor;
+    newTexture->faces = textureDesc.faces;
 
     textures_[newTexture->name] = newTexture;
 
-    if (!textureDesc.p_image) {
+    if (!textureDesc.p_images[0]) {
         std::cout << "Image cannot be NULL !!!" << std::endl;
         return *newTexture;
     }
 
-    newTexture->image = textureDesc.p_image;
+    for(int i = 0; i < textureDesc.faces; ++i)
+        newTexture->images[i] = textureDesc.p_images[i];
 
     glGenTextures(1, &newTexture->GL_id);
 
-    glBindTexture(GL_TEXTURE_2D, newTexture->GL_id);
+    if(textureDesc.faces == 1)
+        glBindTexture(GL_TEXTURE_2D, newTexture->GL_id);
+    else if(textureDesc.faces == 6)
+        glBindTexture(GL_TEXTURE_CUBE_MAP, newTexture->GL_id);
+    else {
+        std::cout << "Number of faces must be 1 or 6 !!!" << std::endl;
+        return *newTexture;
+    }
     glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
     
     newTexture->sampler = textureDesc.p_sampler;
@@ -90,9 +132,9 @@ Texture& ResourceManager::createTexture(const TextureDesc& textureDesc) {
         newTexture->sampler = &getSampler(defaultSamplersNames[Sampler::DefaultSamplers::DEFAULT_SAMPLER_LINEAR_REPEAT]);
     }
 
-    GLenum format = GL_RGBA;
-
-    switch (newTexture->image->components) {
+    if (newTexture->faces == 1) {
+        GLenum format = GL_RGBA;
+        switch (newTexture->images[0]->components) {
         case 1:
             format = GL_RED;
             break;
@@ -107,17 +149,85 @@ Texture& ResourceManager::createTexture(const TextureDesc& textureDesc) {
             break;
         default:
             std::cout << "Undefined image format" << std::endl;
+        }
+
+        GLenum type = GL_UNSIGNED_BYTE;
+        if (newTexture->images[0]->bits == 16)
+            type = GL_UNSIGNED_SHORT;
+
+        glTexImage2D(
+            GL_TEXTURE_2D,
+            0,
+            GL_RGBA,
+            newTexture->images[0]->width,
+            newTexture->images[0]->height,
+            0,
+            format,
+            type,
+            newTexture->images[0]->image.data()
+        );
+        glBindTexture(GL_TEXTURE_2D, 0);
     }
+    else {
+        for (int i = 0; i < newTexture->faces; ++i) {
+            GLenum format = GL_RGBA;
+            switch (newTexture->images[i]->components) {
+            case 1:
+                format = GL_RED;
+                break;
+            case 2:
+                format = GL_RG;
+                break;
+            case 3:
+                format = GL_RGB;
+                break;
+            case 4:
+                format = GL_RGBA;
+                break;
+            default:
+                std::cout << "Undefined image format" << std::endl;
+            }
 
-    GLenum type = GL_UNSIGNED_BYTE;
-    if (newTexture->image->bits == 16)
-        type = GL_UNSIGNED_SHORT;
+            GLenum type = GL_UNSIGNED_BYTE;
+            if (newTexture->images[i]->bits == 16)
+                type = GL_UNSIGNED_SHORT;
 
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, newTexture->image->width, newTexture->image->height, 0, format, type, newTexture->image->image.data());
-
-    glBindTexture(GL_TEXTURE_2D, 0);
+            glTexImage2D(
+                GL_TEXTURE_CUBE_MAP_POSITIVE_X + i,
+                0,
+                GL_RGBA,
+                newTexture->images[i]->width,
+                newTexture->images[i]->height,
+                0,
+                format,
+                type,
+                newTexture->images[i]->image.data()
+            );
+        }
+        glBindTexture(GL_TEXTURE_CUBE_MAP, 0);
+    }
     return *newTexture;
 }
+
+Texture& ResourceManager::createTexture(const char* filename, Sampler* sampler) {
+    if (hasTexture(filename))
+        return getTexture(filename);
+
+    auto& image = createImage(filename);
+
+    TextureDesc texDesc;
+    texDesc.factor = glm::vec4(1.0f);
+    texDesc.name = filename;
+    texDesc.p_images[0] = &image;
+    texDesc.p_sampler = sampler;
+
+    return createTexture(texDesc);
+}
+
+Texture& ResourceManager::createTexture(const std::string& filename, Sampler* sampler) {
+    return createTexture(filename.c_str(), sampler);
+}
+
 
 Material& ResourceManager::createMaterial(const MaterialDesc& matDesc) {
     if (auto it = materials_.find(matDesc.name); it != materials_.end())
@@ -266,7 +376,7 @@ void ResourceManager::createDefaultImages() {
 
     std::vector<unsigned char> defaultValue;
     defaultValue.resize(4);
-    defaultDesc.p_data = &defaultValue;
+    defaultDesc.p_data = defaultValue.data();
 
     defaultDesc.name = defaultImagesNames[Image::DefaultImages::DEFAULT_IMAGE_WHITE];
     defaultValue[0] = 255;
@@ -324,12 +434,12 @@ void ResourceManager::createDefaultTextures() {
     defaultDesc.factor = glm::vec4(1.0);
 
     auto& defaultImageWhite = getImage(defaultImagesNames[Image::DefaultImages::DEFAULT_IMAGE_WHITE]);
-    defaultDesc.p_image = &defaultImageWhite;
+    defaultDesc.p_images[0] = &defaultImageWhite;
     defaultDesc.name = defaultTexturesNames[Texture::DefaultTextures::DEFAULT_TEXTURE_WHITE];
     createTexture(defaultDesc);
 
     auto& defaultImageBlack = getImage(defaultImagesNames[Image::DefaultImages::DEFAULT_IMAGE_BLACK]);
-    defaultDesc.p_image = &defaultImageBlack;
+    defaultDesc.p_images[0] = &defaultImageBlack;
     defaultDesc.name = defaultTexturesNames[Texture::DefaultTextures::DEFAULT_TEXTURE_BLACK];
     createTexture(defaultDesc);
 }

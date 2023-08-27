@@ -25,15 +25,15 @@ add_executable(
 	${SRC_DIR}/Camera.cpp
 	${SRC_DIR}/Cube.cpp
 	${SRC_DIR}/ISceneObject.cpp
-	${SRC_DIR}/Model.cpp
 	${SRC_DIR}/GLTFLoader.cpp
-	${SRC_DIR}/Mesh.cpp
 	${SRC_DIR}/SceneNode.cpp
 	${SRC_DIR}/Image.cpp
-	${SRC_DIR}/Texture.cpp
 	${SRC_DIR}/Sampler.cpp
-	${SRC_DIR}/ResourceManager.cpp
+	${SRC_DIR}/Texture.cpp
 	${SRC_DIR}/Material.cpp
+	${SRC_DIR}/Mesh.cpp
+	${SRC_DIR}/Model.cpp
+	${SRC_DIR}/ResourceManager.cpp
 	${SRC_DIR}/SceneManager.cpp
 )
 

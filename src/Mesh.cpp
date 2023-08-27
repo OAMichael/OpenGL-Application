@@ -128,7 +128,8 @@ void Geometry::Mesh::init()
             glm::vec4 factor = glm::vec4(baseColorFactor[0], baseColorFactor[1], baseColorFactor[2], baseColorFactor[3]);
             Resources::TextureDesc texDesc = {
                 "base_color_" + modelRef.materials[primitive.material].name,
-                &defaultWhiteImage,
+                1,
+                { &defaultWhiteImage, nullptr, nullptr, nullptr, nullptr, nullptr },
                 factor
             };
 
@@ -143,11 +144,11 @@ void Geometry::Mesh::init()
                         image.height,
                         image.component,
                         image.bits,
-                        &image.image
+                        image.image.data()
                     };
                     auto& baseColorImage = resourceManager->createImage(imDesc);
                     texDesc.name = baseColorImage.name;
-                    texDesc.p_image = &baseColorImage;
+                    texDesc.p_images[0] = &baseColorImage;
                 }
             }
             auto& baseColorTexture = resourceManager->createTexture(texDesc);
@@ -162,7 +163,8 @@ void Geometry::Mesh::init()
 
             Resources::TextureDesc texDesc = {
                 "metallic_roughness_" + modelRef.materials[primitive.material].name,
-                &defaultWhiteImage,
+                1,
+                { &defaultWhiteImage, nullptr, nullptr, nullptr, nullptr, nullptr },
                 factor
             };
 
@@ -177,11 +179,11 @@ void Geometry::Mesh::init()
                         image.height,
                         image.component,
                         image.bits,
-                        &image.image
+                        image.image.data()
                     };
                     auto& metallicRoughnessImage = resourceManager->createImage(imDesc);
                     texDesc.name = metallicRoughnessImage.name;
-                    texDesc.p_image = &metallicRoughnessImage;
+                    texDesc.p_images[0] = &metallicRoughnessImage;
                 }
             }
             auto& metallicRoughnessTexture = resourceManager->createTexture(texDesc);
@@ -195,7 +197,8 @@ void Geometry::Mesh::init()
 
             Resources::TextureDesc texDesc = {
                 "emissive_" + modelRef.materials[primitive.material].name,
-                &defaultWhiteImage,
+                1,
+                { &defaultWhiteImage, nullptr, nullptr, nullptr, nullptr, nullptr },
                 factor
             };
 
@@ -210,11 +213,11 @@ void Geometry::Mesh::init()
                         image.height,
                         image.component,
                         image.bits,
-                        &image.image
+                        image.image.data()
                     };
                     auto& emissiveImage = resourceManager->createImage(imDesc);
                     texDesc.name = emissiveImage.name;
-                    texDesc.p_image = &emissiveImage;
+                    texDesc.p_images[0] = &emissiveImage;
                 }
             }
             auto& emissiveTexture = resourceManager->createTexture(texDesc);
@@ -227,7 +230,8 @@ void Geometry::Mesh::init()
 
             Resources::TextureDesc texDesc = {
                 "normal_" + modelRef.materials[primitive.material].name,
-                &defaultWhiteImage,
+                1,
+                { &defaultWhiteImage, nullptr, nullptr, nullptr, nullptr, nullptr },
                 factor
             };
 
@@ -242,11 +246,11 @@ void Geometry::Mesh::init()
                         image.height,
                         image.component,
                         image.bits,
-                        &image.image
+                        image.image.data()
                     };
                     auto& normalImage = resourceManager->createImage(imDesc);
                     texDesc.name = normalImage.name;
-                    texDesc.p_image = &normalImage;
+                    texDesc.p_images[0] = &normalImage;
                 }
             }
             auto& normalTexture = resourceManager->createTexture(texDesc);
@@ -259,7 +263,8 @@ void Geometry::Mesh::init()
 
             Resources::TextureDesc texDesc = {
                 "occlusion_" + modelRef.materials[primitive.material].name,
-                &defaultWhiteImage,
+                1,
+                { &defaultWhiteImage, nullptr, nullptr, nullptr, nullptr, nullptr },
                 factor
             };
 
@@ -274,11 +279,11 @@ void Geometry::Mesh::init()
                         image.height,
                         image.component,
                         image.bits,
-                        &image.image
+                        image.image.data()
                     };
                     auto& occlusionImage = resourceManager->createImage(imDesc);
                     texDesc.name = occlusionImage.name;
-                    texDesc.p_image = &occlusionImage;
+                    texDesc.p_images[0] = &occlusionImage;
                 }
             }
             auto& occlusionTexture = resourceManager->createTexture(texDesc);

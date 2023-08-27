@@ -38,14 +38,11 @@ private:
     bool FirstMouse_ = true;
     bool IsFullscreen_ = false;
 
-    Geometry::Cube Skybox_{glm::vec3(0.0f)};
-    GeneralApp::Shader SkyboxShader_;
-
     GeneralApp::Shader ModelShader_;
 
     bool MouseHidden_ = true;
 
-    Geometry::Model Model_{"../models/ABeautifulGame/ABeautifulGame.gltf"};
+    Geometry::Model Model_{"../models/AntiqueCamera/AntiqueCamera.gltf"};
 
 public:
     PotentialApp();

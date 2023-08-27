@@ -1,5 +1,6 @@
 #include "../headers/PotentialApp.hpp"
 #include "../headers/ResourceManager.hpp"
+#include "../headers/SceneManager.hpp"
 
 void PotentialApp::renderToWindow() {
     
@@ -18,9 +19,10 @@ void PotentialApp::renderToWindow() {
     } ubo;
 
     auto resourceManager = Resources::ResourceManager::getInstance();
+    auto sceneManager = SceneResources::SceneManager::getInstance();
+
     resourceManager->createUBO<Matrices>(0, &ubo, sizeof(ubo), "Matrices");
     ModelShader_.bindUBO(0, "Matrices");
-    SkyboxShader_.bindUBO(0, "Matrices");
 
     while(!glfwWindowShouldClose(window_)) {
 
@@ -41,23 +43,8 @@ void PotentialApp::renderToWindow() {
         ModelShader_.setVec3("cameraWorldPos", Camera_.getPosition());
 
         Model_.draw(ModelShader_);
+        sceneManager->drawEnvironment();
 
-
-        // Skybox shader runs
-        glDepthFunc(GL_LEQUAL);
-        glFrontFace(GL_CCW);
-
-        SkyboxShader_.use();
-        glActiveTexture(GL_TEXTURE0);
-        glBindVertexArray(VAOs_[0]);
-        glBindTexture(GL_TEXTURE_CUBE_MAP, Skybox_.getCubemapTextureHandle());
-
-        glDrawArrays(GL_TRIANGLES, 0, 36);
-        
-        glBindVertexArray(0);
-
-        glDepthFunc(GL_LESS);
-        
         glfwSwapBuffers(window_);
         glfwPollEvents();    
     }
@@ -185,24 +172,10 @@ PotentialApp::PotentialApp() {
 
 
 void PotentialApp::initRender() {
-    unsigned VAOSkybox, VBOSkybox;
-    VAOs_.push_back(VAOSkybox);
-    VBOs_.push_back(VBOSkybox);
+    auto sceneManager = SceneResources::SceneManager::getInstance();
 
-    glGenVertexArrays(1, &VAOs_[0]);
-    glGenBuffers(1, &VBOs_[0]);
-    glBindVertexArray(VAOs_[0]);
-
-    std::vector<float> vertsSkybox = Skybox_.getVertices();
-    glBindBuffer(GL_ARRAY_BUFFER, VBOs_[0]);
-    glBufferData(GL_ARRAY_BUFFER, vertsSkybox.size() * sizeof(float), vertsSkybox.data(), GL_STATIC_DRAW);
-
-    glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
-    
-    SkyboxShader_ = GeneralApp::Shader("../shaders/Skybox.vert", "../shaders/Skybox.frag");
-
-    const std::vector<std::string> texturesSkybox = {
+    /*
+    const std::vector<std::string> texturesNames = {
         "../textures/posx.jpg",
         "../textures/negx.jpg",
         "../textures/posy.jpg",
@@ -210,19 +183,21 @@ void PotentialApp::initRender() {
         "../textures/posz.jpg",
         "../textures/negz.jpg"
     };
+    sceneManager->createEnvironment(SceneResources::SceneManager::EnvironmentType::SKYBOX, texturesNames);
+    */
 
-    Skybox_.generateTextures(texturesSkybox);
+    const std::vector<std::string> texturesNames = {
+        "../textures/city.jpg"
+    };
+    sceneManager->createEnvironment(SceneResources::SceneManager::EnvironmentType::BACKGROUND_IMAGE_2D, texturesNames);
 
-    
     ModelShader_ = GeneralApp::Shader("../shaders/Model.vert", "../shaders/Model.frag");
-
 
     glEnable(GL_DEPTH_TEST);
 
     glEnable(GL_CULL_FACE);
     glCullFace(GL_BACK); 
     glFrontFace(GL_CCW);
-    glEnable(GL_TEXTURE_CUBE_MAP_SEAMLESS);
 }
 
 

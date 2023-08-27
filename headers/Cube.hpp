@@ -63,19 +63,10 @@ private:
          0.5f, -0.5f,  0.5f
     };
 
-    unsigned cubemapTexture_;
-    std::vector<std::string> faceTextureNames_;
-
-
 public:
 	Cube();
 	Cube(const glm::vec3& pos);
 	~Cube();
-
-	void generateTextures(const std::vector<std::string>& textureNames);
-	void setTextures(const std::vector<std::string>& textureNames);
-
-	unsigned getCubemapTextureHandle() const;
 
 	const std::vector<float>& getVertices() const;
 

@@ -3,7 +3,7 @@
 
 #include <unordered_map>
 
-//#define DEBUG_MODEL
+#define DEBUG_MODEL
 
 #include "../headers/Image.hpp"
 #include "../headers/Sampler.hpp"
@@ -20,7 +20,7 @@ struct ImageDesc {
 	int components;
 	int bits;
 
-	const std::vector<unsigned char>* p_data;
+	const unsigned char* p_data;
 };
 
 struct SamplerDesc {
@@ -37,7 +37,8 @@ struct SamplerDesc {
 struct TextureDesc {
 	std::string name;
 
-	Image* p_image;
+	unsigned faces = 1;
+	Image* p_images[6] = { nullptr, nullptr, nullptr, nullptr, nullptr, nullptr };
 	glm::vec4 factor;
 
 	Sampler* p_sampler = nullptr;
@@ -48,7 +49,6 @@ struct MaterialDesc {
 
 	Texture* p_TexArray[Material::TextureIdx::COUNT];
 };
-
 
 
 class ResourceManager final {
@@ -84,9 +84,17 @@ public:
 	}
 
 	Image& createImage(const ImageDesc& imageDesc);
+	Image& createImage(const char* filename);
+	Image& createImage(const std::string& filename);
+
 	Sampler& createSampler(const SamplerDesc& samplerDesc);
+	
 	Texture& createTexture(const TextureDesc& textureDesc);
+	Texture& createTexture(const char* filename, Sampler* sampler = nullptr);
+	Texture& createTexture(const std::string& filename, Sampler* sampler = nullptr);
+
 	Material& createMaterial(const MaterialDesc& matDesc);
+
 
 	template<typename T>
 	void createUBO(const unsigned binding, const T* data, const size_t bytesize, const std::string& name) {

@@ -17,7 +17,8 @@ struct Texture {
     unsigned int GL_id;
     std::string name;
 
-    Image* image = nullptr;
+    unsigned faces = 1;
+    Image* images[6] = { nullptr, nullptr, nullptr, nullptr, nullptr, nullptr };
     glm::vec4 factor = glm::vec4(1.0f);
 
     Sampler* sampler;
