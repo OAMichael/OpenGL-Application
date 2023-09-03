@@ -1,4 +1,4 @@
-#include "../headers/Camera.hpp"
+#include "Camera.hpp"
 
 
 namespace GeneralApp {

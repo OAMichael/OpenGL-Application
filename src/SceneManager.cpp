@@ -1,5 +1,5 @@
-#include "../headers/SceneManager.hpp"
-#include "../headers/ResourceManager.hpp"
+#include "SceneManager.hpp"
+#include "ResourceManager.hpp"
 
 
 namespace SceneResources {
@@ -44,58 +44,8 @@ bool SceneManager::hasSceneNode(const std::string& name) {
 }
 
 
-void SceneManager::createSkybox(const std::vector<std::string>& textureNames) {
-    glGenVertexArrays(1, &VAOSkybox_);
-    glGenBuffers(1, &VBOSkybox_);
-    glBindVertexArray(VAOSkybox_);
-
-    const std::vector<float>& vertsSkybox = Skybox_.getVertices();
-    glBindBuffer(GL_ARRAY_BUFFER, VBOSkybox_);
-    glBufferData(GL_ARRAY_BUFFER, vertsSkybox.size() * sizeof(float), vertsSkybox.data(), GL_STATIC_DRAW);
-
-    glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
-
-    auto resourceManager = Resources::ResourceManager::getInstance();
-
-    unsigned faces = 6;
-    Resources::TextureDesc texDesc;
-    texDesc.faces = 6;
-    texDesc.factor = glm::vec4(1.0);
-    texDesc.name = "SKYBOX_TEXTURE";
-
-    for (unsigned i = 0; i < faces; ++i) {
-        auto& newImage = resourceManager->createImage(textureNames[i]);
-        texDesc.p_images[i] = &newImage;
-    }
-    resourceManager->createTexture(texDesc);
-
-    glEnable(GL_TEXTURE_CUBE_MAP_SEAMLESS);
-
-    glBindVertexArray(0);
-    glBindBuffer(GL_ARRAY_BUFFER, 0);
-}
-
-void SceneManager::drawSkybox() {
-    auto resourceManager = Resources::ResourceManager::getInstance();
-
-    glDepthFunc(GL_LEQUAL);
-    glFrontFace(GL_CCW);
-
-    const auto& skyboxTexture = resourceManager->getTexture("SKYBOX_TEXTURE");
-
-    glBindVertexArray(VAOSkybox_);
-
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_CUBE_MAP, skyboxTexture.GL_id);
-    glBindSampler(0, skyboxTexture.sampler->GL_id);
-
-    glDrawArrays(GL_TRIANGLES, 0, 36);
-
-    glBindTexture(GL_TEXTURE_CUBE_MAP, 0);
-    glBindVertexArray(0);
-
-    glDepthFunc(GL_LESS);
+SceneManager::EnvironmentType SceneManager::getEnvironmentType() {
+    return envType_;
 }
 
 
@@ -159,11 +109,125 @@ void SceneManager::drawBackground2D() {
     glDepthFunc(GL_LESS);
 }
 
-void SceneManager::createEnvironment(const EnvironmentType envType, const std::vector<std::string>& textureNames) {
 
-    defaultEnvShader_ = GeneralApp::Shader("../shaders/DefaultEnv.vert", "../shaders/DefaultEnv.frag");
-    defaultEnvShader_.use();
-    defaultEnvShader_.setUint("environmentType", (uint32_t)envType);
+void SceneManager::createSkybox(const std::vector<std::string>& textureNames) {
+    glGenVertexArrays(1, &VAOSkybox_);
+    glGenBuffers(1, &VBOSkybox_);
+    glBindVertexArray(VAOSkybox_);
+
+    const std::vector<float>& vertsSkybox = Skybox_.getVertices();
+    glBindBuffer(GL_ARRAY_BUFFER, VBOSkybox_);
+    glBufferData(GL_ARRAY_BUFFER, vertsSkybox.size() * sizeof(float), vertsSkybox.data(), GL_STATIC_DRAW);
+
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
+
+    auto resourceManager = Resources::ResourceManager::getInstance();
+
+    unsigned faces = 6;
+    Resources::TextureDesc texDesc;
+    texDesc.faces = 6;
+    texDesc.factor = glm::vec4(1.0);
+    texDesc.name = "SKYBOX_TEXTURE";
+
+    for (unsigned i = 0; i < faces; ++i) {
+        auto& newImage = resourceManager->createImage(textureNames[i]);
+        texDesc.p_images[i] = &newImage;
+    }
+    resourceManager->createTexture(texDesc);
+    resourceManager->generateMipMaps(texDesc.name);
+    glEnable(GL_TEXTURE_CUBE_MAP_SEAMLESS);
+
+    glBindVertexArray(0);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+}
+
+void SceneManager::drawSkybox() {
+    auto resourceManager = Resources::ResourceManager::getInstance();
+
+    glDepthFunc(GL_LEQUAL);
+    glFrontFace(GL_CCW);
+
+    const auto& skyboxTexture = resourceManager->getTexture("SKYBOX_TEXTURE");
+
+    glBindVertexArray(VAOSkybox_);
+
+    glActiveTexture(GL_TEXTURE1);
+    glBindTexture(GL_TEXTURE_CUBE_MAP, skyboxTexture.GL_id);
+    glBindSampler(1, skyboxTexture.sampler->GL_id);
+
+    glDrawArrays(GL_TRIANGLES, 0, 36);
+
+    glBindTexture(GL_TEXTURE_CUBE_MAP, 0);
+    glBindVertexArray(0);
+
+    glDepthFunc(GL_LESS);
+}
+
+
+void SceneManager::createEquirectangular(const std::string& textureName) {
+    glGenVertexArrays(1, &VAOEquirect_);
+    glGenBuffers(1, &VBOEquirect_);
+    glBindVertexArray(VAOEquirect_);
+
+    const std::vector<float>& cubeMapVert = Equirect_.getVertices();
+    glBindBuffer(GL_ARRAY_BUFFER, VBOEquirect_);
+    glBufferData(GL_ARRAY_BUFFER, cubeMapVert.size() * sizeof(float), cubeMapVert.data(), GL_STATIC_DRAW);
+
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
+
+    auto resourceManager = Resources::ResourceManager::getInstance();
+
+    Resources::TextureDesc texDesc;
+    texDesc.faces = 1;
+    texDesc.factor = glm::vec4(1.0);
+    texDesc.name = "EQUIRECTANGULAR_TEXTURE";
+
+    auto& newImage = resourceManager->createImage(textureName);
+    texDesc.p_images[0] = &newImage;
+
+    resourceManager->createTexture(texDesc);
+    resourceManager->generateMipMaps(texDesc.name);
+
+    glBindVertexArray(0);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+}
+
+void SceneManager::drawEquirectangular() {
+    auto resourceManager = Resources::ResourceManager::getInstance();
+
+    glDepthFunc(GL_LEQUAL);
+    glFrontFace(GL_CCW);
+
+    const auto& equirectTexture = resourceManager->getTexture("EQUIRECTANGULAR_TEXTURE");
+
+    glBindVertexArray(VAOEquirect_);
+
+    glActiveTexture(GL_TEXTURE2);
+    glBindTexture(GL_TEXTURE_2D, equirectTexture.GL_id);
+    glBindSampler(2, equirectTexture.sampler->GL_id);
+
+    glDrawArrays(GL_TRIANGLES, 0, 36);
+
+    glBindTexture(GL_TEXTURE_2D, 0);
+    glBindVertexArray(0);
+
+    glDepthFunc(GL_LESS);
+}
+
+
+void SceneManager::createEnvironment(const EnvironmentType envType, const std::vector<std::string>& textureNames) {
+    auto resourceManager = Resources::ResourceManager::getInstance();
+
+    Resources::ShaderDesc shaderDesc = {"Default_Environment", "../shaders/DefaultEnv.vert", "../shaders/DefaultEnv.frag"};
+    auto& envShader = resourceManager->createShader(shaderDesc);
+
+    envShader.use();
+    envShader.setUint("environmentType", (uint32_t)envType);
+    envShader.setInt("uSamplerBackground2D", 0);
+    envShader.setInt("uSamplerSkybox", 1);
+    envShader.setInt("uSamplerEquirect", 2);
 
     envType_ = envType;
     switch (envType) {
@@ -181,6 +245,13 @@ void SceneManager::createEnvironment(const EnvironmentType envType, const std::v
         createSkybox(textureNames);
         break;
 
+    case EnvironmentType::EQUIRECTANGULAR:
+        if (textureNames.size() != 1)
+            return;
+
+        createEquirectangular(textureNames[0]);
+        break;
+
     default:
         std::cout << "Unknown environment type" << std::endl;
     }
@@ -193,7 +264,9 @@ void SceneManager::createEnvironment(const EnvironmentType envType, const std::s
 }
 
 void SceneManager::drawEnvironment() {
-    defaultEnvShader_.use();
+    auto resourceManager = Resources::ResourceManager::getInstance();
+    auto& envShader = resourceManager->getShader("Default_Environment");
+    envShader.use();
     switch (envType_) {
     case EnvironmentType::BACKGROUND_IMAGE_2D:
         drawBackground2D();
@@ -201,6 +274,10 @@ void SceneManager::drawEnvironment() {
 
     case EnvironmentType::SKYBOX:
         drawSkybox();
+        break;
+
+    case EnvironmentType::EQUIRECTANGULAR:
+        drawEquirectangular();
         break;
 
     default:;

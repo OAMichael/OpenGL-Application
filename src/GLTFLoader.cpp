@@ -1,6 +1,6 @@
 #include <iostream>
 
-#include "../headers/GLTFLoader.hpp"
+#include "GLTFLoader.hpp"
 
 
 namespace GLTF {

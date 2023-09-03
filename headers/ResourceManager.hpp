@@ -5,10 +5,12 @@
 
 #define DEBUG_MODEL
 
-#include "../headers/Image.hpp"
-#include "../headers/Sampler.hpp"
-#include "../headers/Texture.hpp"
-#include "../headers/Material.hpp"
+#include "Image.hpp"
+#include "Sampler.hpp"
+#include "Texture.hpp"
+#include "Material.hpp"
+#include "Buffer.hpp"
+#include "Shader.hpp"
 
 namespace Resources {
 
@@ -50,6 +52,21 @@ struct MaterialDesc {
 	Texture* p_TexArray[Material::TextureIdx::COUNT];
 };
 
+struct BufferDesc {
+	std::string name;
+	unsigned int target;
+
+	const unsigned char* p_data;
+	size_t bytesize;
+};
+
+struct ShaderDesc {
+	std::string name;
+
+	std::string vertFilename;
+	std::string fragFilename;
+};
+
 
 class ResourceManager final {
 private:
@@ -57,12 +74,16 @@ private:
 	std::unordered_map<std::string, Sampler*> samplers_;
 	std::unordered_map<std::string, Texture*> textures_;
 	std::unordered_map<std::string, Material*> materials_;
+	std::unordered_map<std::string, Buffer*> buffers_;
+	std::unordered_map<std::string, GeneralApp::Shader*> shaders_;
 
+	/*
 	struct UBO {
-		unsigned int binding;
+		unsigned int GL_id;
 		std::string name;
 	};
 	std::vector<UBO> UBOs_;
+	*/
 
 	void createDefaultImages();
 	void createDefaultSamplers();
@@ -95,46 +116,36 @@ public:
 
 	Material& createMaterial(const MaterialDesc& matDesc);
 
+	Buffer& createBuffer(const BufferDesc& bufDesc);
+	void updateBuffer(const std::string& name, const unsigned char* data, const size_t bytesize, const size_t byteoffset = 0);
+	void bindBufferShader(const std::string& name, const unsigned binding, const GeneralApp::Shader& shader);
 
-	template<typename T>
-	void createUBO(const unsigned binding, const T* data, const size_t bytesize, const std::string& name) {
-		unsigned int ubo;
-		glGenBuffers(1, &ubo);
+	GeneralApp::Shader& createShader(const ShaderDesc& shaderDesc);
 
-		glBindBuffer(GL_UNIFORM_BUFFER, ubo);
-		glBufferData(GL_UNIFORM_BUFFER, bytesize, data, GL_STATIC_DRAW);
-		glBindBuffer(GL_UNIFORM_BUFFER, 0);
-
-		glBindBufferRange(GL_UNIFORM_BUFFER, binding, ubo, 0, bytesize);
-
-		UBOs_.push_back({ ubo, name });
-	}
-
-	template<typename T>
-	void updateUBO(const T* data, const size_t bytesize, const size_t byteoffset, const std::string& name) {
-		if (auto it = std::find_if(UBOs_.begin(), UBOs_.end(), [&name](const UBO& u) -> bool { return u.name == name; });
-		it != UBOs_.end()) {
-			glBindBuffer(GL_UNIFORM_BUFFER, it->binding);
-			glBufferSubData(GL_UNIFORM_BUFFER, byteoffset, bytesize, data);
-			glBindBuffer(GL_UNIFORM_BUFFER, 0);
-		}
-	}
+	void generateMipMaps(const std::string& texName);
 
 	void deleteImage(const std::string& name);
 	void deleteSampler(const std::string& name);
 	void deleteTexture(const std::string& name);
 	void deleteMaterial(const std::string& name);
+	void deleteBuffer(const std::string& name);
+	void deleteShader(const std::string& name);
 
 	Image& getImage(const std::string& name);
 	Sampler& getSampler(const std::string& name);
 	Texture& getTexture(const std::string& name);
 	Material& getMaterial(const std::string& name);
+	Buffer& getBuffer(const std::string& name);
+	GeneralApp::Shader& getShader(const std::string& name);
 
 	bool hasImage(const std::string& name);
 	bool hasSampler(const std::string& name);
 	bool hasTexture(const std::string& name);
 	bool hasMaterial(const std::string& name);
+	bool hasBuffer(const std::string& name);
+	bool hasShader(const std::string& name);
 
+	void cleanUp();
 
 	~ResourceManager();
 };

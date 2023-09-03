@@ -13,13 +13,13 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
-#include "../headers/IApplication.hpp"
-#include "../headers/Shader.hpp"
-#include "../headers/Camera.hpp"
-#include "../headers/Cube.hpp"
-#include "../headers/GLTFLoader.hpp"
-#include "../headers/Model.hpp"
-#include "../headers/Mesh.hpp"
+#include "IApplication.hpp"
+#include "Shader.hpp"
+#include "Camera.hpp"
+#include "Cube.hpp"
+#include "GLTFLoader.hpp"
+#include "Model.hpp"
+#include "Mesh.hpp"
 
 #include <tinygltf/tiny_gltf.h>
 
@@ -27,10 +27,11 @@
 
 class PotentialApp : public GeneralApp::IApplication {
 private:
-    
-    std::vector<unsigned> VBOs_;
-    std::vector<unsigned> VAOs_; 
-    std::vector<unsigned> EBOs_;
+    struct Matrices {
+        glm::mat4 view;
+        glm::mat4 proj;
+        glm::mat4 model;
+    };
 
     GeneralApp::Camera Camera_{glm::vec3(0.0f, 3.0f, 0.0f), glm::vec3(0.0f, 0.0f, -1.0f), glm::vec3(0.0f, 1.0f, 0.0f), glm::vec3(1.0f, 0.0f, 0.0f)};
 
@@ -38,11 +39,12 @@ private:
     bool FirstMouse_ = true;
     bool IsFullscreen_ = false;
 
-    GeneralApp::Shader ModelShader_;
-
     bool MouseHidden_ = true;
 
-    Geometry::Model Model_{"../models/AntiqueCamera/AntiqueCamera.gltf"};
+    Geometry::Model Models_[2] = { 
+        {"DamagedHelmet", "../models/DamagedHelmet/DamagedHelmet.gltf"},
+        {"Chess", "../models/ABeautifulGame/ABeautifulGame.gltf"} 
+    };
 
 public:
     PotentialApp();

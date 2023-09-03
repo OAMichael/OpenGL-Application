@@ -1,7 +1,7 @@
 #ifndef MATERIAL_HPP
 #define MATERIAL_HPP
 
-#include "../headers/Texture.hpp"
+#include "Texture.hpp"
 
 namespace Resources {
 

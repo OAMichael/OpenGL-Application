@@ -1,28 +1,30 @@
-#include "../headers/PotentialApp.hpp"
-#include "../headers/ResourceManager.hpp"
-#include "../headers/SceneManager.hpp"
+#include "PotentialApp.hpp"
+#include "ResourceManager.hpp"
+#include "SceneManager.hpp"
 
 void PotentialApp::renderToWindow() {
     
     this->initRender();
-
     this->initCamera();
 
-    GLTF::GLTFLoader* GLTFloader_ = GLTF::GLTFLoader::getInstance();
-    GLTFloader_->load(Model_.getModelRef(), Model_.getFilename());
-    Model_.init();
-
-    struct Matrices {
-        glm::mat4 view;
-        glm::mat4 proj;
-        glm::mat4 model;
-    } ubo;
-
+    auto GLTFloader = GLTF::GLTFLoader::getInstance();
     auto resourceManager = Resources::ResourceManager::getInstance();
     auto sceneManager = SceneResources::SceneManager::getInstance();
 
-    resourceManager->createUBO<Matrices>(0, &ubo, sizeof(ubo), "Matrices");
-    ModelShader_.bindUBO(0, "Matrices");
+    auto& rootNode = sceneManager->createSceneNode("RootNode");
+    for (auto& model : Models_) {
+        GLTFloader->load(model.getModelRef(), model.getFilename());
+        model.init();
+        model.getModelRootNode()->setParent(&rootNode);
+    }
+    rootNode.printNode();
+
+
+    Matrices ubo;
+
+    resourceManager->updateBuffer("Matrices", (const unsigned char*)&ubo, sizeof(ubo));
+
+    auto& modelShader = resourceManager->getShader("Model_Shader");
 
     while(!glfwWindowShouldClose(window_)) {
 
@@ -30,29 +32,28 @@ void PotentialApp::renderToWindow() {
 
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
+        glClearDepth(1.0);
 
         Camera_.updateMatrices();
         ubo.view = Camera_.getView();
         ubo.proj = Camera_.getProj();
         ubo.model = glm::mat4(1.0f);
-        resourceManager->updateUBO(&ubo, sizeof(ubo), 0, "Matrices");
+        resourceManager->updateBuffer("Matrices", (const unsigned char*)&ubo, sizeof(ubo));
 
-        ModelShader_.use();
+        modelShader.use();
 
-        ModelShader_.setFloat("time", lastFrame_);
-        ModelShader_.setVec3("cameraWorldPos", Camera_.getPosition());
+        modelShader.setFloat("time", lastFrame_);
+        modelShader.setVec3("cameraWorldPos", Camera_.getPosition());
 
-        Model_.draw(ModelShader_);
+        for (auto& model : Models_) {
+            model.draw(modelShader);
+        }
+
         sceneManager->drawEnvironment();
 
         glfwSwapBuffers(window_);
         glfwPollEvents();    
     }
-
-    glDeleteVertexArrays(VAOs_.size(), &VAOs_[0]);
-    glDeleteBuffers(VBOs_.size(), &VBOs_[0]);
-    VAOs_.resize(0);
-    VBOs_.resize(0);
 }
 
 
@@ -166,15 +167,20 @@ void PotentialApp::keyboardCallback(GLFWwindow* window, int key, int scancode, i
 PotentialApp::PotentialApp() {
     m_Application = this;
 
-    enableDefaultMSAA_ = true;
-    samples_ = 4;
+    enableDefaultMSAA_ = false;// true;
+    samples_ = 1;
 }
 
 
 void PotentialApp::initRender() {
     auto sceneManager = SceneResources::SceneManager::getInstance();
+    auto resourceManager = Resources::ResourceManager::getInstance();
 
-    /*
+    Resources::ShaderDesc shaderDesc = {"Model_Shader", "../shaders/Model.vert", "../shaders/Model.frag"};
+    auto& modelShader = resourceManager->createShader(shaderDesc);
+
+
+    
     const std::vector<std::string> texturesNames = {
         "../textures/posx.jpg",
         "../textures/negx.jpg",
@@ -184,14 +190,33 @@ void PotentialApp::initRender() {
         "../textures/negz.jpg"
     };
     sceneManager->createEnvironment(SceneResources::SceneManager::EnvironmentType::SKYBOX, texturesNames);
-    */
-
+    
+    /*
     const std::vector<std::string> texturesNames = {
         "../textures/city.jpg"
     };
     sceneManager->createEnvironment(SceneResources::SceneManager::EnvironmentType::BACKGROUND_IMAGE_2D, texturesNames);
+    */
+    /*
+    const std::vector<std::string> texturesNames = {
+        "../textures/equirect.jpg"
+    };
+    sceneManager->createEnvironment(SceneResources::SceneManager::EnvironmentType::EQUIRECTANGULAR, texturesNames);
+    */
 
-    ModelShader_ = GeneralApp::Shader("../shaders/Model.vert", "../shaders/Model.frag");
+    Resources::BufferDesc bufDesc;
+    bufDesc.name = "Matrices";
+    bufDesc.bytesize = sizeof(Matrices);
+    bufDesc.target = GL_UNIFORM_BUFFER;
+    bufDesc.p_data = nullptr;
+
+    resourceManager->createBuffer(bufDesc);
+
+    auto& envShader = resourceManager->getShader("Default_Environment");
+
+    resourceManager->bindBufferShader("Matrices", 0, modelShader);
+    resourceManager->bindBufferShader("Matrices", 0, envShader);
+
 
     glEnable(GL_DEPTH_TEST);
 

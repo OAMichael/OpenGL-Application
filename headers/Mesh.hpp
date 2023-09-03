@@ -1,8 +1,8 @@
 #ifndef MESH_HPP
 #define MESH_HPP
 
-#include "../headers/Shader.hpp"
-#include "../headers/Texture.hpp"
+#include "Shader.hpp"
+#include "Texture.hpp"
 
 #include <vector>
 #include <unordered_map>

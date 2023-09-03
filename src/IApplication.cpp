@@ -1,4 +1,4 @@
-#include "../headers/IApplication.hpp"
+#include "IApplication.hpp"
 
 
 namespace GeneralApp {

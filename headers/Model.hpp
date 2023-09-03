@@ -6,9 +6,9 @@
 
 #include <tinygltf/tiny_gltf.h>
 
-#include "../headers/ISceneObject.hpp"
-#include "../headers/SceneNode.hpp"
-#include "../headers/Texture.hpp"
+#include "ISceneObject.hpp"
+#include "SceneNode.hpp"
+#include "Texture.hpp"
 
 namespace Geometry {
 
@@ -16,18 +16,20 @@ class Model final : public ISceneObject {
 private:
 	tinygltf::Model model_;
 	std::string filename_;
-	SceneNode* rootNode_;
-	std::vector<SceneNode*> nodes_;
+	SceneNode* rootNode_ = nullptr;
+
+	std::string name_;
 
 public:
 	Model() {};
-	Model(const std::string& filename);
-	Model(const char* filename);
+	Model(const std::string& name, const std::string& filename);
 
 	~Model();
 
 	tinygltf::Model& getModelRef();
-	const std::string getFilename();
+	const std::string& getFilename() const;
+	const std::string& getName() const;
+	SceneNode* getModelRootNode();
 
 	void init();
 	void draw(GeneralApp::Shader& shader);

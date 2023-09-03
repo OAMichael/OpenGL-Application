@@ -1,4 +1,4 @@
-#include "../headers/Image.hpp"
+#include "Image.hpp"
 
 std::string Resources::defaultImagesNames[Image::DefaultImages::COUNT] = {
 	"DEFAULT_IMAGE_WHITE",

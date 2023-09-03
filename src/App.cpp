@@ -1,7 +1,7 @@
 #include <iostream>
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
-#include "../headers/PotentialApp.hpp"
+#include "PotentialApp.hpp"
 
 
 #define TINYGLTF_IMPLEMENTATION

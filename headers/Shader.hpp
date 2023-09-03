@@ -5,21 +5,22 @@
 
 #include <string>
 #include <fstream>
-#include <sstream>
 #include <iostream>
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
-
 
 namespace GeneralApp {
 
 class Shader {
 
 private:
-    unsigned ID_;
     void checkCompileErrors(const GLuint& shader, const std::string& type);
+    std::string PreprocessIncludes(const std::string& source, const std::string& filename, int level = 0);
 
 public:
+    unsigned GL_id;
+    std::string name;
+
     Shader();
     Shader(const char* vertexPath, const char* fragmentPath);
     ~Shader();
@@ -27,9 +28,7 @@ public:
     void use() const;
 
     unsigned getID() const;
-
-    void bindUBO(const unsigned binding, const std::string& name);
-
+    
     void setBool(const std::string& name, const bool& value) const;
 
     void setInt(const std::string& name, const int& value) const;

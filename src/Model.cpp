@@ -1,6 +1,6 @@
-#include "../headers/ResourceManager.hpp"
-#include "../headers/SceneManager.hpp"
-#include "../headers/Model.hpp"
+#include "ResourceManager.hpp"
+#include "SceneManager.hpp"
+#include "Model.hpp"
 
 
 namespace Geometry {
@@ -25,69 +25,63 @@ static inline bool nodeIsParentIdx(const tinygltf::Model& model, const int idx) 
 }
 
 
-Model::Model(const std::string& filename) {
+Model::Model(const std::string& name, const std::string& filename) {
 	filename_ = filename;
+	name_ = name;
 
 	Position_ = glm::vec3(0.0f);
-}
-
-Model::Model(const char* filename) {
-	if (!filename) {
-		std::cout << "Model filename cannot be NULL !!!" << std::endl;
-	}
-	else {
-		filename_ = std::string(filename);
-		Position_ = glm::vec3(0.0f);
-	}
 }
 
 tinygltf::Model& Model::getModelRef() {
 	return model_;
 }
 
-const std::string Model::getFilename() {
+const std::string& Model::getFilename() const {
 	return filename_;
 }
 
+const std::string& Model::getName() const {
+	return name_;
+}
+
+SceneNode* Model::getModelRootNode() {
+	return rootNode_;
+}
+
+
 void Model::init() {
-	rootNode_ = new SceneNode();
-	nodes_.push_back(rootNode_);
-	rootNode_->name = "RootNode";
-	rootNode_->setScale(glm::vec3(10.0f));
+	auto resourceManager = Resources::ResourceManager::getInstance();
+	auto sceneManager = SceneResources::SceneManager::getInstance();
+	rootNode_ = &sceneManager->createSceneNode(name_);
+	rootNode_->setScale(glm::vec3(1.0f));
 
 	std::vector<int> parentNodesIndices;
+	std::vector<SceneNode*> nodes;
+
 	for (int i = 0; i < model_.nodes.size(); ++i) {
 		if (nodeIsParentIdx(model_, i))
 			parentNodesIndices.push_back(i);
 	}
-
-	auto resourceManager = Resources::ResourceManager::getInstance();
-	auto sceneManager = SceneResources::SceneManager::getInstance();
 
 	for (int i = 0; i < parentNodesIndices.size(); ++i) {
 		auto& gltfNode = model_.nodes[parentNodesIndices[i]];
 		auto& newNode = sceneManager->createSceneNode(gltfNode.name);
 		
 		newNode.init(model_, gltfNode);
-		nodes_.push_back(&newNode);
+		nodes.push_back(&newNode);
 		if(!newNode.children.empty())
-			collectChildNodes(nodes_, &newNode);
+			collectChildNodes(nodes, &newNode);
 	}
 
-	for (int i = 1; i < nodes_.size(); ++i) {
-		auto& node = nodes_[i];
+	for (int i = 0; i < nodes.size(); ++i) {
+		auto& node = nodes[i];
 		if (!node->parent) {
-			node->parent = rootNode_;
-			rootNode_->children.push_back(node);
+			node->setParent(rootNode_);
 		}
 	}
-	for (auto& node : nodes_) {
+	for (auto& node : nodes) {
 		node->calculateGlobalModelMatrix();
 	}
-
-#ifdef DEBUG_MODEL
-	rootNode_->printNode();
-#endif
 }
 
 void Model::draw(GeneralApp::Shader& shader) {
@@ -96,10 +90,7 @@ void Model::draw(GeneralApp::Shader& shader) {
 
 
 Model::~Model() {
-	auto resourceManager = Resources::ResourceManager::getInstance();
-	auto sceneManager = SceneResources::SceneManager::getInstance();
-	for (auto node : nodes_)
-		sceneManager->deleteSceneNode(node->name);
+
 }
 
 }

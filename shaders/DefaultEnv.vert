@@ -2,6 +2,7 @@
 
 #define	BACKGROUND_IMAGE_2D 0
 #define	SKYBOX 1
+#define	EQUIRECTANGULAR 2
 
 layout(location = 0) in vec3 inPos;
 layout(location = 1) in vec2 inUv;
@@ -26,6 +27,10 @@ void main()
         outUv.xy = inUv;
     }
     else if(environmentType == SKYBOX) {
+        pos = proj * mat4(mat3(view)) * vec4(inPos, 1.0);
+        outUv = inPos;
+    }
+    else if(environmentType == EQUIRECTANGULAR) {
         pos = proj * mat4(mat3(view)) * vec4(inPos, 1.0);
         outUv = inPos;
     }

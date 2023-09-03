@@ -1,8 +1,8 @@
 #ifndef SCENENODE_HPP
 #define SCENENODE_HPP
 
-#include "../headers/ISceneObject.hpp"
-#include "../headers/Mesh.hpp"
+#include "ISceneObject.hpp"
+#include "Mesh.hpp"
 
 namespace Geometry {
 
@@ -23,7 +23,7 @@ public:
 	bool isRoot() { return !parent; }
 
 	void setEnabled(bool value = true) { isEnabled_ = value; }
-	void setParent(SceneNode* par) { parent = par; }
+	void setParent(SceneNode* par);
 
 	void init(const tinygltf::Model& model, const tinygltf::Node& node);
 	void draw(GeneralApp::Shader& shader);

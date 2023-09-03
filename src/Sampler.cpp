@@ -1,4 +1,4 @@
-#include "../headers/Sampler.hpp"
+#include "Sampler.hpp"
 
 std::string Resources::defaultSamplersNames[Sampler::DefaultSamplers::COUNT] = {
 	"DEFAULT_SAMPLER_NEAREST_CLAMP",

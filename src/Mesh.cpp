@@ -1,5 +1,6 @@
-#include "../headers/Mesh.hpp"
-#include "../headers/ResourceManager.hpp"
+#include "Mesh.hpp"
+#include "ResourceManager.hpp"
+#include "SceneManager.hpp"
 
 
 void Geometry::Mesh::draw(GeneralApp::Shader& shader)
@@ -10,7 +11,8 @@ void Geometry::Mesh::draw(GeneralApp::Shader& shader)
     auto& modelRef = *modelPtr_;
     auto& meshRef = *meshPtr_;
 
-    Resources::ResourceManager* resourceManager = Resources::ResourceManager::getInstance();
+    auto resourceManager = Resources::ResourceManager::getInstance();
+    auto sceneManager = SceneResources::SceneManager::getInstance();
 
     glBindVertexArray(VAO_);
     const int materialTextures[Resources::Material::TextureIdx::COUNT] = {
@@ -20,7 +22,12 @@ void Geometry::Mesh::draw(GeneralApp::Shader& shader)
         Resources::Material::NORMAL,
         Resources::Material::OCCLUSION
     };
-    glUniform1iv(glGetUniformLocation(shader.getID(), "materialTextures"), Resources::Material::TextureIdx::COUNT, materialTextures);
+    glUniform1iv(glGetUniformLocation(shader.getID(), "materialTextures"),  Resources::Material::TextureIdx::COUNT, materialTextures);
+    glUniform1i(glGetUniformLocation(shader.getID(), "uCubeSamplerSkybox"), Resources::Material::TextureIdx::COUNT);
+    glUniform1i(glGetUniformLocation(shader.getID(), "uSamplerEquirect"),   Resources::Material::TextureIdx::COUNT + 1);
+
+    shader.setUint("environmentType", (uint32_t)sceneManager->getEnvironmentType());
+
     for (size_t i = 0; i < meshRef.primitives.size(); ++i) {
         const tinygltf::Primitive& primitive = meshRef.primitives[i];
         auto& primitiveMaterial = resourceManager->getMaterial(primitiveMaterial_[primitive.mode]);
@@ -36,6 +43,19 @@ void Geometry::Mesh::draw(GeneralApp::Shader& shader)
             glBindSampler(i, texRef.sampler->GL_id);
         }
 
+        if (sceneManager->getEnvironmentType() == SceneResources::SceneManager::EnvironmentType::SKYBOX) {
+            auto& skyboxTexture = resourceManager->getTexture("SKYBOX_TEXTURE");
+            glActiveTexture(GL_TEXTURE0 + Resources::Material::TextureIdx::COUNT);
+            glBindTexture(GL_TEXTURE_CUBE_MAP, skyboxTexture.GL_id);
+            glBindSampler(Resources::Material::TextureIdx::COUNT, skyboxTexture.sampler->GL_id);
+        }
+        else if (sceneManager->getEnvironmentType() == SceneResources::SceneManager::EnvironmentType::EQUIRECTANGULAR) {
+            auto& equirectTexture = resourceManager->getTexture("EQUIRECTANGULAR_TEXTURE");
+            glActiveTexture(GL_TEXTURE0 + Resources::Material::TextureIdx::COUNT + 1);
+            glBindTexture(GL_TEXTURE_2D, equirectTexture.GL_id);
+            glBindSampler(Resources::Material::TextureIdx::COUNT + 1, equirectTexture.sampler->GL_id);
+        }
+
         glUniform4fv(glGetUniformLocation(shader.getID(), "materialTexturesFactors"), Resources::Material::TextureIdx::COUNT, &materialTexturesFactors[0][0]);
         shader.setUint("materialFlags", primitiveMaterial.materialFlags);
 
@@ -45,6 +65,8 @@ void Geometry::Mesh::draw(GeneralApp::Shader& shader)
         for (int i = 0; i < Resources::Material::TextureIdx::COUNT; ++i) {
             glBindSampler(i, 0);
         }
+        glBindSampler(Resources::Material::TextureIdx::COUNT, 0);
+        glBindSampler(Resources::Material::TextureIdx::COUNT + 1, 0);
         glActiveTexture(GL_TEXTURE0);
     }
     glBindVertexArray(0);
@@ -139,7 +161,7 @@ void Geometry::Mesh::init()
                     auto& image = modelRef.images[tex.source];
 
                     Resources::ImageDesc imDesc = {
-                        image.name,
+                        image.name.empty() ? image.uri : image.name,
                         image.width,
                         image.height,
                         image.component,
@@ -174,7 +196,7 @@ void Geometry::Mesh::init()
                     auto& image = modelRef.images[tex.source];
 
                     Resources::ImageDesc imDesc = {
-                        image.name,
+                        image.name.empty() ? image.uri : image.name,
                         image.width,
                         image.height,
                         image.component,
@@ -208,7 +230,7 @@ void Geometry::Mesh::init()
                     auto& image = modelRef.images[tex.source];
 
                     Resources::ImageDesc imDesc = {
-                        image.name,
+                        image.name.empty() ? image.uri : image.name,
                         image.width,
                         image.height,
                         image.component,
@@ -241,7 +263,7 @@ void Geometry::Mesh::init()
                     auto& image = modelRef.images[tex.source];
 
                     Resources::ImageDesc imDesc = {
-                        image.name,
+                        image.name.empty() ? image.uri : image.name,
                         image.width,
                         image.height,
                         image.component,
@@ -274,7 +296,7 @@ void Geometry::Mesh::init()
                     auto& image = modelRef.images[tex.source];
 
                     Resources::ImageDesc imDesc = {
-                        image.name,
+                        image.name.empty() ? image.uri : image.name,
                         image.width,
                         image.height,
                         image.component,

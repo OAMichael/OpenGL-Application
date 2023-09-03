@@ -1,4 +1,4 @@
-#include "../headers/ResourceManager.hpp"
+#include "ResourceManager.hpp"
 #include "../3rdparty/stb_image.h"
 
 
@@ -7,8 +7,8 @@ namespace Resources {
 ResourceManager* ResourceManager::instancePtr = nullptr;
 
 Image& ResourceManager::createImage(const ImageDesc& imageDesc) {
-    if (auto it = images_.find(imageDesc.name); it != images_.end())
-        return *images_[imageDesc.name];
+    if (hasImage(imageDesc.name))
+        return getImage(imageDesc.name);
 
 #ifdef DEBUG_MODEL
     std::cout << "Creating image \'" << imageDesc.name << "\'" << std::endl;
@@ -63,8 +63,8 @@ Image& ResourceManager::createImage(const std::string& filename) {
 }
 
 Sampler& ResourceManager::createSampler(const SamplerDesc& samplerDesc) {
-    if (auto it = samplers_.find(samplerDesc.name); it != samplers_.end())
-        return *samplers_[samplerDesc.name];
+    if (hasSampler(samplerDesc.name))
+        return getSampler(samplerDesc.name);
 
 #ifdef DEBUG_MODEL
     std::cout << "Creating sampler \'" << samplerDesc.name << "\'" << std::endl;
@@ -92,8 +92,8 @@ Sampler& ResourceManager::createSampler(const SamplerDesc& samplerDesc) {
 }
 
 Texture& ResourceManager::createTexture(const TextureDesc& textureDesc) {
-    if (auto it = textures_.find(textureDesc.name); it != textures_.end())
-        return *textures_[textureDesc.name];
+    if (hasTexture(textureDesc.name))
+        return getTexture(textureDesc.name);
 
 #ifdef DEBUG_MODEL
     std::cout << "Creating texture \'" << textureDesc.name << "\'" << std::endl;
@@ -230,8 +230,8 @@ Texture& ResourceManager::createTexture(const std::string& filename, Sampler* sa
 
 
 Material& ResourceManager::createMaterial(const MaterialDesc& matDesc) {
-    if (auto it = materials_.find(matDesc.name); it != materials_.end())
-        return *materials_[matDesc.name];
+    if (hasMaterial(matDesc.name))
+        return getMaterial(matDesc.name);
 
     Material* newMaterial = new Material();
 
@@ -248,6 +248,87 @@ Material& ResourceManager::createMaterial(const MaterialDesc& matDesc) {
     return *newMaterial;
 }
 
+Buffer& ResourceManager::createBuffer(const BufferDesc& bufDesc) {
+    if (hasBuffer(bufDesc.name))
+        return getBuffer(bufDesc.name);
+
+    Buffer* newBuffer = new Buffer();
+
+#ifdef DEBUG_MODEL
+    std::cout << "Creating buffer \'" << bufDesc.name << "\'" << std::endl;
+#endif
+
+    newBuffer->name = bufDesc.name;
+    newBuffer->target = bufDesc.target;
+
+    newBuffer->data.resize(bufDesc.bytesize);
+    std::fill(newBuffer->data.begin(), newBuffer->data.end(), 0);
+    if(bufDesc.p_data)
+        std::copy(bufDesc.p_data, bufDesc.p_data + bufDesc.bytesize, newBuffer->data.begin());
+
+    glGenBuffers(1, &(newBuffer->GL_id));
+
+    glBindBuffer(newBuffer->target, newBuffer->GL_id);
+    glBufferData(newBuffer->target, bufDesc.bytesize, newBuffer->data.data(), GL_STATIC_DRAW);
+    glBindBuffer(newBuffer->target, 0);
+
+    buffers_[newBuffer->name] = newBuffer;
+
+    return *newBuffer;
+}
+
+void ResourceManager::updateBuffer(const std::string& name, const unsigned char* data, const size_t bytesize, const size_t byteoffset) {
+    auto it = buffers_.find(name);
+    if (it == buffers_.end())
+        return;
+
+    std::copy(data + byteoffset, data + byteoffset + bytesize, it->second->data.begin() + byteoffset);
+
+    glBindBuffer(it->second->target, it->second->GL_id);
+    glBufferSubData(it->second->target, byteoffset, bytesize, data);
+    glBindBuffer(it->second->target, 0);
+}
+
+void ResourceManager::bindBufferShader(const std::string& name, const unsigned binding, const GeneralApp::Shader& shader) {
+    auto it = buffers_.find(name);
+    if (it == buffers_.end())
+        return;
+
+    glBindBufferRange(it->second->target, binding, it->second->GL_id, 0, it->second->data.size());
+
+    unsigned int uboIndex = glGetUniformBlockIndex(shader.GL_id, name.c_str());
+    glUniformBlockBinding(shader.GL_id, uboIndex, binding);
+}
+
+
+void ResourceManager::generateMipMaps(const std::string& texName) {
+    if (!hasTexture(texName))
+        return;
+
+    auto& texture = getTexture(texName);
+    
+    auto texType = texture.faces == 1 ? GL_TEXTURE_2D : GL_TEXTURE_CUBE_MAP;
+    glBindTexture(texType, texture.GL_id);
+    glGenerateMipmap(texType);
+    glBindTexture(texType, 0);
+}
+
+GeneralApp::Shader& ResourceManager::createShader(const ShaderDesc& shaderDesc) {
+    if (hasShader(shaderDesc.name))
+        return getShader(shaderDesc.name);
+
+#ifdef DEBUG_MODEL
+    std::cout << "Creating shader \'" << shaderDesc.name << "\'" << std::endl;
+#endif
+
+    GeneralApp::Shader* newShader = new GeneralApp::Shader(shaderDesc.vertFilename.c_str(), shaderDesc.fragFilename.c_str());
+    newShader->name = shaderDesc.name;
+
+    shaders_[newShader->name] = newShader;
+
+    return *newShader;
+}
+
 
 void ResourceManager::deleteImage(const std::string& name) {
     if (auto it = images_.find(name); it != images_.end()) {
@@ -258,6 +339,7 @@ void ResourceManager::deleteImage(const std::string& name) {
 
 void ResourceManager::deleteSampler(const std::string& name) {
     if (auto it = samplers_.find(name); it != samplers_.end()) {
+        glDeleteSamplers(1, &(it->second->GL_id));
         delete samplers_[name];
         samplers_.erase(it);
     }
@@ -265,6 +347,7 @@ void ResourceManager::deleteSampler(const std::string& name) {
 
 void ResourceManager::deleteTexture(const std::string& name) {
     if (auto it = textures_.find(name); it != textures_.end()) {
+        glDeleteTextures(1, &(it->second->GL_id));
         delete textures_[name];
         textures_.erase(it);
     }
@@ -277,9 +360,25 @@ void ResourceManager::deleteMaterial(const std::string& name) {
     }
 }
 
+void ResourceManager::deleteBuffer(const std::string& name) {
+    if (auto it = buffers_.find(name); it != buffers_.end()) {
+        glDeleteBuffers(1, &(it->second->GL_id));
+        delete buffers_[name];
+        buffers_.erase(it);
+    }
+}
+
+void ResourceManager::deleteShader(const std::string& name) {
+    if (auto it = shaders_.find(name); it != shaders_.end()) {
+        glDeleteProgram(it->second->GL_id);
+        delete shaders_[name];
+        shaders_.erase(it);
+    }
+}
+
 
 Image& ResourceManager::getImage(const std::string& name) {
-    if (auto it = images_.find(name); it != images_.end())
+    if (hasImage(name))
         return *images_[name];
 
     auto emptyImage = new Image();
@@ -288,7 +387,7 @@ Image& ResourceManager::getImage(const std::string& name) {
 }
 
 Sampler& ResourceManager::getSampler(const std::string& name) {
-    if (auto it = samplers_.find(name); it != samplers_.end())
+    if (hasSampler(name))
         return *samplers_[name];
 
     auto emptySampler = new Sampler();
@@ -297,7 +396,7 @@ Sampler& ResourceManager::getSampler(const std::string& name) {
 }
 
 Texture& ResourceManager::getTexture(const std::string& name) {
-    if (auto it = textures_.find(name); it != textures_.end())
+    if (hasTexture(name))
         return *textures_[name];
 
     auto emptyTexture = new Texture();
@@ -306,12 +405,30 @@ Texture& ResourceManager::getTexture(const std::string& name) {
 }
 
 Material& ResourceManager::getMaterial(const std::string& name) {
-    if (auto it = materials_.find(name); it != materials_.end())
+    if (hasMaterial(name))
         return *materials_[name];
 
     auto emptyMaterial = new Material();
     materials_[name] = emptyMaterial;
     return *emptyMaterial;
+}
+
+Buffer& ResourceManager::getBuffer(const std::string& name) {
+    if (hasBuffer(name))
+        return *buffers_[name];
+
+    auto emptyBuffer = new Buffer();
+    buffers_[name] = emptyBuffer;
+    return *emptyBuffer;
+}
+
+GeneralApp::Shader& ResourceManager::getShader(const std::string& name) {
+    if (hasShader(name))
+        return *shaders_[name];
+
+    auto emptyShader = new GeneralApp::Shader();
+    shaders_[name] = emptyShader;
+    return *emptyShader;
 }
 
 
@@ -335,6 +452,16 @@ bool ResourceManager::hasMaterial(const std::string& name) {
     return it != materials_.end();
 }
 
+bool ResourceManager::hasBuffer(const std::string& name) {
+    auto it = buffers_.find(name);
+    return it != buffers_.end();
+}
+
+bool ResourceManager::hasShader(const std::string& name) {
+    auto it = shaders_.find(name);
+    return it != shaders_.end();
+}
+
 
 ResourceManager::ResourceManager() {
     createDefaultImages();
@@ -344,17 +471,24 @@ ResourceManager::ResourceManager() {
 }
 
 ResourceManager::~ResourceManager() {
+    cleanUp();
+}
+
+
+void ResourceManager::cleanUp() {
     for (auto& im : images_) {
         delete im.second;
         images_.erase(im.first);
     }
 
     for (auto& samp : samplers_) {
+        glDeleteSamplers(1, &(samp.second->GL_id));
         delete samp.second;
         samplers_.erase(samp.first);
     }
 
     for (auto& tex : textures_) {
+        glDeleteTextures(1, &(tex.second->GL_id));
         delete tex.second;
         textures_.erase(tex.first);
     }
@@ -362,6 +496,18 @@ ResourceManager::~ResourceManager() {
     for (auto& mat : materials_) {
         delete mat.second;
         materials_.erase(mat.first);
+    }
+
+    for (auto& buf : buffers_) {
+        glDeleteBuffers(1, &(buf.second->GL_id));
+        delete buf.second;
+        buffers_.erase(buf.first);
+    }
+
+    for (auto& shader : shaders_) {
+        glDeleteProgram(shader.second->GL_id);
+        delete shader.second;
+        shaders_.erase(shader.first);
     }
 }
 

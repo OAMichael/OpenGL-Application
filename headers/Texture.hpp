@@ -7,8 +7,8 @@
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 
-#include "../headers/Image.hpp"
-#include "../headers/Sampler.hpp"
+#include "Image.hpp"
+#include "Sampler.hpp"
 
 
 namespace Resources {

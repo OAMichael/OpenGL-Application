@@ -1,6 +1,4 @@
-#include "../headers/Cube.hpp"
-
-#include "../3rdparty/stb_image.h"
+#include "Cube.hpp"
 
 
 namespace Geometry {

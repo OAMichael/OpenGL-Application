@@ -1,6 +1,6 @@
-#include "../headers/ResourceManager.hpp"
-#include "../headers/SceneManager.hpp"
-#include "../headers/SceneNode.hpp"
+#include "ResourceManager.hpp"
+#include "SceneManager.hpp"
+#include "SceneNode.hpp"
 
 void Geometry::SceneNode::init(const tinygltf::Model& model, const tinygltf::Node& node) {
 	if (parent)
@@ -55,7 +55,7 @@ void Geometry::SceneNode::draw(GeneralApp::Shader& shader) {
 		if (!isRoot()) {
 			auto resourceManager = Resources::ResourceManager::getInstance();
 			glm::mat4 transform = this->getGlobalModelMatrix();
-			resourceManager->updateUBO(&transform, sizeof(transform), 2 * sizeof(glm::mat4), "Matrices");
+			resourceManager->updateBuffer("Matrices", (const unsigned char*)&transform, sizeof(transform), 2 * sizeof(glm::mat4));
 			mesh_.draw(shader);
 		}
 		for (auto& child : children) {
@@ -65,18 +65,31 @@ void Geometry::SceneNode::draw(GeneralApp::Shader& shader) {
 }
 
 
+void Geometry::SceneNode::setParent(SceneNode* par) {
+	parent = par;
+	if (par && std::find(par->children.begin(), par->children.end(), this) == par->children.end())
+		par->children.push_back(this);
+}
+
 
 void Geometry::SceneNode::printNode(const int level) {
-	for (int i = 0; i < level - 1; ++i)
-		printf("|   ");
+	static int lastLevel = 0;
+	lastLevel = level;
+	if (level > 1)
+		for (unsigned i = 0; i < level - 1; ++i)
+			printf("|   ");
+
 	if (level > 0)
 		printf("|---");
 
-	std::cout << name << std::endl;
-
+	printf("%s\n", name.c_str());
 	for (auto& child : children)
 		child->printNode(level + 1);
-	
-	if(!children.empty() && !isRoot())
-		std::cout << '|' << std::endl;
+
+	if (!isRoot() && level < lastLevel) {
+		for (unsigned i = 0; i < level; ++i)
+			printf("|   ");
+		
+		printf("\n");
+	}
 }

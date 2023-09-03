@@ -1,4 +1,4 @@
-#include "../headers/ISceneObject.hpp"
+#include "ISceneObject.hpp"
 
 
 namespace Geometry {

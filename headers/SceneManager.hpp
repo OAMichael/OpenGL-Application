@@ -3,8 +3,8 @@
 
 #include <unordered_map>
 
-#include "../headers/SceneNode.hpp"
-#include "../headers/Cube.hpp"
+#include "SceneNode.hpp"
+#include "Cube.hpp"
 
 namespace SceneResources {
 
@@ -12,7 +12,8 @@ class SceneManager final {
 public:
 	enum EnvironmentType : uint32_t {
 		BACKGROUND_IMAGE_2D = 0,
-		SKYBOX
+		SKYBOX,
+		EQUIRECTANGULAR
 	};
 
 	SceneManager(const SceneManager& obj) = delete;
@@ -36,26 +37,33 @@ public:
 	void createEnvironment(const EnvironmentType envType, const std::string& textureName);
 	void drawEnvironment();
 
-	void createSkybox(const std::vector<std::string>& textureNames);
-	void drawSkybox();
-
 	void createBackground2D(const std::string& textureName);
 	void drawBackground2D();
 
+	void createSkybox(const std::vector<std::string>& textureNames);
+	void drawSkybox();
+
+	void createEquirectangular(const std::string& textureName);
+	void drawEquirectangular();
+
+	EnvironmentType getEnvironmentType();
 
 	~SceneManager();
 
 private:
 	std::unordered_map<std::string, Geometry::SceneNode*> sceneNodes_;
 
+	unsigned VAOBackground2D_;
+	unsigned VBOBackground2D_;
+
 	unsigned VAOSkybox_;
 	unsigned VBOSkybox_;
 	Geometry::Cube Skybox_{glm::vec3(0.0f)};
 
-	unsigned VAOBackground2D_;
-	unsigned VBOBackground2D_;
+	unsigned VAOEquirect_;
+	unsigned VBOEquirect_;
+	Geometry::Cube Equirect_{glm::vec3(0.0f)};
 
-	GeneralApp::Shader defaultEnvShader_;
 	EnvironmentType envType_;
 
 	static SceneManager* instancePtr;
