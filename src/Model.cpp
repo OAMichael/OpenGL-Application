@@ -28,8 +28,6 @@ static inline bool nodeIsParentIdx(const tinygltf::Model& model, const int idx) 
 Model::Model(const std::string& name, const std::string& filename) {
 	filename_ = filename;
 	name_ = name;
-
-	Position_ = glm::vec3(0.0f);
 }
 
 tinygltf::Model& Model::getModelRef() {
@@ -40,8 +38,17 @@ const std::string& Model::getFilename() const {
 	return filename_;
 }
 
+void Model::setFilename(const std::string& filename) {
+	filename_ = filename;
+}
+
+
 const std::string& Model::getName() const {
 	return name_;
+}
+
+void Model::setName(const std::string& name) {
+	name_ = name;
 }
 
 SceneNode* Model::getModelRootNode() {
@@ -53,7 +60,9 @@ void Model::init() {
 	auto resourceManager = Resources::ResourceManager::getInstance();
 	auto sceneManager = SceneResources::SceneManager::getInstance();
 	rootNode_ = &sceneManager->createSceneNode(name_);
-	rootNode_->setScale(glm::vec3(1.0f));
+	rootNode_->setPosition(Position_);
+	rootNode_->setRotation(Rotation_);
+	rootNode_->setScale(Scale_);
 
 	std::vector<int> parentNodesIndices;
 	std::vector<SceneNode*> nodes;

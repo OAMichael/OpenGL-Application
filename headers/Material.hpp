@@ -3,9 +3,11 @@
 
 #include "Texture.hpp"
 
+#include <RenderResource.hpp>
+
 namespace Resources {
 
-struct Material {
+struct Material : RenderResource {
 
 	enum TextureIdx : uint32_t {
 		BASE_COLOR = 0,
@@ -23,7 +25,6 @@ struct Material {
 
 	uint32_t materialFlags;
 
-	std::string name;
 	Texture* textures[TextureIdx::COUNT];
 
 	enum DefaultMaterials : uint32_t {

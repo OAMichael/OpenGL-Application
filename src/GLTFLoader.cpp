@@ -5,14 +5,14 @@
 
 namespace GLTF {
 
-GLTF::GLTFLoader* GLTF::GLTFLoader::instancePtr = nullptr;
+GLTFLoader* GLTFLoader::instancePtr = nullptr;
 
 
-bool GLTFLoader::load(tinygltf::Model& model, const std::string& filename) {
+bool GLTFLoader::load(Geometry::Model& model, const std::string& filename) {
     std::string err;
     std::string warn;
 
-    bool res = loader.LoadASCIIFromFile(&model, &err, &warn, filename.c_str());
+    bool res = loader_.LoadASCIIFromFile(&model.getModelRef(), &err, &warn, filename.c_str());
     if (!warn.empty()) {
         std::cout << "WARN: " << warn << std::endl;
     }
@@ -23,9 +23,10 @@ bool GLTFLoader::load(tinygltf::Model& model, const std::string& filename) {
 
     if (!res)
         std::cout << "Failed to load glTF: " << filename << std::endl;
-    else
+    else {
+        loadedModels[model.getName()] = &model;
         std::cout << "Loaded glTF: " << filename << std::endl;
-
+    }
     return res;
 }
 

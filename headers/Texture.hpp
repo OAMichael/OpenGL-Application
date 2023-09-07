@@ -11,15 +11,18 @@
 #include "Sampler.hpp"
 
 
+#include <RenderResource.hpp>
+
 namespace Resources {
 
-struct Texture {
+struct Texture : RenderResource {
     unsigned int GL_id;
-    std::string name;
 
     unsigned faces = 1;
     Image* images[6] = { nullptr, nullptr, nullptr, nullptr, nullptr, nullptr };
     glm::vec4 factor = glm::vec4(1.0f);
+
+    int format = -1;
 
     Sampler* sampler;
 

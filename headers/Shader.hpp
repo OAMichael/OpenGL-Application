@@ -9,9 +9,11 @@
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 
+#include <RenderResource.hpp>
+
 namespace GeneralApp {
 
-class Shader {
+class Shader : public Resources::RenderResource {
 
 private:
     void checkCompileErrors(const GLuint& shader, const std::string& type);
@@ -19,7 +21,6 @@ private:
 
 public:
     unsigned GL_id;
-    std::string name;
 
     Shader();
     Shader(const char* vertexPath, const char* fragmentPath);

@@ -4,10 +4,17 @@
 
 namespace Resources {
 
+static inline ResourceHandle createNewResourceHandle() {
+    static uint64_t resource = 0;
+    ++resource;
+    
+    return { resource };
+}
+
 ResourceManager* ResourceManager::instancePtr = nullptr;
 
 Image& ResourceManager::createImage(const ImageDesc& imageDesc) {
-    if (hasImage(imageDesc.name))
+    if (hasImage(imageDesc.name, imageDesc.uri))
         return getImage(imageDesc.name);
 
 #ifdef DEBUG_MODEL
@@ -20,13 +27,20 @@ Image& ResourceManager::createImage(const ImageDesc& imageDesc) {
     newImage->components = imageDesc.components;
     newImage->width = imageDesc.width;
     newImage->height = imageDesc.height;
+    newImage->format = imageDesc.format;
     newImage->name = imageDesc.name;
+    newImage->uri = imageDesc.uri;
+
+    newImage->type = RenderResource::ResourceType::IMAGE;
 
     size_t bytesize = imageDesc.width * imageDesc.height * imageDesc.components * (imageDesc.bits / 8);
     newImage->image.resize(bytesize);
     std::copy(imageDesc.p_data, imageDesc.p_data + bytesize, newImage->image.begin());
 
+    newImage->handle = createNewResourceHandle();
+
     images_[newImage->name] = newImage;
+    allResources_[newImage->handle] = newImage;
 
     return *newImage;
 }
@@ -40,6 +54,7 @@ Image& ResourceManager::createImage(const char* filename) {
     if (data) {
         ImageDesc imageDesc;
         imageDesc.name = filename;
+        imageDesc.uri = filename;
         imageDesc.width = width;
         imageDesc.height = height;
         imageDesc.components = nrChannels;
@@ -63,7 +78,7 @@ Image& ResourceManager::createImage(const std::string& filename) {
 }
 
 Sampler& ResourceManager::createSampler(const SamplerDesc& samplerDesc) {
-    if (hasSampler(samplerDesc.name))
+    if (hasSampler(samplerDesc.name, samplerDesc.uri))
         return getSampler(samplerDesc.name);
 
 #ifdef DEBUG_MODEL
@@ -73,6 +88,10 @@ Sampler& ResourceManager::createSampler(const SamplerDesc& samplerDesc) {
     Sampler* newSampler = new Sampler();
     
     newSampler->name = samplerDesc.name;
+    newSampler->uri = samplerDesc.uri;
+
+    newSampler->type = RenderResource::ResourceType::SAMPLER;
+
     newSampler->minFilter = samplerDesc.minFilter;
     newSampler->magFilter = samplerDesc.magFilter;
     newSampler->wrapS = samplerDesc.wrapS;
@@ -86,13 +105,16 @@ Sampler& ResourceManager::createSampler(const SamplerDesc& samplerDesc) {
     glSamplerParameteri(newSampler->GL_id, GL_TEXTURE_MIN_FILTER, samplerDesc.minFilter);
     glSamplerParameteri(newSampler->GL_id, GL_TEXTURE_MAG_FILTER, samplerDesc.magFilter);
 
+    newSampler->handle = createNewResourceHandle();
+
     samplers_[newSampler->name] = newSampler;
+    allResources_[newSampler->handle] = newSampler;
 
     return *newSampler;
 }
 
 Texture& ResourceManager::createTexture(const TextureDesc& textureDesc) {
-    if (hasTexture(textureDesc.name))
+    if (hasTexture(textureDesc.name, textureDesc.uri))
         return getTexture(textureDesc.name);
 
 #ifdef DEBUG_MODEL
@@ -102,8 +124,13 @@ Texture& ResourceManager::createTexture(const TextureDesc& textureDesc) {
     Texture* newTexture = new Texture();
 
     newTexture->name = textureDesc.name;
+    newTexture->uri = textureDesc.uri;
+
+    newTexture->type = RenderResource::ResourceType::TEXTURE;
+
     newTexture->factor = textureDesc.factor;
     newTexture->faces = textureDesc.faces;
+    newTexture->format = textureDesc.format;
 
     textures_[newTexture->name] = newTexture;
 
@@ -195,7 +222,7 @@ Texture& ResourceManager::createTexture(const TextureDesc& textureDesc) {
             glTexImage2D(
                 GL_TEXTURE_CUBE_MAP_POSITIVE_X + i,
                 0,
-                GL_RGBA,
+                textureDesc.format,
                 newTexture->images[i]->width,
                 newTexture->images[i]->height,
                 0,
@@ -206,6 +233,9 @@ Texture& ResourceManager::createTexture(const TextureDesc& textureDesc) {
         }
         glBindTexture(GL_TEXTURE_CUBE_MAP, 0);
     }
+    newTexture->handle = createNewResourceHandle();
+    allResources_[newTexture->handle] = newTexture;
+
     return *newTexture;
 }
 
@@ -217,7 +247,8 @@ Texture& ResourceManager::createTexture(const char* filename, Sampler* sampler) 
 
     TextureDesc texDesc;
     texDesc.factor = glm::vec4(1.0f);
-    texDesc.name = filename;
+    texDesc.name = image.name;
+    texDesc.uri = filename;
     texDesc.p_images[0] = &image;
     texDesc.p_sampler = sampler;
 
@@ -230,7 +261,7 @@ Texture& ResourceManager::createTexture(const std::string& filename, Sampler* sa
 
 
 Material& ResourceManager::createMaterial(const MaterialDesc& matDesc) {
-    if (hasMaterial(matDesc.name))
+    if (hasMaterial(matDesc.name, matDesc.uri))
         return getMaterial(matDesc.name);
 
     Material* newMaterial = new Material();
@@ -243,13 +274,18 @@ Material& ResourceManager::createMaterial(const MaterialDesc& matDesc) {
         newMaterial->textures[i] = matDesc.p_TexArray[i];
     
     newMaterial->name = matDesc.name;
+    newMaterial->uri = matDesc.uri;
+    newMaterial->type = RenderResource::ResourceType::MATERIAL;
+    newMaterial->handle = createNewResourceHandle();
+
     materials_[newMaterial->name] = newMaterial;
+    allResources_[newMaterial->handle] = newMaterial;
 
     return *newMaterial;
 }
 
 Buffer& ResourceManager::createBuffer(const BufferDesc& bufDesc) {
-    if (hasBuffer(bufDesc.name))
+    if (hasBuffer(bufDesc.name, bufDesc.uri))
         return getBuffer(bufDesc.name);
 
     Buffer* newBuffer = new Buffer();
@@ -259,6 +295,8 @@ Buffer& ResourceManager::createBuffer(const BufferDesc& bufDesc) {
 #endif
 
     newBuffer->name = bufDesc.name;
+    newBuffer->uri = bufDesc.uri;
+    newBuffer->type = RenderResource::ResourceType::BUFFER;
     newBuffer->target = bufDesc.target;
 
     newBuffer->data.resize(bufDesc.bytesize);
@@ -272,7 +310,10 @@ Buffer& ResourceManager::createBuffer(const BufferDesc& bufDesc) {
     glBufferData(newBuffer->target, bufDesc.bytesize, newBuffer->data.data(), GL_STATIC_DRAW);
     glBindBuffer(newBuffer->target, 0);
 
+    newBuffer->handle = createNewResourceHandle();
+
     buffers_[newBuffer->name] = newBuffer;
+    allResources_[newBuffer->handle] = newBuffer;
 
     return *newBuffer;
 }
@@ -314,7 +355,7 @@ void ResourceManager::generateMipMaps(const std::string& texName) {
 }
 
 GeneralApp::Shader& ResourceManager::createShader(const ShaderDesc& shaderDesc) {
-    if (hasShader(shaderDesc.name))
+    if (hasShader(shaderDesc.name, shaderDesc.uri))
         return getShader(shaderDesc.name);
 
 #ifdef DEBUG_MODEL
@@ -323,8 +364,13 @@ GeneralApp::Shader& ResourceManager::createShader(const ShaderDesc& shaderDesc) 
 
     GeneralApp::Shader* newShader = new GeneralApp::Shader(shaderDesc.vertFilename.c_str(), shaderDesc.fragFilename.c_str());
     newShader->name = shaderDesc.name;
+    newShader->uri = shaderDesc.uri;
+    newShader->type = RenderResource::ResourceType::SHADER;
+
+    newShader->handle = createNewResourceHandle();
 
     shaders_[newShader->name] = newShader;
+    allResources_[newShader->handle] = newShader;
 
     return *newShader;
 }
@@ -431,6 +477,14 @@ GeneralApp::Shader& ResourceManager::getShader(const std::string& name) {
     return *emptyShader;
 }
 
+RenderResource* ResourceManager::getResource(const ResourceHandle handle) {
+    auto it = allResources_.find(handle);
+    if (it != allResources_.end())
+        return it->second;
+
+    return nullptr;
+}
+
 
 bool ResourceManager::hasImage(const std::string& name) {
     auto it = images_.find(name);
@@ -460,6 +514,108 @@ bool ResourceManager::hasBuffer(const std::string& name) {
 bool ResourceManager::hasShader(const std::string& name) {
     auto it = shaders_.find(name);
     return it != shaders_.end();
+}
+
+
+bool ResourceManager::hasResource(const ResourceHandle handle) {
+    return allResources_.find(handle) != allResources_.end();
+}
+
+
+bool ResourceManager::hasImage(const std::string& name, const std::string& uri) {
+    auto nameIt = images_.find(name);
+    if (nameIt == images_.end())
+        return false;
+
+    for (auto im : images_) {
+        if (im.first != name)
+            continue;
+
+        if (im.second->uri == uri)
+            return true;
+    }
+
+    return false;
+}
+
+bool ResourceManager::hasSampler(const std::string& name, const std::string& uri) {
+    auto nameIt = samplers_.find(name);
+    if (nameIt == samplers_.end())
+        return false;
+
+    for (auto samp : samplers_) {
+        if (samp.first != name)
+            continue;
+
+        if (samp.second->uri == uri)
+            return true;
+    }
+
+    return false;
+}
+
+bool ResourceManager::hasTexture(const std::string& name, const std::string& uri) {
+    auto nameIt = textures_.find(name);
+    if (nameIt == textures_.end())
+        return false;
+
+    for (auto tex : textures_) {
+        if (tex.first != name)
+            continue;
+
+        if (tex.second->uri == uri)
+            return true;
+    }
+
+    return false;
+}
+
+bool ResourceManager::hasMaterial(const std::string& name, const std::string& uri) {
+    auto nameIt = materials_.find(name);
+    if (nameIt == materials_.end())
+        return false;
+
+    for (auto mat : materials_) {
+        if (mat.first != name)
+            continue;
+
+        if (mat.second->uri == uri)
+            return true;
+    }
+
+    return false;
+}
+
+bool ResourceManager::hasBuffer(const std::string& name, const std::string& uri) {
+    auto nameIt = buffers_.find(name);
+    if (nameIt == buffers_.end())
+        return false;
+
+    for (auto buf : buffers_) {
+        if (buf.first != name)
+            continue;
+
+        if (buf.second->uri == uri)
+            return true;
+    }
+
+    return false;
+}
+
+bool ResourceManager::hasShader(const std::string& name, const std::string& uri) {
+    auto nameIt = shaders_.find(name);
+    if (nameIt == shaders_.end())
+        return false;
+
+    for (auto shdr : shaders_) {
+        if (shdr.first != name)
+            continue;
+
+        if (shdr.second->uri == uri)
+            return true;
+    }
+
+    return false;
 }
 
 

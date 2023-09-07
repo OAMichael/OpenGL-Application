@@ -38,13 +38,11 @@ private:
     float MouseLastX_ = windowWidth_ / 2.0f, MouseLastY_ = windowHeight_ / 2.0f;
     bool FirstMouse_ = true;
     bool IsFullscreen_ = false;
+    bool IsWireframe_ = false;
 
     bool MouseHidden_ = true;
 
-    Geometry::Model Models_[2] = { 
-        {"DamagedHelmet", "../models/DamagedHelmet/DamagedHelmet.gltf"},
-        {"Chess", "../models/ABeautifulGame/ABeautifulGame.gltf"} 
-    };
+    std::vector<Geometry::Model> Models_;
 
 public:
     PotentialApp();
@@ -60,6 +58,8 @@ public:
     void framebufferSizeCallback(GLFWwindow* window, int width, int height) override;
 
     void keyboardCallback(GLFWwindow* window, int key, int scancode, int action, int mods) override;
+
+    void initModels();
 
     void initRender();
 

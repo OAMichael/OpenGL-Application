@@ -220,7 +220,12 @@ void SceneManager::drawEquirectangular() {
 void SceneManager::createEnvironment(const EnvironmentType envType, const std::vector<std::string>& textureNames) {
     auto resourceManager = Resources::ResourceManager::getInstance();
 
-    Resources::ShaderDesc shaderDesc = {"Default_Environment", "../shaders/DefaultEnv.vert", "../shaders/DefaultEnv.frag"};
+    Resources::ShaderDesc shaderDesc;
+    shaderDesc.name = "Default_Environment";
+    shaderDesc.uri = "";
+    shaderDesc.vertFilename = "../shaders/DefaultEnv.vert";
+    shaderDesc.fragFilename = "../shaders/DefaultEnv.frag";
+
     auto& envShader = resourceManager->createShader(shaderDesc);
 
     envShader.use();

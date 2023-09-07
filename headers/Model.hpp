@@ -28,7 +28,9 @@ public:
 
 	tinygltf::Model& getModelRef();
 	const std::string& getFilename() const;
+	void setFilename(const std::string& filename);
 	const std::string& getName() const;
+	void setName(const std::string& name);
 	SceneNode* getModelRootNode();
 
 	void init();

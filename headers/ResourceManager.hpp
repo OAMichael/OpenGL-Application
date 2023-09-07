@@ -14,19 +14,18 @@
 
 namespace Resources {
 
-struct ImageDesc {
-	std::string name;
+struct ImageDesc : RenderResourceDesc {
 
 	int width;
 	int height;
 	int components;
 	int bits;
+	int format = GL_RGBA;
 
 	const unsigned char* p_data;
 };
 
-struct SamplerDesc {
-	std::string name;
+struct SamplerDesc : RenderResourceDesc {
 
 	uint32_t minFilter = Sampler::Filter::NEAREST_MIPMAP_LINEAR;
 	uint32_t magFilter = Sampler::Filter::LINEAR;
@@ -36,32 +35,29 @@ struct SamplerDesc {
 	uint32_t wrapR = Sampler::WrapMode::REPEAT;
 };
 
-struct TextureDesc {
-	std::string name;
+struct TextureDesc : RenderResourceDesc {
 
 	unsigned faces = 1;
 	Image* p_images[6] = { nullptr, nullptr, nullptr, nullptr, nullptr, nullptr };
 	glm::vec4 factor;
+	int format = GL_RGBA;
 
 	Sampler* p_sampler = nullptr;
 };
 
-struct MaterialDesc {
-	std::string name;
+struct MaterialDesc : RenderResourceDesc {
 
 	Texture* p_TexArray[Material::TextureIdx::COUNT];
 };
 
-struct BufferDesc {
-	std::string name;
+struct BufferDesc : RenderResourceDesc {
 	unsigned int target;
 
 	const unsigned char* p_data;
 	size_t bytesize;
 };
 
-struct ShaderDesc {
-	std::string name;
+struct ShaderDesc : RenderResourceDesc {
 
 	std::string vertFilename;
 	std::string fragFilename;
@@ -77,13 +73,7 @@ private:
 	std::unordered_map<std::string, Buffer*> buffers_;
 	std::unordered_map<std::string, GeneralApp::Shader*> shaders_;
 
-	/*
-	struct UBO {
-		unsigned int GL_id;
-		std::string name;
-	};
-	std::vector<UBO> UBOs_;
-	*/
+	std::unordered_map<ResourceHandle, RenderResource*> allResources_;
 
 	void createDefaultImages();
 	void createDefaultSamplers();
@@ -138,12 +128,23 @@ public:
 	Buffer& getBuffer(const std::string& name);
 	GeneralApp::Shader& getShader(const std::string& name);
 
+	RenderResource* getResource(const ResourceHandle handle);
+
 	bool hasImage(const std::string& name);
 	bool hasSampler(const std::string& name);
 	bool hasTexture(const std::string& name);
 	bool hasMaterial(const std::string& name);
 	bool hasBuffer(const std::string& name);
 	bool hasShader(const std::string& name);
+
+	bool hasResource(const ResourceHandle handle);
+
+	bool hasImage(const std::string& name, const std::string& uri);
+	bool hasSampler(const std::string& name, const std::string& uri);
+	bool hasTexture(const std::string& name, const std::string& uri);
+	bool hasMaterial(const std::string& name, const std::string& uri);
+	bool hasBuffer(const std::string& name, const std::string& uri);
+	bool hasShader(const std::string& name, const std::string& uri);
 
 	void cleanUp();
 

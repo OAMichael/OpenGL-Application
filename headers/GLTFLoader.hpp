@@ -3,17 +3,21 @@
 
 #include <tinygltf/tiny_gltf.h>
 
+#include <Model.hpp>
+
 namespace GLTF {
 
 class GLTFLoader final {
 private:
-    tinygltf::TinyGLTF loader;
+    tinygltf::TinyGLTF loader_;
 
     static GLTFLoader* instancePtr;
 
     GLTFLoader() {};
 
 public:
+
+    std::unordered_map<std::string, Geometry::Model*> loadedModels;
 
     GLTFLoader(const GLTFLoader& obj) = delete;
 
@@ -24,7 +28,7 @@ public:
         return instancePtr;
     }
 
-    bool load(tinygltf::Model& model, const std::string& filename);
+    bool load(Geometry::Model& model, const std::string& filename);
 };
 
 }

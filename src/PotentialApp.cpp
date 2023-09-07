@@ -1,24 +1,16 @@
 #include "PotentialApp.hpp"
 #include "ResourceManager.hpp"
 #include "SceneManager.hpp"
+#include "JSONImporter.hpp"
 
 void PotentialApp::renderToWindow() {
     
+    this->initModels();
     this->initRender();
     this->initCamera();
 
-    auto GLTFloader = GLTF::GLTFLoader::getInstance();
     auto resourceManager = Resources::ResourceManager::getInstance();
     auto sceneManager = SceneResources::SceneManager::getInstance();
-
-    auto& rootNode = sceneManager->createSceneNode("RootNode");
-    for (auto& model : Models_) {
-        GLTFloader->load(model.getModelRef(), model.getFilename());
-        model.init();
-        model.getModelRootNode()->setParent(&rootNode);
-    }
-    rootNode.printNode();
-
 
     Matrices ubo;
 
@@ -142,6 +134,14 @@ void PotentialApp::keyboardCallback(GLFWwindow* window, int key, int scancode, i
             }
             break;
 
+        case GLFW_KEY_M:
+            if (action == GLFW_PRESS) {
+                IsWireframe_ = !IsWireframe_;
+
+                glPolygonMode(GL_FRONT_AND_BACK, IsWireframe_ ? GL_LINE : GL_FILL);
+            }
+            break;
+
         case GLFW_KEY_LEFT_CONTROL:
             if(action == GLFW_PRESS)
                 Camera_.setFov(30.0f);
@@ -172,11 +172,49 @@ PotentialApp::PotentialApp() {
 }
 
 
+void PotentialApp::initModels() {
+    std::ifstream modelsConfig {"../configs/models.json"};
+    nlohmann::json cfg;
+    modelsConfig >> cfg;
+
+    auto GLTFloader = GLTF::GLTFLoader::getInstance();
+    auto jsonImporter = JsonUtil::JSONImpoter::getInstance();
+    auto sceneManager = SceneResources::SceneManager::getInstance();
+
+    std::vector<JsonUtil::JSONImpoter::ModelImportInfo> modelsInfo;
+    jsonImporter->loadModelsInfo(cfg, modelsInfo);
+
+    auto& rootNode = sceneManager->createSceneNode("RootNode");
+
+    Models_.resize(modelsInfo.size());
+    for (int i = 0; i < Models_.size(); ++i) {
+        auto& modelInfo = modelsInfo[i];
+        auto& newModel = Models_[i];
+
+        newModel.setName(modelInfo.name);
+        newModel.setFilename(modelInfo.filename);
+        newModel.setPosition(modelInfo.position);
+        newModel.setRotation(modelInfo.rotation);
+        newModel.setScale(modelInfo.scale);
+
+        GLTFloader->load(newModel, newModel.getFilename());
+        newModel.init();
+        newModel.getModelRootNode()->setParent(&rootNode);
+    }
+    rootNode.printNode();
+}
+
+
 void PotentialApp::initRender() {
     auto sceneManager = SceneResources::SceneManager::getInstance();
     auto resourceManager = Resources::ResourceManager::getInstance();
 
-    Resources::ShaderDesc shaderDesc = {"Model_Shader", "../shaders/Model.vert", "../shaders/Model.frag"};
+    Resources::ShaderDesc shaderDesc;
+    shaderDesc.name = "Model_Shader";
+    shaderDesc.uri = "";
+    shaderDesc.vertFilename = "../shaders/Model.vert";
+    shaderDesc.fragFilename = "../shaders/Model.frag";
+
     auto& modelShader = resourceManager->createShader(shaderDesc);
 
 
@@ -206,6 +244,7 @@ void PotentialApp::initRender() {
 
     Resources::BufferDesc bufDesc;
     bufDesc.name = "Matrices";
+    bufDesc.uri = "Matrices";
     bufDesc.bytesize = sizeof(Matrices);
     bufDesc.target = GL_UNIFORM_BUFFER;
     bufDesc.p_data = nullptr;

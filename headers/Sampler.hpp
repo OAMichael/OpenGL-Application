@@ -4,9 +4,11 @@
 #include <glad/glad.h>
 #include <string>
 
+#include <RenderResource.hpp>
+
 namespace Resources {
 
-struct Sampler {
+struct Sampler : RenderResource {
 	enum Filter : uint32_t {
 		NEAREST = GL_NEAREST,
 		LINEAR = GL_LINEAR,
@@ -24,7 +26,6 @@ struct Sampler {
 		MIRROR_CLAMP_TO_EDGE = GL_MIRROR_CLAMP_TO_EDGE
 	};
 
-	std::string name;
 	unsigned int GL_id;
 
 	uint32_t minFilter = Filter::NEAREST_MIPMAP_LINEAR;

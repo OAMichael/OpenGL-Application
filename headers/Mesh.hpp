@@ -31,10 +31,10 @@ private:
     const tinygltf::Model* modelPtr_ = nullptr;
     const tinygltf::Mesh* meshPtr_ = nullptr;
 
-    unsigned int VAO_;
     std::unordered_map<int, unsigned int> VBOs_;
+    std::unordered_map<int, unsigned int> VAOs_;
 
-    std::unordered_map<int, std::string> primitiveMaterial_;
+    std::unordered_map<int, Resources::ResourceHandle> primitiveMaterial_; // primitive index, material
 };
 
 }

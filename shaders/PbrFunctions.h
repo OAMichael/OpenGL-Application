@@ -75,7 +75,9 @@ vec3 calculateBRDF(const vec3 N, const vec3 L, const vec3 V) {
     const float metallic = metallicRoughness.x;
     const float roghness = metallicRoughness.y;
 
-    const vec3 baseColor = GetBaseColorFull(inUv).rgb;
+    vec3 baseColor = GetBaseColorFull(inUv).rgb;
+    baseColor.rgb = pow(baseColor.rgb, vec3(2.2));
+
     baseReflectivity = mix(baseReflectivity, baseColor, metallic);
 
     const float alpha = pow(roghness, 2.0f);
@@ -153,7 +155,9 @@ vec4 pbrBasic() {
     const float metallic = metallicRoughness.x;
     const float roghness = metallicRoughness.y;
 
-    const vec3 baseColor = GetBaseColorFull(inUv).rgb;
+    vec3 baseColor = GetBaseColorFull(inUv).rgb;
+    baseColor.rgb = pow(baseColor.rgb, vec3(2.2));
+
     baseReflectivity = mix(baseReflectivity, baseColor, metallic);
 
     const vec3 Ks = Fresnel_Schlick(baseReflectivity, V, N);
@@ -182,6 +186,8 @@ vec4 pbrBasic() {
 
     const vec3 emissive = GetEmissiveFull(inUv).rgb;
     color.rgb += emissive;
+
+    color.rgb = pow(color.rgb, vec3(1.0 / 2.2));
 
     return color;
 }

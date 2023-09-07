@@ -39,6 +39,7 @@ add_executable(
 	${SRC_DIR}/Model.cpp
 	${SRC_DIR}/ResourceManager.cpp
 	${SRC_DIR}/SceneManager.cpp
+	${SRC_DIR}/JSONImporter.cpp
 
 	${HEADER_DIR}/IApplication.hpp
 	${HEADER_DIR}/Shader.hpp
@@ -57,6 +58,8 @@ add_executable(
 	${HEADER_DIR}/Model.hpp
 	${HEADER_DIR}/ResourceManager.hpp
 	${HEADER_DIR}/SceneManager.hpp
+	${HEADER_DIR}/JSONImporter.hpp
+	${HEADER_DIR}/RenderResource.hpp
 )
 
 target_include_directories(App PUBLIC ${SRC_DIR})
