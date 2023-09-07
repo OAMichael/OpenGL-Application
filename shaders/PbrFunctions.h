@@ -76,8 +76,6 @@ vec3 calculateBRDF(const vec3 N, const vec3 L, const vec3 V) {
     const float roghness = metallicRoughness.y;
 
     vec3 baseColor = GetBaseColorFull(inUv).rgb;
-    baseColor.rgb = pow(baseColor.rgb, vec3(2.2));
-
     baseReflectivity = mix(baseReflectivity, baseColor, metallic);
 
     const float alpha = pow(roghness, 2.0f);
@@ -102,7 +100,6 @@ vec3 calculateBRDF(const vec3 N, const vec3 L, const vec3 V) {
 vec4 pbrBasic() {
     vec4 color = vec4(0.0f);
     const vec3 worldPos = inPosition;
-    const vec3 lightBaseColor = vec3(1.0f);
 
     vec3 N = normalize(inNormal);
     const vec3 V = normalize(cameraWorldPos - worldPos);
@@ -111,42 +108,30 @@ vec4 pbrBasic() {
         N = applyNormalMap(N, V, inUv);
     }
 
-    const vec3 pointLightPositions[4] = {
-        2.0f * vec3(cos(0.1 * time), 1.0f, sin(0.1 * time)),
-        2.0f * vec3(sin(0.1 * time), 1.0f, cos(0.1 * time)),
-        2.0f * vec3(cos(0.1 * time), 1.0f, -sin(0.1 * time)),
-        2.0f * vec3(sin(0.1 * time), 1.0f, -cos(0.1 * time))
-    };
-
-    const vec3 directionalLightDirs[6] = {
-        vec3(1.0f, 0.0f, 0.0f),
-        vec3(-1.0f, 0.0f, 0.0f),
-        vec3(0.0f, 1.0f, 0.0f),
-        vec3(0.0f, -1.0f, 0.0f),
-        vec3(0.0f, 0.0f, 1.0f),
-        vec3(0.0f, 0.0f, -1.0f)
-
-    };
-
-    for (int i = 0; i < 0; i++) {
-        const float lightDist = length(worldPos - pointLightPositions[i]);
+    for (uint i = 0; i < lights.point_light_num; i++) {
+        const vec3 lightBaseColor = lights.colors[i].rgb;
+        const float lightDist = length(worldPos - lights.pos_or_dir[i].xyz);
         const float attenuation = 1 / lightDist / lightDist;
 
         const vec3 lightColor = lightBaseColor * attenuation;
-        const vec3 L = normalize(pointLightPositions[i] - worldPos);
+        const vec3 L = normalize(lights.pos_or_dir[i].xyz - worldPos);
         const float NoL = max(dot(N, L), 0.0f);
 
         const vec3 brdf = calculateBRDF(N, L, V);
         color.rgb += brdf * lightColor * NoL;
     }
 
-    for (int i = 0; i < 6; i++) {
-        const vec3 lightColor = lightBaseColor;
-        const vec3 L = normalize(directionalLightDirs[i]);
+    for (uint i = lights.point_light_num; i < lights.point_light_num + lights.directional_light_num; i++) {
+        const vec3 lightColor = lights.colors[i].rgb;
+        const vec3 L = normalize(lights.pos_or_dir[i].xyz);
         const float NoL = max(dot(N, L), 0.0f);
 
         const vec3 brdf = calculateBRDF(N, L, V);
         color.rgb += brdf * lightColor * NoL;
+    }
+
+    for (uint i = lights.point_light_num + lights.directional_light_num; i < lights.point_light_num + lights.directional_light_num + lights.spot_light_num; i++) {
+
     }
 
     vec3 baseReflectivity = vec3(0.04);
@@ -156,8 +141,6 @@ vec4 pbrBasic() {
     const float roghness = metallicRoughness.y;
 
     vec3 baseColor = GetBaseColorFull(inUv).rgb;
-    baseColor.rgb = pow(baseColor.rgb, vec3(2.2));
-
     baseReflectivity = mix(baseReflectivity, baseColor, metallic);
 
     const vec3 Ks = Fresnel_Schlick(baseReflectivity, V, N);

@@ -19,6 +19,24 @@
 #define PI 3.14159
 
 
+#define POINT_LIGHT          0
+#define DIRECTIONAL_LIGHT    1
+#define SPOT_LIGHT           2
+
+#define MAX_NUMBER_OF_LIGHTS 64
+
+
+struct LightData {
+	vec4 colors[MAX_NUMBER_OF_LIGHTS];
+	vec4 pos_or_dir[MAX_NUMBER_OF_LIGHTS];
+
+	uint point_light_num;
+	uint directional_light_num;
+	uint spot_light_num;
+	uint num_of_lights;
+};
+
+
 uniform sampler2D materialTextures[TEXTURE_INDEX_COUNT];
 uniform vec4 materialTexturesFactors[TEXTURE_INDEX_COUNT];
 
@@ -34,6 +52,13 @@ layout(std140) uniform Matrices {
     mat4 proj;
     mat4 model;
 };
+
+
+layout(std430, binding = 1) buffer SSBO_Lights 
+{
+	LightData lights;
+};
+
 
 uniform vec3 cameraWorldPos;
 uniform uint materialFlags;

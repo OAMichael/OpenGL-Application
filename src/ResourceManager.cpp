@@ -185,7 +185,7 @@ Texture& ResourceManager::createTexture(const TextureDesc& textureDesc) {
         glTexImage2D(
             GL_TEXTURE_2D,
             0,
-            GL_RGBA,
+            textureDesc.format,
             newTexture->images[0]->width,
             newTexture->images[0]->height,
             0,

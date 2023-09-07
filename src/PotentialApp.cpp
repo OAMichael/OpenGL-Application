@@ -2,6 +2,7 @@
 #include "ResourceManager.hpp"
 #include "SceneManager.hpp"
 #include "JSONImporter.hpp"
+#include "Light.hpp"
 
 void PotentialApp::renderToWindow() {
     
@@ -255,6 +256,63 @@ void PotentialApp::initRender() {
 
     resourceManager->bindBufferShader("Matrices", 0, modelShader);
     resourceManager->bindBufferShader("Matrices", 0, envShader);
+
+    glm::vec4 lightColor = glm::vec4(1.0f);
+    std::array<glm::vec4, 4> pointLightPositions = {
+        glm::vec4(0.0f, 0.0f, 0.0f, 0.0f),
+        glm::vec4(1.0f, 0.0f, 0.0f, 0.0f),
+        glm::vec4(0.0f, 1.0f, 0.0f, 0.0f),
+        glm::vec4(0.0f, 0.0f, 1.0f, 0.0f)
+    };
+
+    std::array<glm::vec4, 6> directionalLightDirections = {
+        glm::vec4(1.0f, 0.0f, 0.0f, 0.0f),
+        glm::vec4(-1.0f, 0.0f, 0.0f, 0.0f),
+        glm::vec4(0.0f, 1.0f, 0.0f, 0.0f),
+        glm::vec4(0.0f, -1.0f, 0.0, 0.0f),
+        glm::vec4(0.0f, 0.0f, 1.0f, 0.0f),
+        glm::vec4(0.0f, 0.0f, -1.0f, 0.0f)
+    };
+
+    std::array<glm::vec4, 2> spotLightPositions = {
+        glm::vec4(1.0f, 1.0f, 1.0f, 0.0f),
+        glm::vec4(1.0f, -1.0f, 1.0f, 0.0f)
+    };
+
+    const int pointLightNum = pointLightPositions.size();
+    const int directionalLightNum = directionalLightDirections.size();
+    const int spotLightNum = spotLightPositions.size();
+
+    Geometry::LightData lightDataBuff;
+    lightDataBuff.point_light_num       = pointLightNum;
+    lightDataBuff.directional_light_num = directionalLightNum;
+    lightDataBuff.spot_light_num        = spotLightNum;
+    lightDataBuff.num_of_lights         = pointLightNum + directionalLightNum + spotLightNum;
+
+    for (int i = 0; i < pointLightNum; ++i) {
+        lightDataBuff.colors[i] = lightColor;
+        lightDataBuff.pos_or_dir[i] = pointLightPositions[i];
+    }
+
+    for (int i = 0; i < directionalLightNum; ++i) {
+        lightDataBuff.colors[pointLightNum + i] = lightColor;
+        lightDataBuff.pos_or_dir[pointLightNum + i] = directionalLightDirections[i];
+    }
+
+    for (int i = 0; i < spotLightNum; ++i) {
+        lightDataBuff.colors[pointLightNum + directionalLightNum + i] = lightColor;
+        lightDataBuff.pos_or_dir[pointLightNum + directionalLightNum + i] = spotLightPositions[i];
+    }
+
+    Resources::BufferDesc lightsBufDesc;
+    lightsBufDesc.name = "Lights";
+    lightsBufDesc.uri = "Lights";
+    lightsBufDesc.bytesize = sizeof(Geometry::LightData);
+    lightsBufDesc.target = GL_SHADER_STORAGE_BUFFER;
+    lightsBufDesc.p_data = (const unsigned char*)(&lightDataBuff);
+
+    resourceManager->createBuffer(lightsBufDesc);
+    resourceManager->bindBufferShader("Lights", 1, modelShader);
 
 
     glEnable(GL_DEPTH_TEST);

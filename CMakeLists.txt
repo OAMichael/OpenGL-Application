@@ -60,6 +60,7 @@ add_executable(
 	${HEADER_DIR}/SceneManager.hpp
 	${HEADER_DIR}/JSONImporter.hpp
 	${HEADER_DIR}/RenderResource.hpp
+	${HEADER_DIR}/Light.hpp
 )
 
 target_include_directories(App PUBLIC ${SRC_DIR})

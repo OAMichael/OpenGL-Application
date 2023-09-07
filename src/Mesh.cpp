@@ -177,7 +177,7 @@ void Geometry::Mesh::init()
             texDesc.faces = 1;
             texDesc.p_images[0] = &defaultWhiteImage;
             texDesc.factor = factor;
-            texDesc.format = GL_SRGB;
+            texDesc.format = GL_SRGB8;
             texDesc.p_sampler = nullptr;
 
             if (baseColorTexIdx > -1 && baseColorTexIdx < modelRef.textures.size()) {
@@ -192,7 +192,7 @@ void Geometry::Mesh::init()
                         image.height,
                         image.component,
                         image.bits,
-                        GL_SRGB,
+                        GL_SRGB8,
                         image.image.data()
                     };
                     auto& baseColorImage = resourceManager->createImage(imDesc);
