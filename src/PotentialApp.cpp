@@ -4,49 +4,65 @@
 #include "JSONImporter.hpp"
 #include "Light.hpp"
 
-void PotentialApp::renderToWindow() {
-    
+//#define ENVIRONMENT_IMAGE
+#define ENVIRONMENT_SKYBOX
+//#define ENVIRONMENT_EQUIRECT
+
+
+void PotentialApp::OnInit() {
+
+}
+
+void PotentialApp::OnWindowCreate() {
+
+}
+
+void PotentialApp::OnRenderingStart() {
     this->initModels();
+    this->initLights();
     this->initRender();
     this->initCamera();
+}
+
+void PotentialApp::OnRenderFrame() {
 
     auto resourceManager = Resources::ResourceManager::getInstance();
     auto sceneManager = SceneResources::SceneManager::getInstance();
 
+    auto& modelShader = resourceManager->getShader(MODEL_SHADER_NAME);
+
+    this->showFPS();
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
+    glClearDepth(1.0);
+
+    Camera_.updateMatrices();
+
     Matrices ubo;
+    ubo.view = Camera_.getView();
+    ubo.proj = Camera_.getProj();
+    ubo.model = glm::mat4(1.0f);
 
     resourceManager->updateBuffer("Matrices", (const unsigned char*)&ubo, sizeof(ubo));
 
-    auto& modelShader = resourceManager->getShader("Model_Shader");
+    modelShader.use();
 
-    while(!glfwWindowShouldClose(window_)) {
+    modelShader.setFloat("time", lastFrame_);
+    modelShader.setVec3("cameraWorldPos", Camera_.getPosition());
 
-        this->showFPS();
-
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-        glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
-        glClearDepth(1.0);
-
-        Camera_.updateMatrices();
-        ubo.view = Camera_.getView();
-        ubo.proj = Camera_.getProj();
-        ubo.model = glm::mat4(1.0f);
-        resourceManager->updateBuffer("Matrices", (const unsigned char*)&ubo, sizeof(ubo));
-
-        modelShader.use();
-
-        modelShader.setFloat("time", lastFrame_);
-        modelShader.setVec3("cameraWorldPos", Camera_.getPosition());
-
-        for (auto& model : Models_) {
-            model.draw(modelShader);
-        }
-
-        sceneManager->drawEnvironment();
-
-        glfwSwapBuffers(window_);
-        glfwPollEvents();    
+    for (auto& model : Models_) {
+        model.draw(modelShader);
     }
+
+    sceneManager->drawEnvironment();
+}
+
+void PotentialApp::OnRenderingEnd() {
+
+}
+
+void PotentialApp::OnWindowDestroy() {
+
 }
 
 
@@ -100,6 +116,8 @@ void PotentialApp::framebufferSizeCallback(GLFWwindow* window, int width, int he
     windowWidth_  = width;
     windowHeight_ = height;
     Camera_.setAspect((float)width / height);
+
+    needToRender_ = width > 1 && height > 1;
 }
 
 
@@ -174,18 +192,19 @@ PotentialApp::PotentialApp() {
 
 
 void PotentialApp::initModels() {
-    std::ifstream modelsConfig {"../configs/models.json"};
+    std::ifstream modelsConfig { CONFIG_PATH };
     nlohmann::json cfg;
     modelsConfig >> cfg;
 
     auto GLTFloader = GLTF::GLTFLoader::getInstance();
     auto jsonImporter = JsonUtil::JSONImpoter::getInstance();
     auto sceneManager = SceneResources::SceneManager::getInstance();
+    auto resourceManager = Resources::ResourceManager::getInstance();
 
     std::vector<JsonUtil::JSONImpoter::ModelImportInfo> modelsInfo;
     jsonImporter->loadModelsInfo(cfg, modelsInfo);
 
-    auto& rootNode = sceneManager->createSceneNode("RootNode");
+    auto& rootNode = sceneManager->createRootNode();
 
     Models_.resize(modelsInfo.size());
     for (int i = 0; i < Models_.size(); ++i) {
@@ -206,56 +225,9 @@ void PotentialApp::initModels() {
 }
 
 
-void PotentialApp::initRender() {
+void PotentialApp::initLights() {
     auto sceneManager = SceneResources::SceneManager::getInstance();
     auto resourceManager = Resources::ResourceManager::getInstance();
-
-    Resources::ShaderDesc shaderDesc;
-    shaderDesc.name = "Model_Shader";
-    shaderDesc.uri = "";
-    shaderDesc.vertFilename = "../shaders/Model.vert";
-    shaderDesc.fragFilename = "../shaders/Model.frag";
-
-    auto& modelShader = resourceManager->createShader(shaderDesc);
-
-
-    
-    const std::vector<std::string> texturesNames = {
-        "../textures/posx.jpg",
-        "../textures/negx.jpg",
-        "../textures/posy.jpg",
-        "../textures/negy.jpg",
-        "../textures/posz.jpg",
-        "../textures/negz.jpg"
-    };
-    sceneManager->createEnvironment(SceneResources::SceneManager::EnvironmentType::SKYBOX, texturesNames);
-    
-    /*
-    const std::vector<std::string> texturesNames = {
-        "../textures/city.jpg"
-    };
-    sceneManager->createEnvironment(SceneResources::SceneManager::EnvironmentType::BACKGROUND_IMAGE_2D, texturesNames);
-    */
-    /*
-    const std::vector<std::string> texturesNames = {
-        "../textures/equirect.jpg"
-    };
-    sceneManager->createEnvironment(SceneResources::SceneManager::EnvironmentType::EQUIRECTANGULAR, texturesNames);
-    */
-
-    Resources::BufferDesc bufDesc;
-    bufDesc.name = "Matrices";
-    bufDesc.uri = "Matrices";
-    bufDesc.bytesize = sizeof(Matrices);
-    bufDesc.target = GL_UNIFORM_BUFFER;
-    bufDesc.p_data = nullptr;
-
-    resourceManager->createBuffer(bufDesc);
-
-    auto& envShader = resourceManager->getShader("Default_Environment");
-
-    resourceManager->bindBufferShader("Matrices", 0, modelShader);
-    resourceManager->bindBufferShader("Matrices", 0, envShader);
 
     glm::vec4 lightColor = glm::vec4(1.0f);
     std::array<glm::vec4, 4> pointLightPositions = {
@@ -274,44 +246,102 @@ void PotentialApp::initRender() {
         glm::vec4(0.0f, 0.0f, -1.0f, 0.0f)
     };
 
-    std::array<glm::vec4, 2> spotLightPositions = {
-        glm::vec4(1.0f, 1.0f, 1.0f, 0.0f),
-        glm::vec4(1.0f, -1.0f, 1.0f, 0.0f)
+    std::array<glm::vec3, 2> spotLightPositions = {
+        glm::vec3(0.0f),
+        glm::vec3(0.0f)
+    };
+    std::array<glm::vec4, 2> spotLightDirectionsCutoffs = {
+        glm::vec4(1.0f, 0.0f, 0.0f, glm::cos(glm::radians(10.0f))),
+        glm::vec4(-1.0f, 0.0f, 1.0f, glm::cos(glm::radians(20.0f)))
     };
 
-    const int pointLightNum = pointLightPositions.size();
-    const int directionalLightNum = directionalLightDirections.size();
-    const int spotLightNum = spotLightPositions.size();
 
-    Geometry::LightData lightDataBuff;
-    lightDataBuff.point_light_num       = pointLightNum;
-    lightDataBuff.directional_light_num = directionalLightNum;
-    lightDataBuff.spot_light_num        = spotLightNum;
-    lightDataBuff.num_of_lights         = pointLightNum + directionalLightNum + spotLightNum;
-
-    for (int i = 0; i < pointLightNum; ++i) {
-        lightDataBuff.colors[i] = lightColor;
-        lightDataBuff.pos_or_dir[i] = pointLightPositions[i];
+    for (int i = 0; i < pointLightPositions.size(); ++i) {
+        SceneResources::LightDesc lightDesc;
+        lightDesc.color = lightColor;
+        lightDesc.position = pointLightPositions[i];
+        lightDesc.type = SceneResources::SceneLight::LightType::POINT_LIGHT;
+        sceneManager->createSceneLight(lightDesc);
+    }
+    for (int i = 0; i < directionalLightDirections.size(); ++i) {
+        SceneResources::LightDesc lightDesc;
+        lightDesc.color = lightColor;
+        lightDesc.direction = directionalLightDirections[i];
+        lightDesc.type = SceneResources::SceneLight::LightType::DIRECTIONAL_LIGHT;
+        sceneManager->createSceneLight(lightDesc);
+    }
+    for (int i = 0; i < spotLightPositions.size(); ++i) {
+        SceneResources::LightDesc lightDesc;
+        lightDesc.color = lightColor;
+        lightDesc.position = spotLightPositions[i];
+        lightDesc.direction = spotLightDirectionsCutoffs[i].xyz;
+        lightDesc.cutoff_angle = spotLightDirectionsCutoffs[i].w;
+        lightDesc.type = SceneResources::SceneLight::LightType::SPOT_LIGHT;
+        sceneManager->createSceneLight(lightDesc);
     }
 
-    for (int i = 0; i < directionalLightNum; ++i) {
-        lightDataBuff.colors[pointLightNum + i] = lightColor;
-        lightDataBuff.pos_or_dir[pointLightNum + i] = directionalLightDirections[i];
-    }
-
-    for (int i = 0; i < spotLightNum; ++i) {
-        lightDataBuff.colors[pointLightNum + directionalLightNum + i] = lightColor;
-        lightDataBuff.pos_or_dir[pointLightNum + directionalLightNum + i] = spotLightPositions[i];
-    }
-
+    sceneManager->updateLights();
+    const auto& lightDataBuff = sceneManager->getLightData();
+    
     Resources::BufferDesc lightsBufDesc;
     lightsBufDesc.name = "Lights";
     lightsBufDesc.uri = "Lights";
-    lightsBufDesc.bytesize = sizeof(Geometry::LightData);
+    lightsBufDesc.bytesize = sizeof(SceneResources::LightData);
     lightsBufDesc.target = GL_SHADER_STORAGE_BUFFER;
     lightsBufDesc.p_data = (const unsigned char*)(&lightDataBuff);
 
     resourceManager->createBuffer(lightsBufDesc);
+}
+
+
+void PotentialApp::initRender() {
+    auto sceneManager = SceneResources::SceneManager::getInstance();
+    auto resourceManager = Resources::ResourceManager::getInstance();
+
+    Resources::ShaderDesc shaderDesc;
+    shaderDesc.name = MODEL_SHADER_NAME;
+    shaderDesc.uri = "";
+    shaderDesc.vertFilename = "../shaders/Model.vert";
+    shaderDesc.fragFilename = "../shaders/Model.frag";
+
+    auto& modelShader = resourceManager->createShader(shaderDesc);
+    
+#ifdef ENVIRONMENT_IMAGE
+    const std::vector<std::string> texturesNames = {
+        "../textures/city.jpg"
+    };
+    sceneManager->createEnvironment(SceneResources::SceneManager::EnvironmentType::BACKGROUND_IMAGE_2D, texturesNames);
+#elif defined(ENVIRONMENT_SKYBOX)
+    const std::vector<std::string> texturesNames = {
+    "../textures/posx.jpg",
+    "../textures/negx.jpg",
+    "../textures/posy.jpg",
+    "../textures/negy.jpg",
+    "../textures/posz.jpg",
+    "../textures/negz.jpg"
+    };
+    sceneManager->createEnvironment(SceneResources::SceneManager::EnvironmentType::SKYBOX, texturesNames);
+#else
+    const std::vector<std::string> texturesNames = {
+        "../textures/equirect.jpg"
+    };
+    sceneManager->createEnvironment(SceneResources::SceneManager::EnvironmentType::EQUIRECTANGULAR, texturesNames);
+#endif
+
+    Resources::BufferDesc bufDesc;
+    bufDesc.name = "Matrices";
+    bufDesc.uri = "Matrices";
+    bufDesc.bytesize = sizeof(Matrices);
+    bufDesc.target = GL_UNIFORM_BUFFER;
+    bufDesc.p_data = nullptr;
+
+    resourceManager->createBuffer(bufDesc);
+
+    auto& envShader = resourceManager->getShader(SceneResources::ENVIRONMENT_SHADER_NAME);
+
+    resourceManager->bindBufferShader("Matrices", 0, modelShader);
+    resourceManager->bindBufferShader("Matrices", 0, envShader);
+
     resourceManager->bindBufferShader("Lights", 1, modelShader);
 
 

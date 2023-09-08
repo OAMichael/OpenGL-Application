@@ -1,7 +1,7 @@
 #include "ISceneObject.hpp"
 
 
-namespace Geometry {
+namespace SceneResources {
 
 ISceneObject::~ISceneObject() {
 

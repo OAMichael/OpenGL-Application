@@ -108,30 +108,42 @@ vec4 pbrBasic() {
         N = applyNormalMap(N, V, inUv);
     }
 
-    for (uint i = 0; i < lights.point_light_num; i++) {
+    for (uint i = lights.point_light_offset; i < lights.directional_light_offset; i++) {
         const vec3 lightBaseColor = lights.colors[i].rgb;
-        const float lightDist = length(worldPos - lights.pos_or_dir[i].xyz);
+        const float lightDist = length(worldPos - lights.positions[i].xyz);
         const float attenuation = 1 / lightDist / lightDist;
 
         const vec3 lightColor = lightBaseColor * attenuation;
-        const vec3 L = normalize(lights.pos_or_dir[i].xyz - worldPos);
+        const vec3 L = normalize(lights.positions[i].xyz - worldPos);
         const float NoL = max(dot(N, L), 0.0f);
 
         const vec3 brdf = calculateBRDF(N, L, V);
         color.rgb += brdf * lightColor * NoL;
     }
 
-    for (uint i = lights.point_light_num; i < lights.point_light_num + lights.directional_light_num; i++) {
+    for (uint i = lights.directional_light_offset; i < lights.spot_light_offset; i++) {
         const vec3 lightColor = lights.colors[i].rgb;
-        const vec3 L = normalize(lights.pos_or_dir[i].xyz);
+        const vec3 L = normalize(lights.direction_cutoffs[i].xyz);
         const float NoL = max(dot(N, L), 0.0f);
 
         const vec3 brdf = calculateBRDF(N, L, V);
         color.rgb += brdf * lightColor * NoL;
     }
 
-    for (uint i = lights.point_light_num + lights.directional_light_num; i < lights.point_light_num + lights.directional_light_num + lights.spot_light_num; i++) {
+    for (uint i = lights.spot_light_offset; i < lights.num_of_lights; i++) {
+        const vec3 L = normalize(lights.positions[i].xyz - worldPos);
+        const float cos_angle = dot(-L, normalize(lights.direction_cutoffs[i].xyz));
+        if (cos_angle > lights.direction_cutoffs[i].w) {
+            const vec3 lightBaseColor = lights.colors[i].rgb;
+            const float lightDist = length(worldPos - lights.positions[i].xyz);
+            const float attenuation = 1 / lightDist / lightDist;
 
+            const vec3 lightColor = lightBaseColor * attenuation;
+            const float NoL = max(dot(N, L), 0.0f);
+
+            const vec3 brdf = calculateBRDF(N, L, V);
+            color.rgb += brdf * lightColor * NoL;
+        }
     }
 
     vec3 baseReflectivity = vec3(0.04);

@@ -13,13 +13,20 @@
 #include <glm/gtc/quaternion.hpp>
 #include <glm/gtx/quaternion.hpp>
 
-namespace Geometry {
+#define INVALID_SCENE_OBJECT 0xFFFFFFFFFFFFFFFFu
+
+namespace SceneResources {
 
 struct AABB {
 	glm::vec3 minCorner;
 	glm::vec3 maxCorner;
 };
 
+struct SceneHandle {
+	uint64_t nativeHandle = INVALID_SCENE_OBJECT;
+
+	bool operator==(const SceneHandle& other) const { return nativeHandle == other.nativeHandle; }
+};
 
 class ISceneObject {
 
@@ -30,16 +37,19 @@ protected:
 
 	glm::vec3 Scale_ = glm::vec3(1.0f);
 
-
     bool isVisible_ = true;
 
     AABB boundingBox_;
 
     glm::mat4 modelMatrix_;
 
+
 	void calculateLocalModelMatrix();
 
 public:
+	SceneHandle handle;
+
+
 	glm::vec3 getPosition();
 	void setPosition(glm::vec3 pos) { Position_ = pos; }
 
@@ -60,5 +70,14 @@ public:
 };
 
 }
+
+template<>
+struct std::hash<SceneResources::SceneHandle>
+{
+	std::size_t operator()(const SceneResources::SceneHandle& handle) const noexcept
+	{
+		return std::hash<uint64_t>{}(handle.nativeHandle);
+	}
+};
 
 #endif

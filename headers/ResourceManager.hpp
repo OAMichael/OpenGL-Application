@@ -113,6 +113,7 @@ public:
 	GeneralApp::Shader& createShader(const ShaderDesc& shaderDesc);
 
 	void generateMipMaps(const std::string& texName);
+	void generateMipMaps(const ResourceHandle handle);
 
 	void deleteImage(const std::string& name);
 	void deleteSampler(const std::string& name);

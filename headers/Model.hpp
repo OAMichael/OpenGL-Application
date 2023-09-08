@@ -12,11 +12,11 @@
 
 namespace Geometry {
 
-class Model final : public ISceneObject {
+class Model final : public SceneResources::ISceneObject {
 private:
 	tinygltf::Model model_;
 	std::string filename_;
-	SceneNode* rootNode_ = nullptr;
+	SceneResources::SceneNode* rootNode_ = nullptr;
 
 	std::string name_;
 
@@ -31,7 +31,7 @@ public:
 	void setFilename(const std::string& filename);
 	const std::string& getName() const;
 	void setName(const std::string& name);
-	SceneNode* getModelRootNode();
+	SceneResources::SceneNode* getModelRootNode();
 
 	void init();
 	void draw(GeneralApp::Shader& shader);

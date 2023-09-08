@@ -9,6 +9,7 @@
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 
+#define GLM_FORCE_SWIZZLE
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
@@ -24,6 +25,9 @@
 #include <tinygltf/tiny_gltf.h>
 
 #define BUFFER_OFFSET(i) ((char *)NULL + (i))
+
+static inline constexpr const char* CONFIG_PATH = "../configs/models.json";
+inline constexpr const char* MODEL_SHADER_NAME = "Model_Shader";
 
 class PotentialApp : public GeneralApp::IApplication {
 private:
@@ -47,22 +51,22 @@ private:
 public:
     PotentialApp();
 
-    void renderToWindow() override;
+    void OnInit() override;
+    void OnWindowCreate() override;
+    void OnRenderingStart() override;
+    void OnRenderFrame() override;
+    void OnRenderingEnd() override;
+    void OnWindowDestroy() override;
 
     void mouseCallback(GLFWwindow* window, int button, int action, int mods) override;
-
     void cursorCallback(GLFWwindow* window, double xpos, double ypos) override;
-
     void scrollCallback(GLFWwindow* window, double xoffset, double yoffset) override;
-
     void framebufferSizeCallback(GLFWwindow* window, int width, int height) override;
-
     void keyboardCallback(GLFWwindow* window, int key, int scancode, int action, int mods) override;
 
     void initModels();
-
+    void initLights();
     void initRender();
-
     void initCamera();
 };
 

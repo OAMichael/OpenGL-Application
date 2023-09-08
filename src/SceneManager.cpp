@@ -4,43 +4,172 @@
 
 namespace SceneResources {
 
+static inline SceneHandle createNewSceneHandle() {
+    static uint64_t handle = 0;
+    ++handle;
+
+    return { handle };
+}
+
 SceneManager* SceneManager::instancePtr = nullptr;
 
-Geometry::SceneNode& SceneManager::createSceneNode(const std::string& name) {
-    if (auto it = sceneNodes_.find(name); it != sceneNodes_.end())
-        return *sceneNodes_[name];
+SceneNode& SceneManager::createRootNode() {
+    if (rootNode_)
+        return *rootNode_;
 
-    Geometry::SceneNode* newNode = new Geometry::SceneNode();
+    rootNode_ = &createSceneNode(ROOT_NODE_NAME);
+    return *rootNode_;
+}
+
+SceneNode& SceneManager::getRootNode() {
+    if(rootNode_)
+        return *rootNode_;
+
+    return createRootNode();
+}
+
+SceneNode& SceneManager::createSceneNode(const std::string& name) {
+
+    SceneNode* newNode = new SceneNode();
 
 #ifdef DEBUG_MODEL
     std::cout << "Creating scene node \'" << name << "\'" << std::endl;
 #endif
 
     newNode->name = name;
-    sceneNodes_[newNode->name] = newNode;
+    newNode->handle = createNewSceneHandle();
+    sceneNodes_[newNode->handle] = newNode;
 
     return *newNode;
 }
 
-void SceneManager::deleteSceneNode(const std::string& name) {
-    if (auto it = sceneNodes_.find(name); it != sceneNodes_.end()) {
-        delete sceneNodes_[name];
+SceneLight& SceneManager::createSceneLight(const LightDesc& lightDesc) {
+    SceneLight* newLight = new SceneLight();
+
+#ifdef DEBUG_MODEL
+    std::cout << "Creating scene light \'" << lightDesc.name << "\'" << std::endl;
+#endif
+
+    newLight->name = lightDesc.name;
+    newLight->color = lightDesc.color;
+    newLight->position = lightDesc.position;
+    newLight->direction = lightDesc.direction;
+    newLight->cutoff_angle = lightDesc.cutoff_angle;
+
+    newLight->type = lightDesc.type;
+
+    newLight->handle = createNewSceneHandle();
+    sceneLights_[newLight->handle] = newLight;
+
+    return *newLight;
+}
+
+void SceneManager::deleteSceneNode(const SceneHandle handle) {
+    if (auto it = sceneNodes_.find(handle); it != sceneNodes_.end()) {
+        delete sceneNodes_[handle];
         sceneNodes_.erase(it);
     }
 }
 
-Geometry::SceneNode& SceneManager::getSceneNode(const std::string& name) {
-    if (auto it = sceneNodes_.find(name); it != sceneNodes_.end())
-        return *sceneNodes_[name];
+void SceneManager::deleteSceneLight(const SceneHandle handle) {
+    if (auto it = sceneLights_.find(handle); it != sceneLights_.end()) {
+        delete sceneLights_[handle];
+        sceneLights_.erase(it);
+    }
+}
 
-    auto emptyNode = new Geometry::SceneNode();
-    sceneNodes_[name] = emptyNode;
-    return *emptyNode;
+SceneNode& SceneManager::getSceneNode(const SceneHandle handle) {
+    return *sceneNodes_[handle];
+}
+
+SceneLight& SceneManager::getSceneLight(const SceneHandle handle) {
+    return *sceneLights_[handle];
 }
 
 bool SceneManager::hasSceneNode(const std::string& name) {
-    auto it = sceneNodes_.find(name);
+    auto it = std::find_if(sceneNodes_.begin(), sceneNodes_.end(),
+        [&name](const std::pair<SceneHandle, SceneNode*>& pair)
+        { return pair.second->name == name; });
+
     return it != sceneNodes_.end();
+}
+
+bool SceneManager::hasSceneLight(const std::string& name) {
+    auto it = std::find_if(sceneLights_.begin(), sceneLights_.end(),
+        [&name](const std::pair<SceneHandle, SceneLight*>& pair)
+        { return pair.second->name == name; });
+
+    return it != sceneLights_.end();
+}
+
+
+void SceneManager::updateLights() {
+    std::vector<glm::vec4> pointLightColors;
+    std::vector<glm::vec3> pointLightPositions;
+
+    std::vector<glm::vec4> directionalLightColors;
+    std::vector<glm::vec3> directionalLightDirections;
+
+    std::vector<glm::vec4> spotLightColors;
+    std::vector<glm::vec3> spotLightPositions;
+    std::vector<glm::vec3> spotLightDirections;
+    std::vector<float>     spotLightCutoffAngles;
+
+    for (auto light : sceneLights_) {
+        switch (light.second->type) {
+        case SceneLight::LightType::POINT_LIGHT: {
+            pointLightColors.push_back(light.second->color);
+            pointLightPositions.push_back(light.second->position);
+
+            break;
+        }
+        case SceneLight::LightType::DIRECTIONAL_LIGHT: {
+            directionalLightColors.push_back(light.second->color);
+            directionalLightDirections.push_back(light.second->direction);
+
+            break;
+        }
+        case SceneLight::LightType::SPOT_LIGHT: {
+            spotLightColors.push_back(light.second->color);
+            spotLightPositions.push_back(light.second->position);
+            spotLightDirections.push_back(light.second->direction);
+            spotLightCutoffAngles.push_back(light.second->cutoff_angle);
+
+            break;
+        }
+        }
+    }
+
+    const int pointLightNum = pointLightPositions.size();
+    const int directionalLightNum = directionalLightDirections.size();
+    const int spotLightNum = spotLightPositions.size();
+
+    lightData_.point_light_offset = 0;
+    lightData_.directional_light_offset = pointLightNum;
+    lightData_.spot_light_offset = pointLightNum + directionalLightNum;
+    lightData_.num_of_lights = pointLightNum + directionalLightNum + spotLightNum;
+
+    for (int i = 0; i < pointLightNum; ++i) {
+        lightData_.colors[i] = pointLightColors[i];
+        lightData_.positions[i] = glm::vec4(pointLightPositions[i], 0.0);
+        lightData_.direction_cutoffs[i] = glm::vec4(0.0);
+    }
+
+    for (int i = 0; i < directionalLightNum; ++i) {
+        lightData_.colors[pointLightNum + i] = directionalLightColors[i];
+        lightData_.positions[pointLightNum + i] = glm::vec4(0.0);
+        lightData_.direction_cutoffs[pointLightNum + i] = glm::vec4(directionalLightDirections[i], 0.0);
+    }
+
+    for (int i = 0; i < spotLightNum; ++i) {
+        lightData_.colors[pointLightNum + directionalLightNum + i] = spotLightColors[i];
+        lightData_.positions[pointLightNum + directionalLightNum + i] = glm::vec4(spotLightPositions[i], 0.0);
+        lightData_.direction_cutoffs[pointLightNum + directionalLightNum + i] = glm::vec4(spotLightDirections[i], spotLightCutoffAngles[i]);
+    }
+}
+
+const LightData& SceneManager::getLightData() const {
+    return lightData_;
 }
 
 
@@ -76,12 +205,12 @@ void SceneManager::createBackground2D(const std::string& textureName) {
     Resources::TextureDesc texDesc;
     texDesc.faces = 1;
     texDesc.factor = glm::vec4(1.0);
-    texDesc.name = "BACKGROUND_2D_TEXTURE";
+    texDesc.name = BACKGROUND_2D_TEXTURE_NAME;
 
     auto& newImage = resourceManager->createImage(textureName);
     texDesc.p_images[0] = &newImage;
 
-    resourceManager->createTexture(texDesc);
+    Background2DHandle_ = resourceManager->createTexture(texDesc).handle;
 
     glBindVertexArray(0);
     glBindBuffer(GL_ARRAY_BUFFER, 0);
@@ -93,13 +222,13 @@ void SceneManager::drawBackground2D() {
     glDepthFunc(GL_LEQUAL);
     glFrontFace(GL_CCW);
 
-    const auto& background2DTexture = resourceManager->getTexture("BACKGROUND_2D_TEXTURE");
+    const auto background2DTexture = static_cast<Resources::Texture*>(resourceManager->getResource(Background2DHandle_));
 
     glBindVertexArray(VAOBackground2D_);
 
     glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, background2DTexture.GL_id);
-    glBindSampler(0, background2DTexture.sampler->GL_id);
+    glBindTexture(GL_TEXTURE_2D, background2DTexture->GL_id);
+    glBindSampler(0, background2DTexture->sampler->GL_id);
 
     glDrawArrays(GL_TRIANGLES, 0, 6);
 
@@ -128,14 +257,14 @@ void SceneManager::createSkybox(const std::vector<std::string>& textureNames) {
     Resources::TextureDesc texDesc;
     texDesc.faces = 6;
     texDesc.factor = glm::vec4(1.0);
-    texDesc.name = "SKYBOX_TEXTURE";
+    texDesc.name = SKYBOX_TEXTURE_NAME;
 
     for (unsigned i = 0; i < faces; ++i) {
         auto& newImage = resourceManager->createImage(textureNames[i]);
         texDesc.p_images[i] = &newImage;
     }
-    resourceManager->createTexture(texDesc);
-    resourceManager->generateMipMaps(texDesc.name);
+    SkyboxHandle_ = resourceManager->createTexture(texDesc).handle;
+    resourceManager->generateMipMaps(SkyboxHandle_);
     glEnable(GL_TEXTURE_CUBE_MAP_SEAMLESS);
 
     glBindVertexArray(0);
@@ -148,13 +277,13 @@ void SceneManager::drawSkybox() {
     glDepthFunc(GL_LEQUAL);
     glFrontFace(GL_CCW);
 
-    const auto& skyboxTexture = resourceManager->getTexture("SKYBOX_TEXTURE");
+    const auto skyboxTexture = static_cast<Resources::Texture*>(resourceManager->getResource(SkyboxHandle_));
 
     glBindVertexArray(VAOSkybox_);
 
     glActiveTexture(GL_TEXTURE1);
-    glBindTexture(GL_TEXTURE_CUBE_MAP, skyboxTexture.GL_id);
-    glBindSampler(1, skyboxTexture.sampler->GL_id);
+    glBindTexture(GL_TEXTURE_CUBE_MAP, skyboxTexture->GL_id);
+    glBindSampler(1, skyboxTexture->sampler->GL_id);
 
     glDrawArrays(GL_TRIANGLES, 0, 36);
 
@@ -182,12 +311,12 @@ void SceneManager::createEquirectangular(const std::string& textureName) {
     Resources::TextureDesc texDesc;
     texDesc.faces = 1;
     texDesc.factor = glm::vec4(1.0);
-    texDesc.name = "EQUIRECTANGULAR_TEXTURE";
+    texDesc.name = EQUIRECTANGULAR_TEXTURE_NAME;
 
     auto& newImage = resourceManager->createImage(textureName);
     texDesc.p_images[0] = &newImage;
 
-    resourceManager->createTexture(texDesc);
+    EquirectHandle_ = resourceManager->createTexture(texDesc).handle;
     resourceManager->generateMipMaps(texDesc.name);
 
     glBindVertexArray(0);
@@ -200,13 +329,13 @@ void SceneManager::drawEquirectangular() {
     glDepthFunc(GL_LEQUAL);
     glFrontFace(GL_CCW);
 
-    const auto& equirectTexture = resourceManager->getTexture("EQUIRECTANGULAR_TEXTURE");
+    const auto equirectTexture = static_cast<Resources::Texture*>(resourceManager->getResource(EquirectHandle_));
 
     glBindVertexArray(VAOEquirect_);
 
     glActiveTexture(GL_TEXTURE2);
-    glBindTexture(GL_TEXTURE_2D, equirectTexture.GL_id);
-    glBindSampler(2, equirectTexture.sampler->GL_id);
+    glBindTexture(GL_TEXTURE_2D, equirectTexture->GL_id);
+    glBindSampler(2, equirectTexture->sampler->GL_id);
 
     glDrawArrays(GL_TRIANGLES, 0, 36);
 
@@ -221,7 +350,7 @@ void SceneManager::createEnvironment(const EnvironmentType envType, const std::v
     auto resourceManager = Resources::ResourceManager::getInstance();
 
     Resources::ShaderDesc shaderDesc;
-    shaderDesc.name = "Default_Environment";
+    shaderDesc.name = ENVIRONMENT_SHADER_NAME;
     shaderDesc.uri = "";
     shaderDesc.vertFilename = "../shaders/DefaultEnv.vert";
     shaderDesc.fragFilename = "../shaders/DefaultEnv.frag";
@@ -270,7 +399,7 @@ void SceneManager::createEnvironment(const EnvironmentType envType, const std::s
 
 void SceneManager::drawEnvironment() {
     auto resourceManager = Resources::ResourceManager::getInstance();
-    auto& envShader = resourceManager->getShader("Default_Environment");
+    auto& envShader = resourceManager->getShader(ENVIRONMENT_SHADER_NAME);
     envShader.use();
     switch (envType_) {
     case EnvironmentType::BACKGROUND_IMAGE_2D:
@@ -290,6 +419,19 @@ void SceneManager::drawEnvironment() {
 }
 
 
+const Resources::ResourceHandle SceneManager::getBackground2DHandle() const {
+    return Background2DHandle_;
+}
+
+const Resources::ResourceHandle SceneManager::getSkyboxHandle() const {
+    return SkyboxHandle_;
+}
+
+const Resources::ResourceHandle SceneManager::getEquirectangularHandle() const {
+    return EquirectHandle_;
+}
+
+
 SceneManager::SceneManager() {
 }
 
@@ -298,5 +440,12 @@ SceneManager::~SceneManager() {
         delete node.second;
         sceneNodes_.erase(node.first);
     }
+
+    for (auto& light : sceneLights_) {
+        delete light.second;
+        sceneLights_.erase(light.first);
+    }
+
+    rootNode_ = nullptr;
 }
 }

@@ -28,11 +28,12 @@
 
 struct LightData {
 	vec4 colors[MAX_NUMBER_OF_LIGHTS];
-	vec4 pos_or_dir[MAX_NUMBER_OF_LIGHTS];
+	vec4 positions[MAX_NUMBER_OF_LIGHTS];
+	vec4 direction_cutoffs[MAX_NUMBER_OF_LIGHTS];
 
-	uint point_light_num;
-	uint directional_light_num;
-	uint spot_light_num;
+	uint point_light_offset;
+	uint directional_light_offset;
+	uint spot_light_offset;
 	uint num_of_lights;
 };
 

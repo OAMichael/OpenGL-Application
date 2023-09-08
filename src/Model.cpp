@@ -5,10 +5,11 @@
 
 namespace Geometry {
 
-static inline void collectChildNodes(std::vector<Geometry::SceneNode*>& presentNodes, Geometry::SceneNode* currNode) {
+static inline void collectChildNodes(std::vector<SceneResources::SceneNode*>& presentNodes, SceneResources::SceneNode* currNode) {
 	for (auto& child : currNode->children) {
 		const std::string newNodeName = child->name;
-		if (std::find_if(presentNodes.begin(), presentNodes.end(), [&newNodeName](const SceneNode* node) -> bool { return node->name == newNodeName; }) != presentNodes.end())
+		if (std::find_if(presentNodes.begin(), presentNodes.end(), 
+			[&newNodeName](const SceneResources::SceneNode* node) -> bool { return node->name == newNodeName; }) != presentNodes.end())
 			continue;
 
 		presentNodes.push_back(child);
@@ -51,7 +52,7 @@ void Model::setName(const std::string& name) {
 	name_ = name;
 }
 
-SceneNode* Model::getModelRootNode() {
+SceneResources::SceneNode* Model::getModelRootNode() {
 	return rootNode_;
 }
 
@@ -65,7 +66,7 @@ void Model::init() {
 	rootNode_->setScale(Scale_);
 
 	std::vector<int> parentNodesIndices;
-	std::vector<SceneNode*> nodes;
+	std::vector<SceneResources::SceneNode*> nodes;
 
 	for (int i = 0; i < model_.nodes.size(); ++i) {
 		if (nodeIsParentIdx(model_, i))

@@ -21,6 +21,8 @@ protected:
 
     std::string windowName_;
 
+    bool isTerminated_ = false;
+
     float deltaTime_ = 0.0f;
     float lastFrame_ = 0.0f;
 
@@ -30,16 +32,24 @@ protected:
     bool enableDefaultMSAA_ = false;
     int samples_;
 
+    bool needToRender_ = true;
+
     static IApplication* m_Application;
     
-    virtual void renderToWindow() = 0;
+    void showFPS();
+
+    virtual void OnInit() = 0;
+    virtual void OnWindowCreate() = 0;
+    virtual void OnRenderingStart() = 0;
+    virtual void OnRenderFrame()  = 0;
+    virtual void OnRenderingEnd() = 0;
+    virtual void OnWindowDestroy() = 0;
+
     virtual void framebufferSizeCallback(GLFWwindow* window, int width, int height) = 0;
     virtual void cursorCallback(GLFWwindow* window, double xpos, double ypos) = 0;
     virtual void mouseCallback(GLFWwindow* window, int button, int action, int mods) = 0;
     virtual void scrollCallback(GLFWwindow* window, double xoffset, double yoffset) = 0;
     virtual void keyboardCallback(GLFWwindow* window, int key, int scancode, int action, int mods) = 0;
-
-    void showFPS();
 
     IApplication() {};
     IApplication(const IApplication& other) {};
@@ -77,6 +87,7 @@ public:
     GLFWwindow* createWindow(const unsigned& GLFWVerMaj, const unsigned& GLFWVerMin, const unsigned& winWidth,
         const unsigned& winHeight, const std::string& name);
 
+    void renderToWindow();
     void terminateWindow();
 };
 

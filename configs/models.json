@@ -19,10 +19,10 @@
             "filename": "../models/Sponza/glTF/Sponza.gltf",
             "position": [ 0.0, 0.0, 4.0 ],
             "rotation": [ 1.0, 0.0, 0.0, 0.0 ],
-            "scale": [ 0.01, 0.01, 0.01 ]
+            "scale": [ 0.1, 0.1, 0.1 ]
         },
         {
-            "name": "Car",
+            "name": "ToyCar",
             "filename": "../models/ToyCar/glTF/ToyCar.gltf",
             "position": [ 0.0, 0.0, -4.0 ],
             "rotation": [ 1.0, 0.0, 0.0, 0.0 ],

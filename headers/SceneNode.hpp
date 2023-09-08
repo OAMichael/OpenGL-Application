@@ -4,12 +4,12 @@
 #include "ISceneObject.hpp"
 #include "Mesh.hpp"
 
-namespace Geometry {
+namespace SceneResources {
 
 class SceneNode : public ISceneObject {
 
 private:
-	Mesh mesh_;
+	Geometry::Mesh mesh_;
 	bool isEnabled_ = true;
 
 	glm::mat4 globalMatrix_ = glm::mat4(1.0f);

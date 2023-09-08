@@ -47,16 +47,20 @@ void Geometry::Mesh::draw(GeneralApp::Shader& shader)
         }
 
         if (sceneManager->getEnvironmentType() == SceneResources::SceneManager::EnvironmentType::SKYBOX) {
-            auto& skyboxTexture = resourceManager->getTexture("SKYBOX_TEXTURE");
+            Resources::Texture* skyboxTexture = static_cast<Resources::Texture*>(resourceManager->getResource(
+                sceneManager->getSkyboxHandle()
+            ));
             glActiveTexture(GL_TEXTURE0 + Resources::Material::TextureIdx::COUNT);
-            glBindTexture(GL_TEXTURE_CUBE_MAP, skyboxTexture.GL_id);
-            glBindSampler(Resources::Material::TextureIdx::COUNT, skyboxTexture.sampler->GL_id);
+            glBindTexture(GL_TEXTURE_CUBE_MAP, skyboxTexture->GL_id);
+            glBindSampler(Resources::Material::TextureIdx::COUNT, skyboxTexture->sampler->GL_id);
         }
         else if (sceneManager->getEnvironmentType() == SceneResources::SceneManager::EnvironmentType::EQUIRECTANGULAR) {
-            auto& equirectTexture = resourceManager->getTexture("EQUIRECTANGULAR_TEXTURE");
+            Resources::Texture* equirectTexture = static_cast<Resources::Texture*>(resourceManager->getResource(
+                sceneManager->getEquirectangularHandle()
+            ));
             glActiveTexture(GL_TEXTURE0 + Resources::Material::TextureIdx::COUNT + 1);
-            glBindTexture(GL_TEXTURE_2D, equirectTexture.GL_id);
-            glBindSampler(Resources::Material::TextureIdx::COUNT + 1, equirectTexture.sampler->GL_id);
+            glBindTexture(GL_TEXTURE_2D, equirectTexture->GL_id);
+            glBindSampler(Resources::Material::TextureIdx::COUNT + 1, equirectTexture->sampler->GL_id);
         }
 
         glUniform4fv(glGetUniformLocation(shader.getID(), "materialTexturesFactors"), Resources::Material::TextureIdx::COUNT, &materialTexturesFactors[0][0]);

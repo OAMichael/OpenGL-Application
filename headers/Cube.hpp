@@ -16,7 +16,7 @@
 
 namespace Geometry {
 
-class Cube : public ISceneObject {
+class Cube : public SceneResources::ISceneObject {
 private:
 	const std::vector<float> vertices_ = {
         // positions          

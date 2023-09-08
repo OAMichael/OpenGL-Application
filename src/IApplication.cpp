@@ -6,13 +6,15 @@ namespace GeneralApp {
 IApplication* IApplication::m_Application;
 
 IApplication::~IApplication() {
-    std::cout << "Terminating the window..." << std::endl;
     IApplication::terminateWindow();
 }
 
 
 GLFWwindow* IApplication::createWindow(const unsigned& GLFWVerMaj, const unsigned& GLFWVerMin, const unsigned& winWidth,
     const unsigned& winHeight, const std::string& name) {
+
+    std::cout << "Creating the window..." << std::endl;
+    OnInit();
 
     windowName_ = name;
 
@@ -53,7 +55,22 @@ GLFWwindow* IApplication::createWindow(const unsigned& GLFWVerMaj, const unsigne
         glEnable(GL_MULTISAMPLE);
     }
 
+    OnWindowCreate();
+
     return window_;
+}
+
+void IApplication::renderToWindow() {
+    OnRenderingStart();
+    while (!glfwWindowShouldClose(window_)) {
+
+        if (needToRender_) {
+            OnRenderFrame();
+            glfwSwapBuffers(window_);
+        }
+        glfwPollEvents();
+    }
+    OnRenderingEnd();
 }
 
 
@@ -75,7 +92,12 @@ void IApplication::showFPS() {
 
 
 void IApplication::terminateWindow() {
-    glfwTerminate();
+    if (!isTerminated_) {
+        isTerminated_ = true;
+        std::cout << "Terminating the window..." << std::endl;
+        glfwTerminate();
+        OnWindowDestroy();
+    }
 }
 
 }

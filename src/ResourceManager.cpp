@@ -18,7 +18,7 @@ Image& ResourceManager::createImage(const ImageDesc& imageDesc) {
         return getImage(imageDesc.name);
 
 #ifdef DEBUG_MODEL
-    std::cout << "Creating image \'" << imageDesc.name << "\'" << std::endl;
+    std::cout << "Creating image \'" << imageDesc.name << "\' with URI \'" << imageDesc.uri << "\'" << std::endl;
 #endif
 
     Image* newImage = new Image();
@@ -82,7 +82,7 @@ Sampler& ResourceManager::createSampler(const SamplerDesc& samplerDesc) {
         return getSampler(samplerDesc.name);
 
 #ifdef DEBUG_MODEL
-    std::cout << "Creating sampler \'" << samplerDesc.name << "\'" << std::endl;
+    std::cout << "Creating sampler \'" << samplerDesc.name << "\' with URI \'" << samplerDesc.uri << "\'" << std::endl;
 #endif
 
     Sampler* newSampler = new Sampler();
@@ -118,7 +118,7 @@ Texture& ResourceManager::createTexture(const TextureDesc& textureDesc) {
         return getTexture(textureDesc.name);
 
 #ifdef DEBUG_MODEL
-    std::cout << "Creating texture \'" << textureDesc.name << "\'" << std::endl;
+    std::cout << "Creating texture \'" << textureDesc.name << "\' with URI \'" << textureDesc.uri << "\'" << std::endl;
 #endif
 
     Texture* newTexture = new Texture();
@@ -267,7 +267,7 @@ Material& ResourceManager::createMaterial(const MaterialDesc& matDesc) {
     Material* newMaterial = new Material();
 
 #ifdef DEBUG_MODEL
-    std::cout << "Creating material \'" << matDesc.name << "\'" << std::endl;
+    std::cout << "Creating material \'" << matDesc.name << "\' with URI \'" << matDesc.uri << "\'" << std::endl;
 #endif
 
     for(int i = 0; i < Material::TextureIdx::COUNT; ++i)
@@ -291,7 +291,7 @@ Buffer& ResourceManager::createBuffer(const BufferDesc& bufDesc) {
     Buffer* newBuffer = new Buffer();
 
 #ifdef DEBUG_MODEL
-    std::cout << "Creating buffer \'" << bufDesc.name << "\'" << std::endl;
+    std::cout << "Creating buffer \'" << bufDesc.name << "\' with URI \'" << bufDesc.uri << "\'" << std::endl;
 #endif
 
     newBuffer->name = bufDesc.name;
@@ -354,12 +354,25 @@ void ResourceManager::generateMipMaps(const std::string& texName) {
     glBindTexture(texType, 0);
 }
 
+void ResourceManager::generateMipMaps(const ResourceHandle handle) {
+    auto resource = allResources_[handle];
+    if (resource->type != RenderResource::ResourceType::TEXTURE)
+        return;
+
+    Texture* texture = static_cast<Texture*>(resource);
+    auto texType = texture->faces == 1 ? GL_TEXTURE_2D : GL_TEXTURE_CUBE_MAP;
+    glBindTexture(texType, texture->GL_id);
+    glGenerateMipmap(texType);
+    glBindTexture(texType, 0);
+}
+
+
 GeneralApp::Shader& ResourceManager::createShader(const ShaderDesc& shaderDesc) {
     if (hasShader(shaderDesc.name, shaderDesc.uri))
         return getShader(shaderDesc.name);
 
 #ifdef DEBUG_MODEL
-    std::cout << "Creating shader \'" << shaderDesc.name << "\'" << std::endl;
+    std::cout << "Creating shader \'" << shaderDesc.name << "\' with URI \'" << shaderDesc.uri << "\'" << std::endl;
 #endif
 
     GeneralApp::Shader* newShader = new GeneralApp::Shader(shaderDesc.vertFilename.c_str(), shaderDesc.fragFilename.c_str());

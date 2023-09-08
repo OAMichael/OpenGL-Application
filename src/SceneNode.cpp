@@ -2,12 +2,12 @@
 #include "SceneManager.hpp"
 #include "SceneNode.hpp"
 
-void Geometry::SceneNode::init(const tinygltf::Model& model, const tinygltf::Node& node) {
+void SceneResources::SceneNode::init(const tinygltf::Model& model, const tinygltf::Node& node) {
 	if (parent)
 		return;
 
 	if (node.mesh > -1 && node.mesh < model.meshes.size()) {
-		mesh_ = Mesh(model, model.meshes[node.mesh]);
+		mesh_ = Geometry::Mesh(model, model.meshes[node.mesh]);
 		mesh_.init();
 	}
 
@@ -38,7 +38,7 @@ void Geometry::SceneNode::init(const tinygltf::Model& model, const tinygltf::Nod
 		this->setScale(glm::vec3(scale[0], scale[1], scale[2]));
 }
 
-void Geometry::SceneNode::calculateGlobalModelMatrix() {
+void SceneResources::SceneNode::calculateGlobalModelMatrix() {
 	this->calculateLocalModelMatrix();
 	globalMatrix_ = this->getLocalModelMatrix();
 	
@@ -50,7 +50,7 @@ void Geometry::SceneNode::calculateGlobalModelMatrix() {
 
 
 
-void Geometry::SceneNode::draw(GeneralApp::Shader& shader) {
+void SceneResources::SceneNode::draw(GeneralApp::Shader& shader) {
 	if (isEnabled_) {
 		if (!isRoot()) {
 			auto resourceManager = Resources::ResourceManager::getInstance();
@@ -65,14 +65,14 @@ void Geometry::SceneNode::draw(GeneralApp::Shader& shader) {
 }
 
 
-void Geometry::SceneNode::setParent(SceneNode* par) {
+void SceneResources::SceneNode::setParent(SceneNode* par) {
 	parent = par;
 	if (par && std::find(par->children.begin(), par->children.end(), this) == par->children.end())
 		par->children.push_back(this);
 }
 
 
-void Geometry::SceneNode::printNode(const int level) {
+void SceneResources::SceneNode::printNode(const int level) {
 	static int lastLevel = 0;
 	lastLevel = level;
 	if (level > 1)
@@ -82,7 +82,7 @@ void Geometry::SceneNode::printNode(const int level) {
 	if (level > 0)
 		printf("|---");
 
-	printf("%s\n", name.c_str());
+	printf("%s\n", name.length() > 0 ? name.c_str() : "<unnamed>");
 	for (auto& child : children)
 		child->printNode(level + 1);
 
