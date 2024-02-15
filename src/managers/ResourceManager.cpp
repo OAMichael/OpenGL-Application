@@ -442,6 +442,7 @@ Framebuffer& ResourceManager::createFramebuffer(const FramebufferDesc& framebufD
 
     newFramebuffer->name = framebufDesc.name;
     newFramebuffer->uri = framebufDesc.uri;
+    newFramebuffer->colorAttachmentsCount = framebufDesc.colorAttachmentsCount;
     newFramebuffer->type = RenderResource::ResourceType::FRAMEBUFFER;
 
     if (!framebufDesc.depthAttachment || framebufDesc.colorAttachmentsCount < 1) {
@@ -470,9 +471,13 @@ Framebuffer& ResourceManager::createFramebuffer(const FramebufferDesc& framebufD
 
     glGenFramebuffers(1, &newFramebuffer->GL_id);
     glBindFramebuffer(GL_FRAMEBUFFER, newFramebuffer->GL_id);
+
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_TEXTURE_2D, framebufDesc.depthAttachment->GL_id, 0);
+    newFramebuffer->depthAttachment = framebufDesc.depthAttachment;
+
     for (unsigned i = 0; i < framebufDesc.colorAttachmentsCount; ++i) {
         glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + i, GL_TEXTURE_2D, framebufDesc.colorAttachments[i]->GL_id, 0);
+        newFramebuffer->colorAttachments[i] = framebufDesc.colorAttachments[i];
     }
 
     if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
@@ -497,6 +502,52 @@ void ResourceManager::bindFramebuffer(const std::string& name) {
         return;
     }
     glBindFramebuffer(GL_FRAMEBUFFER, framebuffers_[name]->GL_id);
+}
+
+
+void ResourceManager::resizeFramebuffer(const std::string& name, unsigned width, unsigned height) {
+    if (!hasFramebuffer(name)) {
+        std::cout << "No framebuffer named \'" << name << "\' is created" << std::endl;
+        return;
+    }
+
+    auto framebuffer = framebuffers_[name];
+
+    auto depthAttachment = framebuffer->depthAttachment;
+    glBindTexture(GL_TEXTURE_2D, depthAttachment->GL_id);
+    glTexImage2D(GL_TEXTURE_2D, 0, depthAttachment->format, width, height, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
+
+    for (int i = 0; i < framebuffer->colorAttachmentsCount; ++i) {
+        auto colorAttachment = framebuffer->colorAttachments[i];
+        glBindTexture(GL_TEXTURE_2D, colorAttachment->GL_id);
+
+        GLenum type = GL_UNSIGNED_BYTE;
+        if (colorAttachment->images[0]->bits == 16) {
+            type = GL_UNSIGNED_SHORT;
+        }
+
+        GLenum format = GL_RGBA;
+        switch (colorAttachment->images[0]->components) {
+        case 1:
+            format = GL_RED;
+            break;
+        case 2:
+            format = GL_RG;
+            break;
+        case 3:
+            format = GL_RGB;
+            break;
+        case 4:
+            format = GL_RGBA;
+            break;
+        default:
+            break;
+        }
+
+        glTexImage2D(GL_TEXTURE_2D, 0, colorAttachment->format, width, height, 0, format, type, NULL);
+    }
+
+    glBindTexture(GL_TEXTURE_2D, 0);
 }
 
 

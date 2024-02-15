@@ -11,8 +11,10 @@ struct Framebuffer : RenderResource {
 	static const unsigned MAXIMUM_COLOR_ATTACHMENTS_COUNT = 4;
 
 	unsigned GL_id;
+	size_t colorAttachmentsCount;
 
 	Texture* colorAttachments[MAXIMUM_COLOR_ATTACHMENTS_COUNT];
+	Texture* depthAttachment;
 };
 
 

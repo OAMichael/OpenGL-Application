@@ -121,6 +121,7 @@ public:
 
 	Framebuffer& createFramebuffer(const FramebufferDesc& framebufDesc);
 	void bindFramebuffer(const std::string& name);
+	void resizeFramebuffer(const std::string& name, unsigned width, unsigned height);
 
 	GeneralApp::Shader& createShader(const ShaderDesc& shaderDesc);
 

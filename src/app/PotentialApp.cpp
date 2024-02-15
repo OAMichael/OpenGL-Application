@@ -123,6 +123,9 @@ void PotentialApp::framebufferSizeCallback(GLFWwindow* window, int width, int he
     Camera_.setAspect((float)width / height);
 
     needToRender_ = width > 1 && height > 1;
+
+    auto resourceManager = Resources::ResourceManager::getInstance();
+    resourceManager->resizeFramebuffer("CUSTOM_FRAMEBUFFER", width, height);
 }
 
 
