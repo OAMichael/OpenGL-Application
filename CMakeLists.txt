@@ -11,71 +11,84 @@ set(INCLUDE_DIR ./headers ./3rdparty)
 set(COMPILE_OPT -std=c++17 -O2)
 set(LIB_DIR ./3rdparty/lib)
 
-if(MSVC)
+if(WIN32)
 	set(LINK_OPT opengl32.lib glfw3.lib)
 else()
 	set(LINK_OPT -lglfw -lGL -ldl -lpthread -lX11 -lXxf86vm -lXrandr -lXi)
 endif()
 
-add_executable(
-	App
+add_executable(App
 
-	${GLAD_DIR}/glad.c
-	${SRC_DIR}/App.cpp
-	${SRC_DIR}/IApplication.cpp
-	${SRC_DIR}/Shader.cpp
-	${SRC_DIR}/PotentialApp.cpp
-	${SRC_DIR}/Camera.cpp
-	${SRC_DIR}/Cube.cpp
-	${SRC_DIR}/ISceneObject.cpp
-	${SRC_DIR}/GLTFLoader.cpp
-	${SRC_DIR}/SceneNode.cpp
-	${SRC_DIR}/Image.cpp
-	${SRC_DIR}/Sampler.cpp
-	${SRC_DIR}/Texture.cpp
-	${SRC_DIR}/Material.cpp
-	${SRC_DIR}/Buffer.cpp
-	${SRC_DIR}/Framebuffer.cpp
-	${SRC_DIR}/Mesh.cpp
-	${SRC_DIR}/Model.cpp
-	${SRC_DIR}/ResourceManager.cpp
-	${SRC_DIR}/SceneManager.cpp
-	${SRC_DIR}/JSONImporter.cpp
+			${SRC_DIR}/app/App.cpp
+			${SRC_DIR}/app/IApplication.cpp
+			${SRC_DIR}/app/PotentialApp.cpp
 
-	${HEADER_DIR}/IApplication.hpp
-	${HEADER_DIR}/Shader.hpp
-	${HEADER_DIR}/PotentialApp.hpp
-	${HEADER_DIR}/Camera.hpp
-	${HEADER_DIR}/Cube.hpp
-	${HEADER_DIR}/ISceneObject.hpp
-	${HEADER_DIR}/GLTFLoader.hpp
-	${HEADER_DIR}/SceneNode.hpp
-	${HEADER_DIR}/Image.hpp
-	${HEADER_DIR}/Sampler.hpp
-	${HEADER_DIR}/Texture.hpp
-	${HEADER_DIR}/Material.hpp
-	${HEADER_DIR}/Buffer.hpp
-	${HEADER_DIR}/Framebuffer.hpp
-	${HEADER_DIR}/Mesh.hpp
-	${HEADER_DIR}/Model.hpp
-	${HEADER_DIR}/ResourceManager.hpp
-	${HEADER_DIR}/SceneManager.hpp
-	${HEADER_DIR}/JSONImporter.hpp
-	${HEADER_DIR}/RenderResource.hpp
-	${HEADER_DIR}/Light.hpp
+			${SRC_DIR}/renderResources/Shader.cpp
+			${SRC_DIR}/renderResources/Image.cpp
+			${SRC_DIR}/renderResources/Sampler.cpp
+			${SRC_DIR}/renderResources/Texture.cpp
+			${SRC_DIR}/renderResources/Material.cpp
+			${SRC_DIR}/renderResources/Buffer.cpp
+			${SRC_DIR}/renderResources/Framebuffer.cpp
+
+			${SRC_DIR}/managers/GLTFLoader.cpp
+			${SRC_DIR}/managers/ResourceManager.cpp
+			${SRC_DIR}/managers/SceneManager.cpp
+			${SRC_DIR}/managers/JSONImporter.cpp
+
+			${SRC_DIR}/scene/Camera.cpp
+			${SRC_DIR}/scene/Cube.cpp
+			${SRC_DIR}/scene/ISceneObject.cpp
+			${SRC_DIR}/scene/SceneNode.cpp
+			${SRC_DIR}/scene/Mesh.cpp
+			${SRC_DIR}/scene/Model.cpp
+
+			${HEADER_DIR}/app/IApplication.hpp
+			${HEADER_DIR}/app/PotentialApp.hpp
+
+			${HEADER_DIR}/renderResources/RenderResource.hpp
+			${HEADER_DIR}/renderResources/Shader.hpp
+			${HEADER_DIR}/renderResources/Image.hpp
+			${HEADER_DIR}/renderResources/Sampler.hpp
+			${HEADER_DIR}/renderResources/Texture.hpp
+			${HEADER_DIR}/renderResources/Material.hpp
+			${HEADER_DIR}/renderResources/Buffer.hpp
+			${HEADER_DIR}/renderResources/Framebuffer.hpp
+
+			${HEADER_DIR}/managers/GLTFLoader.hpp
+			${HEADER_DIR}/managers/ResourceManager.hpp
+			${HEADER_DIR}/managers/SceneManager.hpp
+			${HEADER_DIR}/managers/JSONImporter.hpp
+
+			${HEADER_DIR}/scene/Camera.hpp
+			${HEADER_DIR}/scene/Cube.hpp
+			${HEADER_DIR}/scene/ISceneObject.hpp
+			${HEADER_DIR}/scene/SceneNode.hpp
+			${HEADER_DIR}/scene/Mesh.hpp
+			${HEADER_DIR}/scene/Model.hpp
+			${HEADER_DIR}/scene/Light.hpp
+
+			${GLAD_DIR}/glad.c
 )
 
-target_include_directories(App PUBLIC ${SRC_DIR})
-target_include_directories(App PUBLIC ${GLAD_DIR})
+target_include_directories(App PUBLIC ${INCLUDE_DIR} ${SRC_DIR} ${GLAD_DIR})
+target_link_directories(App PUBLIC ${LIB_DIR})
+target_compile_options(App PUBLIC ${COMPILE_OPT})
+target_link_libraries(App PUBLIC ${LINK_OPT})
 
-include_directories(${INCLUDE_DIR})
-link_directories(${LIB_DIR})
+target_include_directories(App PUBLIC
+						   ${SRC_DIR}/app
+						   ${SRC_DIR}/renderResources
+						   ${SRC_DIR}/managers
+						   ${SRC_DIR}/scene
+						   ${HEADER_DIR}/app
+						   ${HEADER_DIR}/renderResources
+						   ${HEADER_DIR}/managers
+						   ${HEADER_DIR}/scene
+)
+
 
 if(MSVC)
 	set(CMAKE_VS_SDK_INCLUDE_DIRECTORIES $(IncludePath) ${INCLUDE_DIR})
 	set(CMAKE_VS_SDK_LIBRARY_DIRECTORIES $(LibraryPath) ${LIB_DIR})
 endif()
-
-add_compile_options(App ${COMPILE_OPT})
-target_link_libraries(App PUBLIC ${LINK_OPT})
-target_link_directories(App PUBLIC ${LIB_DIR})
