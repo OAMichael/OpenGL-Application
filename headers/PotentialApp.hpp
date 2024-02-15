@@ -43,6 +43,7 @@ private:
     bool FirstMouse_ = true;
     bool IsFullscreen_ = false;
     bool IsWireframe_ = false;
+    bool IsEnableBlur_ = false;
 
     bool MouseHidden_ = true;
 

@@ -1,32 +1,11 @@
 {
     "models": [
         {
-            "name": "DamagedHelmet",
-            "filename": "../models/DamagedHelmet/DamagedHelmet.gltf",
-            "position": [ 4.0, 0.0, 0.0 ],
-            "rotation": [1.0, 0.0, 0.0, 0.0],
-            "scale": [1.0, 1.0, 1.0]
-        },
-        {
             "name": "Chess",
             "filename": "../models/ABeautifulGame/ABeautifulGame.gltf",
             "position": [ -4.0, 0.0, 0.0 ],
             "rotation": [ 1.0, 0.0, 0.0, 0.0 ],
             "scale": [ 5.0, 5.0, 5.0 ]
-        },
-        {
-            "name": "Sponza",
-            "filename": "../models/Sponza/glTF/Sponza.gltf",
-            "position": [ 0.0, 0.0, 4.0 ],
-            "rotation": [ 1.0, 0.0, 0.0, 0.0 ],
-            "scale": [ 0.1, 0.1, 0.1 ]
-        },
-        {
-            "name": "ToyCar",
-            "filename": "../models/ToyCar/glTF/ToyCar.gltf",
-            "position": [ 0.0, 0.0, -4.0 ],
-            "rotation": [ 1.0, 0.0, 0.0, 0.0 ],
-            "scale": [ 10.0, 10.0, 10.0 ]
         }
     ]
 }

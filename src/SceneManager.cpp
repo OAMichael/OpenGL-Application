@@ -223,12 +223,22 @@ void SceneManager::drawBackground2D() {
     glFrontFace(GL_CCW);
 
     const auto background2DTexture = static_cast<Resources::Texture*>(resourceManager->getResource(Background2DHandle_));
+    Resources::Texture& defaultBlackCubemap = resourceManager->getTexture(Resources::defaultTexturesNames[Resources::Texture::DefaultTextures::DEFAULT_TEXTURE_CUBEMAP_BLACK]);
+    Resources::Texture& defaultBlackTexture = resourceManager->getTexture(Resources::defaultTexturesNames[Resources::Texture::DefaultTextures::DEFAULT_TEXTURE_BLACK]);
 
     glBindVertexArray(VAOBackground2D_);
 
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, background2DTexture->GL_id);
     glBindSampler(0, background2DTexture->sampler->GL_id);
+
+    glActiveTexture(GL_TEXTURE1);
+    glBindTexture(GL_TEXTURE_CUBE_MAP, defaultBlackCubemap.GL_id);
+    glBindSampler(1, defaultBlackCubemap.sampler->GL_id);
+
+    glActiveTexture(GL_TEXTURE2);
+    glBindTexture(GL_TEXTURE_2D, defaultBlackTexture.GL_id);
+    glBindSampler(2, defaultBlackTexture.sampler->GL_id);
 
     glDrawArrays(GL_TRIANGLES, 0, 6);
 
@@ -278,12 +288,21 @@ void SceneManager::drawSkybox() {
     glFrontFace(GL_CCW);
 
     const auto skyboxTexture = static_cast<Resources::Texture*>(resourceManager->getResource(SkyboxHandle_));
+    Resources::Texture& defaultBlackTexture = resourceManager->getTexture(Resources::defaultTexturesNames[Resources::Texture::DefaultTextures::DEFAULT_TEXTURE_BLACK]);
 
     glBindVertexArray(VAOSkybox_);
+
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, defaultBlackTexture.GL_id);
+    glBindSampler(0, defaultBlackTexture.sampler->GL_id);
 
     glActiveTexture(GL_TEXTURE1);
     glBindTexture(GL_TEXTURE_CUBE_MAP, skyboxTexture->GL_id);
     glBindSampler(1, skyboxTexture->sampler->GL_id);
+
+    glActiveTexture(GL_TEXTURE2);
+    glBindTexture(GL_TEXTURE_2D, defaultBlackTexture.GL_id);
+    glBindSampler(2, defaultBlackTexture.sampler->GL_id);
 
     glDrawArrays(GL_TRIANGLES, 0, 36);
 
@@ -330,8 +349,18 @@ void SceneManager::drawEquirectangular() {
     glFrontFace(GL_CCW);
 
     const auto equirectTexture = static_cast<Resources::Texture*>(resourceManager->getResource(EquirectHandle_));
+    Resources::Texture& defaultBlackCubemap = resourceManager->getTexture(Resources::defaultTexturesNames[Resources::Texture::DefaultTextures::DEFAULT_TEXTURE_CUBEMAP_BLACK]);
+    Resources::Texture& defaultBlackTexture = resourceManager->getTexture(Resources::defaultTexturesNames[Resources::Texture::DefaultTextures::DEFAULT_TEXTURE_BLACK]);
 
     glBindVertexArray(VAOEquirect_);
+
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, defaultBlackTexture.GL_id);
+    glBindSampler(0, defaultBlackTexture.sampler->GL_id);
+
+    glActiveTexture(GL_TEXTURE1);
+    glBindTexture(GL_TEXTURE_CUBE_MAP, defaultBlackCubemap.GL_id);
+    glBindSampler(1, defaultBlackCubemap.sampler->GL_id);
 
     glActiveTexture(GL_TEXTURE2);
     glBindTexture(GL_TEXTURE_2D, equirectTexture->GL_id);
@@ -429,6 +458,74 @@ const Resources::ResourceHandle SceneManager::getSkyboxHandle() const {
 
 const Resources::ResourceHandle SceneManager::getEquirectangularHandle() const {
     return EquirectHandle_;
+}
+
+
+void SceneManager::createFullscreenQuad() {
+    auto* resourceManager = Resources::ResourceManager::getInstance();
+
+    float quadVertices[] = {
+        -1.0f,  1.0f,  0.0f, 1.0f,
+        -1.0f, -1.0f,  0.0f, 0.0f,
+         1.0f, -1.0f,  1.0f, 0.0f,
+
+        -1.0f,  1.0f,  0.0f, 1.0f,
+         1.0f, -1.0f,  1.0f, 0.0f,
+         1.0f,  1.0f,  1.0f, 1.0f
+    };
+
+    glGenVertexArrays(1, &VAOFullscreenQuad_);
+    glGenBuffers(1, &VBOFullscreenQuad_);
+    glBindVertexArray(VAOFullscreenQuad_);
+    glBindBuffer(GL_ARRAY_BUFFER, VBOFullscreenQuad_);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(quadVertices), &quadVertices, GL_STATIC_DRAW);
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)0);
+    glEnableVertexAttribArray(1);
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)(2 * sizeof(float)));
+    glBindVertexArray(0);
+
+
+    Resources::ShaderDesc shdrDesc;
+    shdrDesc.name = FULLSCREEN_QUAD_SHADER_NAME;
+    shdrDesc.uri = "";
+    shdrDesc.vertFilename = "../shaders/FullscreenQuad.vert";
+    shdrDesc.fragFilename = "../shaders/FullscreenQuad.frag";
+    auto& shdr = resourceManager->createShader(shdrDesc);
+
+    shdr.use();
+    shdr.setInt("uScreenTexture", 0);
+    shdr.setBool("uEnableBlur", 0);
+}
+
+void SceneManager::drawFullscreenQuad(const std::string& textureName) {
+    // Assume that proper framebuffer already bound
+
+    auto* resourceManager = Resources::ResourceManager::getInstance();
+
+    int depthTestEnabled = 0;
+    glGetIntegerv(GL_DEPTH_TEST, &depthTestEnabled);
+
+    if (depthTestEnabled) {
+        glDisable(GL_DEPTH_TEST);
+    }
+
+    resourceManager->getShader(FULLSCREEN_QUAD_SHADER_NAME).use();
+    glBindVertexArray(VAOFullscreenQuad_);
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, resourceManager->getTexture(textureName).GL_id);
+    glDrawArrays(GL_TRIANGLES, 0, 6);
+
+    if (depthTestEnabled) {
+        glEnable(GL_DEPTH_TEST);
+    }
+}
+
+void SceneManager::setEnableBlur(bool enabled) {
+    auto* resourceManager = Resources::ResourceManager::getInstance();
+    auto& fullscreenQuadShader = resourceManager->getShader(FULLSCREEN_QUAD_SHADER_NAME);
+
+    fullscreenQuadShader.setBool("uEnableBlur", enabled);
 }
 
 

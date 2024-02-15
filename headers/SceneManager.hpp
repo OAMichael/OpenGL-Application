@@ -9,6 +9,7 @@
 
 namespace SceneResources {
 
+inline constexpr const char* FULLSCREEN_QUAD_SHADER_NAME	= "Fullscreen_Quad";
 inline constexpr const char* ENVIRONMENT_SHADER_NAME		= "Default_Environment";
 inline constexpr const char* BACKGROUND_2D_TEXTURE_NAME		= "BACKGROUND_2D_TEXTURE";
 inline constexpr const char* SKYBOX_TEXTURE_NAME			= "SKYBOX_TEXTURE";
@@ -82,6 +83,10 @@ public:
 	const Resources::ResourceHandle getSkyboxHandle() const;
 	const Resources::ResourceHandle getEquirectangularHandle() const;
 
+	void createFullscreenQuad();
+	void drawFullscreenQuad(const std::string& textureName);
+	void setEnableBlur(bool enabled = true);
+
 	~SceneManager();
 
 private:
@@ -93,6 +98,9 @@ private:
 	std::unordered_map<SceneHandle, ISceneObject*> sceneObjects_;
 
 	SceneNode* rootNode_ = nullptr;
+
+	unsigned VAOFullscreenQuad_;
+	unsigned VBOFullscreenQuad_;
 
 	unsigned VAOBackground2D_;
 	unsigned VBOBackground2D_;

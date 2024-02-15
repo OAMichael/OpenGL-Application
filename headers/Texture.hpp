@@ -26,11 +26,10 @@ struct Texture : RenderResource {
 
     Sampler* sampler;
 
-    Texture() {};
-
     enum DefaultTextures : uint32_t {
         DEFAULT_TEXTURE_WHITE = 0,
         DEFAULT_TEXTURE_BLACK = 1,
+        DEFAULT_TEXTURE_CUBEMAP_BLACK = 2,
 
         COUNT
     };

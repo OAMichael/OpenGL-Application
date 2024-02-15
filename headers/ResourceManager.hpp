@@ -11,6 +11,7 @@
 #include "Material.hpp"
 #include "Buffer.hpp"
 #include "Shader.hpp"
+#include "Framebuffer.hpp"
 
 namespace Resources {
 
@@ -38,8 +39,8 @@ struct SamplerDesc : RenderResourceDesc {
 struct TextureDesc : RenderResourceDesc {
 
 	unsigned faces = 1;
-	Image* p_images[6] = { nullptr, nullptr, nullptr, nullptr, nullptr, nullptr };
-	glm::vec4 factor;
+	Image* p_images[6] = {};
+	glm::vec4 factor = { 1, 1, 1, 1 };
 	int format = GL_RGBA;
 
 	Sampler* p_sampler = nullptr;
@@ -63,6 +64,12 @@ struct ShaderDesc : RenderResourceDesc {
 	std::string fragFilename;
 };
 
+struct FramebufferDesc : RenderResourceDesc {
+	unsigned colorAttachmentsCount = 1;
+	Texture* colorAttachments[Framebuffer::MAXIMUM_COLOR_ATTACHMENTS_COUNT] = {};
+	Texture* depthAttachment = nullptr;
+};
+
 
 class ResourceManager final {
 private:
@@ -72,6 +79,7 @@ private:
 	std::unordered_map<std::string, Material*> materials_;
 	std::unordered_map<std::string, Buffer*> buffers_;
 	std::unordered_map<std::string, GeneralApp::Shader*> shaders_;
+	std::unordered_map<std::string, Framebuffer*> framebuffers_;
 
 	std::unordered_map<ResourceHandle, RenderResource*> allResources_;
 
@@ -79,6 +87,7 @@ private:
 	void createDefaultSamplers();
 	void createDefaultTextures();
 	void createDefaultMaterials();
+	void createDefaultFramebuffer();
 
 	static ResourceManager* instancePtr;
 	ResourceManager();
@@ -110,6 +119,9 @@ public:
 	void updateBuffer(const std::string& name, const unsigned char* data, const size_t bytesize, const size_t byteoffset = 0);
 	void bindBufferShader(const std::string& name, const unsigned binding, const GeneralApp::Shader& shader);
 
+	Framebuffer& createFramebuffer(const FramebufferDesc& framebufDesc);
+	void bindFramebuffer(const std::string& name);
+
 	GeneralApp::Shader& createShader(const ShaderDesc& shaderDesc);
 
 	void generateMipMaps(const std::string& texName);
@@ -121,6 +133,7 @@ public:
 	void deleteMaterial(const std::string& name);
 	void deleteBuffer(const std::string& name);
 	void deleteShader(const std::string& name);
+	void deleteFramebuffer(const std::string& name);
 
 	Image& getImage(const std::string& name);
 	Sampler& getSampler(const std::string& name);
@@ -128,6 +141,7 @@ public:
 	Material& getMaterial(const std::string& name);
 	Buffer& getBuffer(const std::string& name);
 	GeneralApp::Shader& getShader(const std::string& name);
+	Framebuffer& getFramebuffer(const std::string& name);
 
 	RenderResource* getResource(const ResourceHandle handle);
 
@@ -137,6 +151,7 @@ public:
 	bool hasMaterial(const std::string& name);
 	bool hasBuffer(const std::string& name);
 	bool hasShader(const std::string& name);
+	bool hasFramebuffer(const std::string& name);
 
 	bool hasResource(const ResourceHandle handle);
 
@@ -146,6 +161,7 @@ public:
 	bool hasMaterial(const std::string& name, const std::string& uri);
 	bool hasBuffer(const std::string& name, const std::string& uri);
 	bool hasShader(const std::string& name, const std::string& uri);
+	bool hasFramebuffer(const std::string& name, const std::string& uri);
 
 	void cleanUp();
 

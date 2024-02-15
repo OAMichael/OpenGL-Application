@@ -35,6 +35,7 @@ add_executable(
 	${SRC_DIR}/Texture.cpp
 	${SRC_DIR}/Material.cpp
 	${SRC_DIR}/Buffer.cpp
+	${SRC_DIR}/Framebuffer.cpp
 	${SRC_DIR}/Mesh.cpp
 	${SRC_DIR}/Model.cpp
 	${SRC_DIR}/ResourceManager.cpp
@@ -54,6 +55,7 @@ add_executable(
 	${HEADER_DIR}/Texture.hpp
 	${HEADER_DIR}/Material.hpp
 	${HEADER_DIR}/Buffer.hpp
+	${HEADER_DIR}/Framebuffer.hpp
 	${HEADER_DIR}/Mesh.hpp
 	${HEADER_DIR}/Model.hpp
 	${HEADER_DIR}/ResourceManager.hpp

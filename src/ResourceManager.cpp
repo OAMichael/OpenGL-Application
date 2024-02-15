@@ -35,10 +35,11 @@ Image& ResourceManager::createImage(const ImageDesc& imageDesc) {
 
     size_t bytesize = imageDesc.width * imageDesc.height * imageDesc.components * (imageDesc.bits / 8);
     newImage->image.resize(bytesize);
-    std::copy(imageDesc.p_data, imageDesc.p_data + bytesize, newImage->image.begin());
+    if (imageDesc.p_data) {
+        std::copy(imageDesc.p_data, imageDesc.p_data + bytesize, newImage->image.begin());
+    }
 
     newImage->handle = createNewResourceHandle();
-
     images_[newImage->name] = newImage;
     allResources_[newImage->handle] = newImage;
 
@@ -67,9 +68,9 @@ Image& ResourceManager::createImage(const char* filename) {
         return im;
     }
     else {
-        printf("Failed to load image: \'%s\'\n", filename);
+        std::cout << "Failed to load image: \'" << filename << "\'" << std::endl;
         stbi_image_free(data);
-        return getImage(defaultImagesNames[Image::DefaultImages::DEFAULT_IMAGE_WHITE]);
+        return getImage(defaultImagesNames[Image::DefaultImages::DEFAULT_IMAGE_BLACK]);
     }
 }
 
@@ -86,7 +87,7 @@ Sampler& ResourceManager::createSampler(const SamplerDesc& samplerDesc) {
 #endif
 
     Sampler* newSampler = new Sampler();
-    
+
     newSampler->name = samplerDesc.name;
     newSampler->uri = samplerDesc.uri;
 
@@ -106,7 +107,6 @@ Sampler& ResourceManager::createSampler(const SamplerDesc& samplerDesc) {
     glSamplerParameteri(newSampler->GL_id, GL_TEXTURE_MAG_FILTER, samplerDesc.magFilter);
 
     newSampler->handle = createNewResourceHandle();
-
     samplers_[newSampler->name] = newSampler;
     allResources_[newSampler->handle] = newSampler;
 
@@ -132,11 +132,10 @@ Texture& ResourceManager::createTexture(const TextureDesc& textureDesc) {
     newTexture->faces = textureDesc.faces;
     newTexture->format = textureDesc.format;
 
-    textures_[newTexture->name] = newTexture;
-
     if (!textureDesc.p_images[0]) {
         std::cout << "Image cannot be NULL !!!" << std::endl;
-        return *newTexture;
+        delete newTexture;
+        return getTexture(defaultTexturesNames[Texture::DEFAULT_TEXTURE_BLACK]);
     }
 
     for(int i = 0; i < textureDesc.faces; ++i)
@@ -150,49 +149,72 @@ Texture& ResourceManager::createTexture(const TextureDesc& textureDesc) {
         glBindTexture(GL_TEXTURE_CUBE_MAP, newTexture->GL_id);
     else {
         std::cout << "Number of faces must be 1 or 6 !!!" << std::endl;
-        return *newTexture;
+        delete newTexture;
+        return getTexture(defaultTexturesNames[Texture::DEFAULT_TEXTURE_BLACK]);
     }
     glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
     
     newTexture->sampler = textureDesc.p_sampler;
     if (!newTexture->sampler) {
-        newTexture->sampler = &getSampler(defaultSamplersNames[Sampler::DefaultSamplers::DEFAULT_SAMPLER_LINEAR_REPEAT]);
+        newTexture->sampler = &getSampler(defaultSamplersNames[Sampler::DefaultSamplers::DEFAULT_SAMPLER_NEAREST_REPEAT]);
     }
 
     if (newTexture->faces == 1) {
-        GLenum format = GL_RGBA;
-        switch (newTexture->images[0]->components) {
-        case 1:
-            format = GL_RED;
-            break;
-        case 2:
-            format = GL_RG;
-            break;
-        case 3:
-            format = GL_RGB;
-            break;
-        case 4:
-            format = GL_RGBA;
-            break;
-        default:
-            std::cout << "Undefined image format" << std::endl;
+        // Handle depth texture
+        if (textureDesc.format == GL_DEPTH_COMPONENT || textureDesc.format == GL_DEPTH_COMPONENT16 ||
+            textureDesc.format == GL_DEPTH_COMPONENT24 || textureDesc.format == GL_DEPTH_COMPONENT32 ||
+            textureDesc.format == GL_DEPTH_COMPONENT32F) {
+
+            GLenum type = GL_FLOAT;
+            // TODO: type
+
+            glTexImage2D(
+                GL_TEXTURE_2D,
+                0,
+                textureDesc.format,
+                newTexture->images[0]->width,
+                newTexture->images[0]->height,
+                0,
+                GL_DEPTH_COMPONENT,
+                type,
+                newTexture->images[0]->image.data()
+            );
         }
+        else {
+            GLenum format = GL_RGBA;
+            switch (newTexture->images[0]->components) {
+            case 1:
+                format = GL_RED;
+                break;
+            case 2:
+                format = GL_RG;
+                break;
+            case 3:
+                format = GL_RGB;
+                break;
+            case 4:
+                format = GL_RGBA;
+                break;
+            default:
+                std::cout << "Undefined image format" << std::endl;
+            }
 
-        GLenum type = GL_UNSIGNED_BYTE;
-        if (newTexture->images[0]->bits == 16)
-            type = GL_UNSIGNED_SHORT;
+            GLenum type = GL_UNSIGNED_BYTE;
+            if (newTexture->images[0]->bits == 16)
+                type = GL_UNSIGNED_SHORT;
 
-        glTexImage2D(
-            GL_TEXTURE_2D,
-            0,
-            textureDesc.format,
-            newTexture->images[0]->width,
-            newTexture->images[0]->height,
-            0,
-            format,
-            type,
-            newTexture->images[0]->image.data()
-        );
+            glTexImage2D(
+                GL_TEXTURE_2D,
+                0,
+                textureDesc.format,
+                newTexture->images[0]->width,
+                newTexture->images[0]->height,
+                0,
+                format,
+                type,
+                newTexture->images[0]->image.data()
+            );
+        }
         glBindTexture(GL_TEXTURE_2D, 0);
     }
     else {
@@ -233,8 +255,10 @@ Texture& ResourceManager::createTexture(const TextureDesc& textureDesc) {
         }
         glBindTexture(GL_TEXTURE_CUBE_MAP, 0);
     }
+
     newTexture->handle = createNewResourceHandle();
     allResources_[newTexture->handle] = newTexture;
+    textures_[newTexture->name] = newTexture;
 
     return *newTexture;
 }
@@ -270,14 +294,15 @@ Material& ResourceManager::createMaterial(const MaterialDesc& matDesc) {
     std::cout << "Creating material \'" << matDesc.name << "\' with URI \'" << matDesc.uri << "\'" << std::endl;
 #endif
 
-    for(int i = 0; i < Material::TextureIdx::COUNT; ++i)
+    for (int i = 0; i < Material::TextureIdx::COUNT; ++i) {
         newMaterial->textures[i] = matDesc.p_TexArray[i];
+    }
     
     newMaterial->name = matDesc.name;
     newMaterial->uri = matDesc.uri;
     newMaterial->type = RenderResource::ResourceType::MATERIAL;
-    newMaterial->handle = createNewResourceHandle();
 
+    newMaterial->handle = createNewResourceHandle();
     materials_[newMaterial->name] = newMaterial;
     allResources_[newMaterial->handle] = newMaterial;
 
@@ -301,8 +326,9 @@ Buffer& ResourceManager::createBuffer(const BufferDesc& bufDesc) {
 
     newBuffer->data.resize(bufDesc.bytesize);
     std::fill(newBuffer->data.begin(), newBuffer->data.end(), 0);
-    if(bufDesc.p_data)
+    if (bufDesc.p_data) {
         std::copy(bufDesc.p_data, bufDesc.p_data + bufDesc.bytesize, newBuffer->data.begin());
+    }
 
     glGenBuffers(1, &(newBuffer->GL_id));
 
@@ -311,7 +337,6 @@ Buffer& ResourceManager::createBuffer(const BufferDesc& bufDesc) {
     glBindBuffer(newBuffer->target, 0);
 
     newBuffer->handle = createNewResourceHandle();
-
     buffers_[newBuffer->name] = newBuffer;
     allResources_[newBuffer->handle] = newBuffer;
 
@@ -319,23 +344,29 @@ Buffer& ResourceManager::createBuffer(const BufferDesc& bufDesc) {
 }
 
 void ResourceManager::updateBuffer(const std::string& name, const unsigned char* data, const size_t bytesize, const size_t byteoffset) {
-    auto it = buffers_.find(name);
-    if (it == buffers_.end())
+    if (!hasBuffer(name)) {
+        std::cout << "No buffer named \'" << name << "\' is created" << std::endl;
         return;
+    }
 
-    std::copy(data + byteoffset, data + byteoffset + bytesize, it->second->data.begin() + byteoffset);
+    auto& buffer = getBuffer(name);
 
-    glBindBuffer(it->second->target, it->second->GL_id);
-    glBufferSubData(it->second->target, byteoffset, bytesize, data);
-    glBindBuffer(it->second->target, 0);
+    std::copy(data + byteoffset, data + byteoffset + bytesize, buffer.data.begin() + byteoffset);
+
+    glBindBuffer(buffer.target, buffer.GL_id);
+    glBufferSubData(buffer.target, byteoffset, bytesize, data);
+    glBindBuffer(buffer.target, 0);
 }
 
 void ResourceManager::bindBufferShader(const std::string& name, const unsigned binding, const GeneralApp::Shader& shader) {
-    auto it = buffers_.find(name);
-    if (it == buffers_.end())
+    if (!hasBuffer(name)) {
+        std::cout << "No buffer named \'" << name << "\' is created" << std::endl;
         return;
+    }
 
-    glBindBufferRange(it->second->target, binding, it->second->GL_id, 0, it->second->data.size());
+    auto& buffer = getBuffer(name);
+
+    glBindBufferRange(buffer.target, binding, buffer.GL_id, 0, buffer.data.size());
 
     unsigned int uboIndex = glGetUniformBlockIndex(shader.GL_id, name.c_str());
     glUniformBlockBinding(shader.GL_id, uboIndex, binding);
@@ -343,8 +374,10 @@ void ResourceManager::bindBufferShader(const std::string& name, const unsigned b
 
 
 void ResourceManager::generateMipMaps(const std::string& texName) {
-    if (!hasTexture(texName))
+    if (!hasTexture(texName)) {
+        std::cout << "No texture named \'" << texName << "\' is created" << std::endl;
         return;
+    }
 
     auto& texture = getTexture(texName);
     
@@ -355,9 +388,17 @@ void ResourceManager::generateMipMaps(const std::string& texName) {
 }
 
 void ResourceManager::generateMipMaps(const ResourceHandle handle) {
-    auto resource = allResources_[handle];
-    if (resource->type != RenderResource::ResourceType::TEXTURE)
+    auto it = allResources_.find(handle);
+    if (it == allResources_.end()) {
+        std::cout << "No resource with handle" << handle.nativeHandle << " is created" << std::endl;
         return;
+    }
+
+    auto resource = it->second;
+    if (resource->type != RenderResource::ResourceType::TEXTURE) {
+        std::cout << "Can create mip maps for textures only" << std::endl;
+        return;
+    }
 
     Texture* texture = static_cast<Texture*>(resource);
     auto texType = texture->faces == 1 ? GL_TEXTURE_2D : GL_TEXTURE_CUBE_MAP;
@@ -376,12 +417,12 @@ GeneralApp::Shader& ResourceManager::createShader(const ShaderDesc& shaderDesc) 
 #endif
 
     GeneralApp::Shader* newShader = new GeneralApp::Shader(shaderDesc.vertFilename.c_str(), shaderDesc.fragFilename.c_str());
+
     newShader->name = shaderDesc.name;
     newShader->uri = shaderDesc.uri;
     newShader->type = RenderResource::ResourceType::SHADER;
 
     newShader->handle = createNewResourceHandle();
-
     shaders_[newShader->name] = newShader;
     allResources_[newShader->handle] = newShader;
 
@@ -389,8 +430,79 @@ GeneralApp::Shader& ResourceManager::createShader(const ShaderDesc& shaderDesc) 
 }
 
 
+Framebuffer& ResourceManager::createFramebuffer(const FramebufferDesc& framebufDesc) {
+    if (hasFramebuffer(framebufDesc.name))
+        return getFramebuffer(framebufDesc.name);
+
+#ifdef DEBUG_MODEL
+    std::cout << "Creating framebuffer \'" << framebufDesc.name << "\' with URI \'" << framebufDesc.uri << "\'" << std::endl;
+#endif
+
+    Framebuffer* newFramebuffer = new Framebuffer();
+
+    newFramebuffer->name = framebufDesc.name;
+    newFramebuffer->uri = framebufDesc.uri;
+    newFramebuffer->type = RenderResource::ResourceType::FRAMEBUFFER;
+
+    if (!framebufDesc.depthAttachment || framebufDesc.colorAttachmentsCount < 1) {
+        std::cout << "Framebuffer must have depth attachment and at least 1 color attachment" << std::endl;
+        delete newFramebuffer;
+        return getFramebuffer(defaultFramebufferName);
+    }
+
+    unsigned commonWidth = framebufDesc.colorAttachments[0]->images[0]->width;
+    unsigned commonHeigth = framebufDesc.colorAttachments[0]->images[0]->height;
+
+    for (unsigned i = 0; i < framebufDesc.colorAttachmentsCount; ++i) {
+        if (framebufDesc.colorAttachments[i]->faces != 1) {
+            std::cout << "Framebuffer color attachments' view must be 2D Texture" << std::endl;
+            delete newFramebuffer;
+            return getFramebuffer(defaultFramebufferName);
+        }
+
+        if (framebufDesc.colorAttachments[i]->images[0]->width != commonWidth ||
+            framebufDesc.colorAttachments[i]->images[0]->height != commonHeigth) {
+            std::cout << "All framebuffer color attachments must have same dimensions" << std::endl;
+            delete newFramebuffer;
+            return getFramebuffer(defaultFramebufferName);
+        }
+    }
+
+    glGenFramebuffers(1, &newFramebuffer->GL_id);
+    glBindFramebuffer(GL_FRAMEBUFFER, newFramebuffer->GL_id);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_TEXTURE_2D, framebufDesc.depthAttachment->GL_id, 0);
+    for (unsigned i = 0; i < framebufDesc.colorAttachmentsCount; ++i) {
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + i, GL_TEXTURE_2D, framebufDesc.colorAttachments[i]->GL_id, 0);
+    }
+
+    if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
+        std::cout << "Framebuffer \'" << framebufDesc.name << "\' is not complete" << std::endl;
+        delete newFramebuffer;
+        bindFramebuffer(defaultFramebufferName);
+        return getFramebuffer(defaultFramebufferName);
+    }
+    bindFramebuffer(defaultFramebufferName);
+
+    newFramebuffer->handle = createNewResourceHandle();
+    framebuffers_[newFramebuffer->name] = newFramebuffer;
+    allResources_[newFramebuffer->handle] = newFramebuffer;
+
+    return *newFramebuffer;
+}
+
+
+void ResourceManager::bindFramebuffer(const std::string& name) {
+    if (!hasFramebuffer(name)) {
+        std::cout << "No framebuffer named \'" << name << "\' is created" << std::endl;
+        return;
+    }
+    glBindFramebuffer(GL_FRAMEBUFFER, framebuffers_[name]->GL_id);
+}
+
+
 void ResourceManager::deleteImage(const std::string& name) {
     if (auto it = images_.find(name); it != images_.end()) {
+        allResources_.erase(it->second->handle);
         delete images_[name];
         images_.erase(it);
     }
@@ -399,6 +511,7 @@ void ResourceManager::deleteImage(const std::string& name) {
 void ResourceManager::deleteSampler(const std::string& name) {
     if (auto it = samplers_.find(name); it != samplers_.end()) {
         glDeleteSamplers(1, &(it->second->GL_id));
+        allResources_.erase(it->second->handle);
         delete samplers_[name];
         samplers_.erase(it);
     }
@@ -407,6 +520,7 @@ void ResourceManager::deleteSampler(const std::string& name) {
 void ResourceManager::deleteTexture(const std::string& name) {
     if (auto it = textures_.find(name); it != textures_.end()) {
         glDeleteTextures(1, &(it->second->GL_id));
+        allResources_.erase(it->second->handle);
         delete textures_[name];
         textures_.erase(it);
     }
@@ -414,6 +528,7 @@ void ResourceManager::deleteTexture(const std::string& name) {
 
 void ResourceManager::deleteMaterial(const std::string& name) {
     if (auto it = materials_.find(name); it != materials_.end()) {
+        allResources_.erase(it->second->handle);
         delete materials_[name];
         materials_.erase(it);
     }
@@ -422,6 +537,7 @@ void ResourceManager::deleteMaterial(const std::string& name) {
 void ResourceManager::deleteBuffer(const std::string& name) {
     if (auto it = buffers_.find(name); it != buffers_.end()) {
         glDeleteBuffers(1, &(it->second->GL_id));
+        allResources_.erase(it->second->handle);
         delete buffers_[name];
         buffers_.erase(it);
     }
@@ -430,71 +546,85 @@ void ResourceManager::deleteBuffer(const std::string& name) {
 void ResourceManager::deleteShader(const std::string& name) {
     if (auto it = shaders_.find(name); it != shaders_.end()) {
         glDeleteProgram(it->second->GL_id);
+        allResources_.erase(it->second->handle);
         delete shaders_[name];
         shaders_.erase(it);
     }
 }
 
+void ResourceManager::deleteFramebuffer(const std::string& name) {
+    if (auto it = framebuffers_.find(name); it != framebuffers_.end()) {
+        glDeleteFramebuffers(1, &(it->second->GL_id));
+        allResources_.erase(it->second->handle);
+        delete framebuffers_[name];
+        framebuffers_.erase(it);
+    }
+}
+
 
 Image& ResourceManager::getImage(const std::string& name) {
-    if (hasImage(name))
-        return *images_[name];
-
-    auto emptyImage = new Image();
-    images_[name] = emptyImage;
-    return *emptyImage;
+    if (!hasImage(name)) {
+        std::cout << "No image named \'" << name << "\' is created" << std::endl;
+        return *images_[defaultImagesNames[Image::DEFAULT_IMAGE_BLACK]];
+    }
+    return *images_[name];
 }
 
 Sampler& ResourceManager::getSampler(const std::string& name) {
-    if (hasSampler(name))
-        return *samplers_[name];
-
-    auto emptySampler = new Sampler();
-    samplers_[name] = emptySampler;
-    return *emptySampler;
+    if (!hasSampler(name)) {
+        std::cout << "No sampler named \'" << name << "\' is created" << std::endl;
+        return *samplers_[defaultSamplersNames[Sampler::DEFAULT_SAMPLER_NEAREST_REPEAT]];
+    }
+    return *samplers_[name];
 }
 
 Texture& ResourceManager::getTexture(const std::string& name) {
-    if (hasTexture(name))
-        return *textures_[name];
-
-    auto emptyTexture = new Texture();
-    textures_[name] = emptyTexture;
-    return *emptyTexture;
+    if (!hasTexture(name)) {
+        std::cout << "No texture named \'" << name << "\' is created" << std::endl;
+        return *textures_[defaultTexturesNames[Texture::DEFAULT_TEXTURE_BLACK]];
+    }
+    return *textures_[name];
 }
 
 Material& ResourceManager::getMaterial(const std::string& name) {
-    if (hasMaterial(name))
-        return *materials_[name];
-
-    auto emptyMaterial = new Material();
-    materials_[name] = emptyMaterial;
-    return *emptyMaterial;
+    if (!hasMaterial(name)) {
+        std::cout << "No material named \'" << name << "\' is created" << std::endl;
+        return *materials_[defaultMaterialName];
+    }
+    return *materials_[name];
 }
 
 Buffer& ResourceManager::getBuffer(const std::string& name) {
-    if (hasBuffer(name))
-        return *buffers_[name];
-
-    auto emptyBuffer = new Buffer();
-    buffers_[name] = emptyBuffer;
-    return *emptyBuffer;
+    if (!hasBuffer(name)) {
+        std::cout << "No buffer named \'" << name << "\' is created" << std::endl;
+        // TODO:
+        std::abort();
+    }
+    return *buffers_[name];
 }
 
 GeneralApp::Shader& ResourceManager::getShader(const std::string& name) {
-    if (hasShader(name))
-        return *shaders_[name];
+    if (!hasShader(name)) {
+        std::cout << "No shader named \'" << name << "\' is created" << std::endl;
+        // TODO:
+        std::abort();
+    }
+    return *shaders_[name];
+}
 
-    auto emptyShader = new GeneralApp::Shader();
-    shaders_[name] = emptyShader;
-    return *emptyShader;
+Framebuffer& ResourceManager::getFramebuffer(const std::string& name) {
+    if (!hasFramebuffer(name)) {
+        std::cout << "No framebuffer named \'" << name << "\' is created" << std::endl;
+        return *framebuffers_[defaultFramebufferName];
+    }
+    return *framebuffers_[name];
 }
 
 RenderResource* ResourceManager::getResource(const ResourceHandle handle) {
     auto it = allResources_.find(handle);
-    if (it != allResources_.end())
+    if (it != allResources_.end()) {
         return it->second;
-
+    }
     return nullptr;
 }
 
@@ -529,6 +659,10 @@ bool ResourceManager::hasShader(const std::string& name) {
     return it != shaders_.end();
 }
 
+bool ResourceManager::hasFramebuffer(const std::string& name) {
+    auto it = framebuffers_.find(name);
+    return it != framebuffers_.end();
+}
 
 bool ResourceManager::hasResource(const ResourceHandle handle) {
     return allResources_.find(handle) != allResources_.end();
@@ -537,8 +671,9 @@ bool ResourceManager::hasResource(const ResourceHandle handle) {
 
 bool ResourceManager::hasImage(const std::string& name, const std::string& uri) {
     auto nameIt = images_.find(name);
-    if (nameIt == images_.end())
+    if (nameIt == images_.end()) {
         return false;
+    }
 
     for (auto im : images_) {
         if (im.first != name)
@@ -547,14 +682,14 @@ bool ResourceManager::hasImage(const std::string& name, const std::string& uri) 
         if (im.second->uri == uri)
             return true;
     }
-
     return false;
 }
 
 bool ResourceManager::hasSampler(const std::string& name, const std::string& uri) {
     auto nameIt = samplers_.find(name);
-    if (nameIt == samplers_.end())
+    if (nameIt == samplers_.end()) {
         return false;
+    }
 
     for (auto samp : samplers_) {
         if (samp.first != name)
@@ -563,14 +698,14 @@ bool ResourceManager::hasSampler(const std::string& name, const std::string& uri
         if (samp.second->uri == uri)
             return true;
     }
-
     return false;
 }
 
 bool ResourceManager::hasTexture(const std::string& name, const std::string& uri) {
     auto nameIt = textures_.find(name);
-    if (nameIt == textures_.end())
+    if (nameIt == textures_.end()) {
         return false;
+    }
 
     for (auto tex : textures_) {
         if (tex.first != name)
@@ -579,14 +714,14 @@ bool ResourceManager::hasTexture(const std::string& name, const std::string& uri
         if (tex.second->uri == uri)
             return true;
     }
-
     return false;
 }
 
 bool ResourceManager::hasMaterial(const std::string& name, const std::string& uri) {
     auto nameIt = materials_.find(name);
-    if (nameIt == materials_.end())
+    if (nameIt == materials_.end()) {
         return false;
+    }
 
     for (auto mat : materials_) {
         if (mat.first != name)
@@ -595,14 +730,14 @@ bool ResourceManager::hasMaterial(const std::string& name, const std::string& ur
         if (mat.second->uri == uri)
             return true;
     }
-
     return false;
 }
 
 bool ResourceManager::hasBuffer(const std::string& name, const std::string& uri) {
     auto nameIt = buffers_.find(name);
-    if (nameIt == buffers_.end())
+    if (nameIt == buffers_.end()) {
         return false;
+    }
 
     for (auto buf : buffers_) {
         if (buf.first != name)
@@ -611,14 +746,14 @@ bool ResourceManager::hasBuffer(const std::string& name, const std::string& uri)
         if (buf.second->uri == uri)
             return true;
     }
-
     return false;
 }
 
 bool ResourceManager::hasShader(const std::string& name, const std::string& uri) {
     auto nameIt = shaders_.find(name);
-    if (nameIt == shaders_.end())
+    if (nameIt == shaders_.end()) {
         return false;
+    }
 
     for (auto shdr : shaders_) {
         if (shdr.first != name)
@@ -627,7 +762,22 @@ bool ResourceManager::hasShader(const std::string& name, const std::string& uri)
         if (shdr.second->uri == uri)
             return true;
     }
+    return false;
+}
 
+bool ResourceManager::hasFramebuffer(const std::string& name, const std::string& uri) {
+    auto nameIt = framebuffers_.find(name);
+    if (nameIt == framebuffers_.end()) {
+        return false;
+    }
+
+    for (auto fb : framebuffers_) {
+        if (fb.first != name)
+            continue;
+
+        if (fb.second->uri == uri)
+            return true;
+    }
     return false;
 }
 
@@ -637,6 +787,7 @@ ResourceManager::ResourceManager() {
     createDefaultSamplers();
     createDefaultTextures();
     createDefaultMaterials();
+    createDefaultFramebuffer();
 }
 
 ResourceManager::~ResourceManager() {
@@ -645,38 +796,32 @@ ResourceManager::~ResourceManager() {
 
 
 void ResourceManager::cleanUp() {
-    for (auto& im : images_) {
-        delete im.second;
-        images_.erase(im.first);
+    for (auto it = images_.begin(); it != images_.end(); ++it) {
+        deleteImage(it->first);
     }
 
-    for (auto& samp : samplers_) {
-        glDeleteSamplers(1, &(samp.second->GL_id));
-        delete samp.second;
-        samplers_.erase(samp.first);
+    for (auto it = samplers_.begin(); it != samplers_.end(); ++it) {
+        deleteSampler(it->first);
     }
 
-    for (auto& tex : textures_) {
-        glDeleteTextures(1, &(tex.second->GL_id));
-        delete tex.second;
-        textures_.erase(tex.first);
+    for (auto it = textures_.begin(); it != textures_.end(); ++it) {
+        deleteTexture(it->first);
     }
 
-    for (auto& mat : materials_) {
-        delete mat.second;
-        materials_.erase(mat.first);
+    for (auto it = materials_.begin(); it != materials_.end(); ++it) {
+        deleteMaterial(it->first);
     }
 
-    for (auto& buf : buffers_) {
-        glDeleteBuffers(1, &(buf.second->GL_id));
-        delete buf.second;
-        buffers_.erase(buf.first);
+    for (auto it = buffers_.begin(); it != buffers_.end(); ++it) {
+        deleteBuffer(it->first);
     }
 
-    for (auto& shader : shaders_) {
-        glDeleteProgram(shader.second->GL_id);
-        delete shader.second;
-        shaders_.erase(shader.first);
+    for (auto it = shaders_.begin(); it != shaders_.end(); ++it) {
+        deleteShader(it->first);
+    }
+
+    for (auto it = framebuffers_.begin(); it != framebuffers_.end(); ++it) {
+        deleteFramebuffer(it->first);
     }
 }
 
@@ -757,6 +902,16 @@ void ResourceManager::createDefaultTextures() {
     defaultDesc.p_images[0] = &defaultImageBlack;
     defaultDesc.name = defaultTexturesNames[Texture::DefaultTextures::DEFAULT_TEXTURE_BLACK];
     createTexture(defaultDesc);
+
+    defaultDesc.faces = 6;
+    defaultDesc.factor = glm::vec4(1.0);
+    defaultDesc.name = defaultTexturesNames[Texture::DefaultTextures::DEFAULT_TEXTURE_CUBEMAP_BLACK];
+
+    for (unsigned i = 0; i < 6; ++i) {
+        auto& blackImage = getImage(defaultImagesNames[Image::DefaultImages::DEFAULT_IMAGE_BLACK]);
+        defaultDesc.p_images[i] = &blackImage;
+    }
+    createTexture(defaultDesc);
 }
 
 void ResourceManager::createDefaultMaterials() {
@@ -765,10 +920,27 @@ void ResourceManager::createDefaultMaterials() {
     
     auto& defaultTextureWhite = getTexture(defaultTexturesNames[Texture::DefaultTextures::DEFAULT_TEXTURE_WHITE]);
 
-    for (int i = 0; i < Texture::DefaultTextures::COUNT; ++i)
+    for (int i = 0; i < Texture::DefaultTextures::COUNT; ++i) {
         defaultDesc.p_TexArray[i] = &defaultTextureWhite;
-
+    }
     createMaterial(defaultDesc);
+}
+
+void ResourceManager::createDefaultFramebuffer() {
+    Framebuffer* defaultFramebuffer = new Framebuffer();
+
+#ifdef DEBUG_MODEL
+    std::cout << "Creating framebuffer \'" << defaultFramebufferName << "\' with URI \'" << "" << "\'" << std::endl;
+#endif
+
+    defaultFramebuffer->GL_id = 0;
+    defaultFramebuffer->name = defaultFramebufferName;
+    defaultFramebuffer->uri = "";
+    defaultFramebuffer->type = RenderResource::ResourceType::FRAMEBUFFER;
+
+    defaultFramebuffer->handle = createNewResourceHandle();
+    framebuffers_[defaultFramebuffer->name] = defaultFramebuffer;
+    allResources_[defaultFramebuffer->handle] = defaultFramebuffer;
 }
 
 }

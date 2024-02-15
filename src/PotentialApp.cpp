@@ -31,6 +31,8 @@ void PotentialApp::OnRenderFrame() {
 
     auto& modelShader = resourceManager->getShader(MODEL_SHADER_NAME);
 
+    resourceManager->bindFramebuffer("CUSTOM_FRAMEBUFFER");
+
     this->showFPS();
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
@@ -55,6 +57,9 @@ void PotentialApp::OnRenderFrame() {
     }
 
     sceneManager->drawEnvironment();
+
+    resourceManager->bindFramebuffer(Resources::defaultFramebufferName);
+    sceneManager->drawFullscreenQuad("CUSTOM_FRAMEBUFFER_TEXTURE");
 }
 
 void PotentialApp::OnRenderingEnd() {
@@ -158,6 +163,15 @@ void PotentialApp::keyboardCallback(GLFWwindow* window, int key, int scancode, i
                 IsWireframe_ = !IsWireframe_;
 
                 glPolygonMode(GL_FRONT_AND_BACK, IsWireframe_ ? GL_LINE : GL_FILL);
+            }
+            break;
+
+        case GLFW_KEY_B:
+            if (action == GLFW_PRESS) {
+                auto sceneManager = SceneResources::SceneManager::getInstance();
+                IsEnableBlur_ = !IsEnableBlur_;
+
+                sceneManager->setEnableBlur(IsEnableBlur_);
             }
             break;
 
@@ -285,7 +299,7 @@ void PotentialApp::initLights() {
     
     Resources::BufferDesc lightsBufDesc;
     lightsBufDesc.name = "Lights";
-    lightsBufDesc.uri = "Lights";
+    lightsBufDesc.uri = "";
     lightsBufDesc.bytesize = sizeof(SceneResources::LightData);
     lightsBufDesc.target = GL_SHADER_STORAGE_BUFFER;
     lightsBufDesc.p_data = (const unsigned char*)(&lightDataBuff);
@@ -330,7 +344,7 @@ void PotentialApp::initRender() {
 
     Resources::BufferDesc bufDesc;
     bufDesc.name = "Matrices";
-    bufDesc.uri = "Matrices";
+    bufDesc.uri = "";
     bufDesc.bytesize = sizeof(Matrices);
     bufDesc.target = GL_UNIFORM_BUFFER;
     bufDesc.p_data = nullptr;
@@ -344,12 +358,45 @@ void PotentialApp::initRender() {
 
     resourceManager->bindBufferShader("Lights", 1, modelShader);
 
-
     glEnable(GL_DEPTH_TEST);
 
     glEnable(GL_CULL_FACE);
     glCullFace(GL_BACK); 
     glFrontFace(GL_CCW);
+
+
+    Resources::ImageDesc fbImageDesc;
+    fbImageDesc.name = "CUSTOM_FRAMEBUFFER_IMAGE";
+    fbImageDesc.uri = "";
+    fbImageDesc.width = windowWidth_;
+    fbImageDesc.height = windowHeight_;
+    fbImageDesc.components = 4;
+    fbImageDesc.bits = 8;
+    fbImageDesc.format = GL_RGBA;
+    fbImageDesc.p_data = nullptr;
+    Resources::Image& fbImage = resourceManager->createImage(fbImageDesc);
+
+    Resources::TextureDesc fbTextureDesc;
+    fbTextureDesc.name = "CUSTOM_FRAMEBUFFER_TEXTURE";
+    fbTextureDesc.uri = "";
+    fbTextureDesc.p_images[0] = &fbImage;
+    Resources::Texture& fbTexture = resourceManager->createTexture(fbTextureDesc);
+
+    fbTextureDesc.name = "CUSTOM_FRAMEBUFFER_TEXTURE_DEPTH";
+    fbTextureDesc.uri = "";
+    fbTextureDesc.format = GL_DEPTH_COMPONENT24;
+    fbTextureDesc.p_images[0] = &fbImage;
+    Resources::Texture& fbTextureDepth = resourceManager->createTexture(fbTextureDesc);
+
+    Resources::FramebufferDesc fbDesc;
+    fbDesc.name = "CUSTOM_FRAMEBUFFER";
+    fbDesc.uri = "";
+    fbDesc.colorAttachmentsCount = 1;
+    fbDesc.colorAttachments[0] = &fbTexture;
+    fbDesc.depthAttachment = &fbTextureDepth;
+    resourceManager->createFramebuffer(fbDesc);
+
+    sceneManager->createFullscreenQuad();
 }
 
 
