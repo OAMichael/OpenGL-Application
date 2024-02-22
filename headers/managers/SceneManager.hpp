@@ -87,6 +87,8 @@ public:
 	void drawFullscreenQuad(const std::string& textureName);
 	void setEnableBlur(bool enabled = true);
 
+	void cleanUp();
+
 	~SceneManager();
 
 private:

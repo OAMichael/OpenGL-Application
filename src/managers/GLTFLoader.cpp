@@ -1,7 +1,7 @@
 #include <iostream>
 
 #include "GLTFLoader.hpp"
-
+#include "Logger.hpp"
 
 namespace GLTF {
 
@@ -14,18 +14,19 @@ bool GLTFLoader::load(Geometry::Model& model, const std::string& filename) {
 
     bool res = loader_.LoadASCIIFromFile(&model.getModelRef(), &err, &warn, filename.c_str());
     if (!warn.empty()) {
-        std::cout << "WARN: " << warn << std::endl;
+        LOG_W("%s", warn.c_str());
     }
 
     if (!err.empty()) {
-        std::cout << "ERR: " << err << std::endl;
+        LOG_E("%s", err.c_str());
     }
 
-    if (!res)
-        std::cout << "Failed to load glTF: " << filename << std::endl;
+    if (!res) {
+        LOG_E("Failed to load glTF: %s", filename.c_str());
+    }
     else {
         loadedModels[model.getName()] = &model;
-        std::cout << "Loaded glTF: " << filename << std::endl;
+        LOG_I("Loaded glTF: %s", filename.c_str());
     }
     return res;
 }

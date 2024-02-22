@@ -1,6 +1,6 @@
 #include "SceneManager.hpp"
 #include "ResourceManager.hpp"
-
+#include "Logger.hpp"
 
 namespace SceneResources {
 
@@ -32,9 +32,7 @@ SceneNode& SceneManager::createSceneNode(const std::string& name) {
 
     SceneNode* newNode = new SceneNode();
 
-#ifdef DEBUG_MODEL
-    std::cout << "Creating scene node \'" << name << "\'" << std::endl;
-#endif
+    LOG_I("Creating scene node \'%s\'", name.c_str());
 
     newNode->name = name;
     newNode->handle = createNewSceneHandle();
@@ -46,9 +44,7 @@ SceneNode& SceneManager::createSceneNode(const std::string& name) {
 SceneLight& SceneManager::createSceneLight(const LightDesc& lightDesc) {
     SceneLight* newLight = new SceneLight();
 
-#ifdef DEBUG_MODEL
-    std::cout << "Creating scene light \'" << lightDesc.name << "\'" << std::endl;
-#endif
+    LOG_I("Creating scene light \'%s\'", lightDesc.name.c_str());
 
     newLight->name = lightDesc.name;
     newLight->color = lightDesc.color;
@@ -66,6 +62,7 @@ SceneLight& SceneManager::createSceneLight(const LightDesc& lightDesc) {
 
 void SceneManager::deleteSceneNode(const SceneHandle handle) {
     if (auto it = sceneNodes_.find(handle); it != sceneNodes_.end()) {
+        LOG_I("Deleting scene node \'%s\'", sceneNodes_[handle]->name.c_str());
         delete sceneNodes_[handle];
         sceneNodes_.erase(it);
     }
@@ -73,6 +70,7 @@ void SceneManager::deleteSceneNode(const SceneHandle handle) {
 
 void SceneManager::deleteSceneLight(const SceneHandle handle) {
     if (auto it = sceneLights_.find(handle); it != sceneLights_.end()) {
+        LOG_I("Deleting scene light \'%s\'", sceneLights_[handle]->name.c_str());
         delete sceneLights_[handle];
         sceneLights_.erase(it);
     }
@@ -416,7 +414,7 @@ void SceneManager::createEnvironment(const EnvironmentType envType, const std::v
         break;
 
     default:
-        std::cout << "Unknown environment type" << std::endl;
+        LOG_W("Unknown environment type");
     }
 }
 
@@ -443,7 +441,8 @@ void SceneManager::drawEnvironment() {
         drawEquirectangular();
         break;
 
-    default:;
+    default:
+        LOG_W("Unknown environment type");
     }
 }
 
@@ -528,21 +527,25 @@ void SceneManager::setEnableBlur(bool enabled) {
     fullscreenQuadShader.setBool("uEnableBlur", enabled);
 }
 
+void SceneManager::cleanUp() {
+    while (!sceneNodes_.empty()) {
+        auto it = sceneNodes_.begin();
+        deleteSceneNode(it->first);
+    }
+
+    while (!sceneLights_.empty()) {
+        auto it = sceneLights_.begin();
+        deleteSceneLight(it->first);
+    }
+
+    rootNode_ = nullptr;
+}
+
 
 SceneManager::SceneManager() {
 }
 
 SceneManager::~SceneManager() {
-    for (auto& node : sceneNodes_) {
-        delete node.second;
-        sceneNodes_.erase(node.first);
-    }
-
-    for (auto& light : sceneLights_) {
-        delete light.second;
-        sceneLights_.erase(light.first);
-    }
-
-    rootNode_ = nullptr;
+    cleanUp();
 }
 }

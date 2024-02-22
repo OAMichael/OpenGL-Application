@@ -3,8 +3,6 @@
 
 #include <unordered_map>
 
-#define DEBUG_MODEL
-
 #include "Image.hpp"
 #include "Sampler.hpp"
 #include "Texture.hpp"

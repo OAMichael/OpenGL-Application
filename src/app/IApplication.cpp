@@ -1,4 +1,5 @@
 #include "IApplication.hpp"
+#include "Logger.hpp"
 
 
 namespace GeneralApp {
@@ -13,7 +14,7 @@ IApplication::~IApplication() {
 GLFWwindow* IApplication::createWindow(const unsigned& GLFWVerMaj, const unsigned& GLFWVerMin, const unsigned& winWidth,
     const unsigned& winHeight, const std::string& name) {
 
-    std::cout << "Creating the window..." << std::endl;
+    LOG_I("Creating the window...");
     OnInit();
 
     windowName_ = name;
@@ -34,9 +35,8 @@ GLFWwindow* IApplication::createWindow(const unsigned& GLFWVerMaj, const unsigne
     window_ = glfwCreateWindow(winWidth, winHeight, name.c_str(), NULL, NULL);
     windowWidth_  = winWidth;
     windowHeight_ = winHeight;
-    if (!window_)
-    {
-        std::cout << "Failed to create window" << std::endl;
+    if (!window_) {
+        LOG_E("Failed to create window");
         glfwTerminate();
         return nullptr;
     }
@@ -94,7 +94,7 @@ void IApplication::showFPS() {
 void IApplication::terminateWindow() {
     if (!isTerminated_) {
         isTerminated_ = true;
-        std::cout << "Terminating the window..." << std::endl;
+        LOG_I("Terminating the window...");
         glfwTerminate();
         OnWindowDestroy();
     }

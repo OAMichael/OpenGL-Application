@@ -2,14 +2,9 @@
 #include <sstream>
 
 #include "Shader.hpp"
-
+#include "Logger.hpp"
 
 namespace GeneralApp {
-
-static inline std::string fileBaseDir(const std::string& path)
-{
-    return path.substr(*path.begin() - path[0], path.find_last_of("/\\") + 1);
-}
 
 Shader::Shader() {
 
@@ -56,7 +51,7 @@ Shader::Shader(const char* vertexPath, const char* fragmentPath) {
         fragmentCode = fShaderStream.str();         
     }
     catch (std::ifstream::failure& e) {
-        std::cout << "ERROR::SHADER::FILE_NOT_SUCCESSFULLY_READ: " << e.what() << std::endl;
+        LOG_E("File not successfully read: %s", e.what());
     }
 
     vertexCode = PreprocessIncludes(vertexCode, vertexPath);
@@ -100,14 +95,14 @@ void Shader::checkCompileErrors(const GLuint& shader, const std::string& type) {
         glGetShaderiv(shader, GL_COMPILE_STATUS, &success);
         if (!success) {
             glGetShaderInfoLog(shader, 1024, NULL, infoLog);
-            std::cout << "ERROR::SHADER_COMPILATION_ERROR of type: " << type << "\n" << infoLog << "\n -- --------------------------------------------------- -- " << std::endl;
+            LOG_E("Compiling shader: %s", infoLog);
         }
     }
     else {
         glGetProgramiv(shader, GL_LINK_STATUS, &success);
         if (!success) {
             glGetProgramInfoLog(shader, 1024, NULL, infoLog);
-            std::cout << "ERROR::PROGRAM_LINKING_ERROR of type: " << type << "\n" << infoLog << "\n -- --------------------------------------------------- -- " << std::endl;
+            LOG_E("Linking shader: %s", infoLog);
         }
     }
 }
@@ -115,7 +110,7 @@ void Shader::checkCompileErrors(const GLuint& shader, const std::string& type) {
 std::string Shader::PreprocessIncludes(const std::string& source, const std::string& filename, int level)
 {
     if (level > 32) {
-        std::cout << "Header inclusion depth limit reached, might be caused by cyclic header inclusion" << std::endl;
+        LOG_W("Header inclusion depth limit reached, might be caused by cyclic header inclusion");
     }
 
     static const std::regex re("^[ ]*#[ ]*include[ ]+[\"<](.*)[\">].*");
@@ -128,32 +123,27 @@ std::string Shader::PreprocessIncludes(const std::string& source, const std::str
     std::smatch matches;
 
     std::string line;
-    while (std::getline(input, line))
-    {
-        if (std::regex_search(line, matches, re))
-        {
+    while (std::getline(input, line)) {
+        if (std::regex_search(line, matches, re)) {
             std::string include_filename = matches[1];
-            include_filename = fileBaseDir(filename) + include_filename;
+            include_filename = Utils::fileBaseDir(filename) + include_filename;
             std::string include_string;
 
             std::ifstream include_file;
             std::stringstream include_lines;
             include_file.exceptions(std::ifstream::failbit | std::ifstream::badbit);
-            try
-            {
+            try {
                 include_file.open(include_filename);
                 include_lines << include_file.rdbuf();
                 include_file.close();
                 include_string = include_lines.str();
             }
-            catch (std::ifstream::failure& e)
-            {
-                std::cout << filename << " (" << line_number << ") : fatal error: cannot open include file " << include_filename << std::endl;
+            catch (std::ifstream::failure& e) {
+                LOG_E("Compiling shader: %s.%d: cannot open include file \'%s\'", filename.c_str(), line_number, include_filename);
             }
             output << PreprocessIncludes(include_string, include_filename, level + 1) << std::endl;
         }
-        else
-        {
+        else {
             output << line << std::endl;
         }
         ++line_number;

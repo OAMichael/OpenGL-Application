@@ -3,6 +3,7 @@
 #include "SceneManager.hpp"
 #include "JSONImporter.hpp"
 #include "Light.hpp"
+#include "Logger.hpp"
 
 //#define ENVIRONMENT_IMAGE
 #define ENVIRONMENT_SKYBOX
@@ -63,7 +64,11 @@ void PotentialApp::OnRenderFrame() {
 }
 
 void PotentialApp::OnRenderingEnd() {
+    auto resourceManager = Resources::ResourceManager::getInstance();
+    auto sceneManager = SceneResources::SceneManager::getInstance();
 
+    resourceManager->cleanUp();
+    sceneManager->cleanUp();
 }
 
 void PotentialApp::OnWindowDestroy() {

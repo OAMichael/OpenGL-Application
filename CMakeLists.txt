@@ -31,6 +31,7 @@ add_executable(App
 			${SRC_DIR}/renderResources/Buffer.cpp
 			${SRC_DIR}/renderResources/Framebuffer.cpp
 
+			${SRC_DIR}/managers/JSONImporter.cpp
 			${SRC_DIR}/managers/GLTFLoader.cpp
 			${SRC_DIR}/managers/ResourceManager.cpp
 			${SRC_DIR}/managers/SceneManager.cpp
@@ -42,6 +43,8 @@ add_executable(App
 			${SRC_DIR}/scene/SceneNode.cpp
 			${SRC_DIR}/scene/Mesh.cpp
 			${SRC_DIR}/scene/Model.cpp
+
+			${SRC_DIR}/utils/Logger.cpp
 
 			${HEADER_DIR}/app/IApplication.hpp
 			${HEADER_DIR}/app/PotentialApp.hpp
@@ -68,6 +71,8 @@ add_executable(App
 			${HEADER_DIR}/scene/Model.hpp
 			${HEADER_DIR}/scene/Light.hpp
 
+			${HEADER_DIR}/utils/Logger.hpp
+
 			${GLAD_DIR}/glad.c
 )
 
@@ -85,6 +90,7 @@ target_include_directories(App PUBLIC
 						   ${HEADER_DIR}/renderResources
 						   ${HEADER_DIR}/managers
 						   ${HEADER_DIR}/scene
+						   ${HEADER_DIR}/utils
 )
 
 

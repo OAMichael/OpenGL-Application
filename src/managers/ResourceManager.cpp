@@ -1,6 +1,6 @@
 #include "ResourceManager.hpp"
-#include "../3rdparty/stb_image.h"
-
+#include "Logger.hpp"
+#include "stb_image.h"
 
 namespace Resources {
 
@@ -17,9 +17,7 @@ Image& ResourceManager::createImage(const ImageDesc& imageDesc) {
     if (hasImage(imageDesc.name, imageDesc.uri))
         return getImage(imageDesc.name);
 
-#ifdef DEBUG_MODEL
-    std::cout << "Creating image \'" << imageDesc.name << "\' with URI \'" << imageDesc.uri << "\'" << std::endl;
-#endif
+    LOG_I("Creating image '\%s\' with URI \'%s\'", imageDesc.name.c_str(), imageDesc.uri.c_str());
 
     Image* newImage = new Image();
 
@@ -68,7 +66,7 @@ Image& ResourceManager::createImage(const char* filename) {
         return im;
     }
     else {
-        std::cout << "Failed to load image: \'" << filename << "\'" << std::endl;
+        LOG_E("Failed to load image: \'%s\'", filename);
         stbi_image_free(data);
         return getImage(defaultImagesNames[Image::DefaultImages::DEFAULT_IMAGE_BLACK]);
     }
@@ -82,9 +80,7 @@ Sampler& ResourceManager::createSampler(const SamplerDesc& samplerDesc) {
     if (hasSampler(samplerDesc.name, samplerDesc.uri))
         return getSampler(samplerDesc.name);
 
-#ifdef DEBUG_MODEL
-    std::cout << "Creating sampler \'" << samplerDesc.name << "\' with URI \'" << samplerDesc.uri << "\'" << std::endl;
-#endif
+    LOG_I("Creating sampler \'%s\' with URI \'%s\'", samplerDesc.name.c_str(), samplerDesc.uri.c_str());
 
     Sampler* newSampler = new Sampler();
 
@@ -117,9 +113,7 @@ Texture& ResourceManager::createTexture(const TextureDesc& textureDesc) {
     if (hasTexture(textureDesc.name, textureDesc.uri))
         return getTexture(textureDesc.name);
 
-#ifdef DEBUG_MODEL
-    std::cout << "Creating texture \'" << textureDesc.name << "\' with URI \'" << textureDesc.uri << "\'" << std::endl;
-#endif
+    LOG_I("Creating texture \'%s\' with URI \'%s\'", textureDesc.name.c_str(), textureDesc.uri.c_str());
 
     Texture* newTexture = new Texture();
 
@@ -133,7 +127,7 @@ Texture& ResourceManager::createTexture(const TextureDesc& textureDesc) {
     newTexture->format = textureDesc.format;
 
     if (!textureDesc.p_images[0]) {
-        std::cout << "Image cannot be NULL !!!" << std::endl;
+        LOG_E("Image cannot be NULL");
         delete newTexture;
         return getTexture(defaultTexturesNames[Texture::DEFAULT_TEXTURE_BLACK]);
     }
@@ -148,7 +142,7 @@ Texture& ResourceManager::createTexture(const TextureDesc& textureDesc) {
     else if(textureDesc.faces == 6)
         glBindTexture(GL_TEXTURE_CUBE_MAP, newTexture->GL_id);
     else {
-        std::cout << "Number of faces must be 1 or 6 !!!" << std::endl;
+        LOG_E("Number of faces must be 1 or 6");
         delete newTexture;
         return getTexture(defaultTexturesNames[Texture::DEFAULT_TEXTURE_BLACK]);
     }
@@ -196,7 +190,7 @@ Texture& ResourceManager::createTexture(const TextureDesc& textureDesc) {
                 format = GL_RGBA;
                 break;
             default:
-                std::cout << "Undefined image format" << std::endl;
+                LOG_W("Undefined image format");
             }
 
             GLenum type = GL_UNSIGNED_BYTE;
@@ -234,7 +228,7 @@ Texture& ResourceManager::createTexture(const TextureDesc& textureDesc) {
                 format = GL_RGBA;
                 break;
             default:
-                std::cout << "Undefined image format" << std::endl;
+                LOG_W("Undefined image format");
             }
 
             GLenum type = GL_UNSIGNED_BYTE;
@@ -290,9 +284,7 @@ Material& ResourceManager::createMaterial(const MaterialDesc& matDesc) {
 
     Material* newMaterial = new Material();
 
-#ifdef DEBUG_MODEL
-    std::cout << "Creating material \'" << matDesc.name << "\' with URI \'" << matDesc.uri << "\'" << std::endl;
-#endif
+    LOG_I("Creating material \'%s\' with URI \'%s\'", matDesc.name.c_str(), matDesc.uri.c_str());
 
     for (int i = 0; i < Material::TextureIdx::COUNT; ++i) {
         newMaterial->textures[i] = matDesc.p_TexArray[i];
@@ -315,9 +307,7 @@ Buffer& ResourceManager::createBuffer(const BufferDesc& bufDesc) {
 
     Buffer* newBuffer = new Buffer();
 
-#ifdef DEBUG_MODEL
-    std::cout << "Creating buffer \'" << bufDesc.name << "\' with URI \'" << bufDesc.uri << "\'" << std::endl;
-#endif
+    LOG_I("Creating buffer \'%s\' with URI \'%s\'", bufDesc.name.c_str(), bufDesc.uri.c_str());
 
     newBuffer->name = bufDesc.name;
     newBuffer->uri = bufDesc.uri;
@@ -345,7 +335,7 @@ Buffer& ResourceManager::createBuffer(const BufferDesc& bufDesc) {
 
 void ResourceManager::updateBuffer(const std::string& name, const unsigned char* data, const size_t bytesize, const size_t byteoffset) {
     if (!hasBuffer(name)) {
-        std::cout << "No buffer named \'" << name << "\' is created" << std::endl;
+        LOG_E("No buffer named \'%s\' is created", name.c_str());
         return;
     }
 
@@ -360,7 +350,7 @@ void ResourceManager::updateBuffer(const std::string& name, const unsigned char*
 
 void ResourceManager::bindBufferShader(const std::string& name, const unsigned binding, const GeneralApp::Shader& shader) {
     if (!hasBuffer(name)) {
-        std::cout << "No buffer named \'" << name << "\' is created" << std::endl;
+        LOG_E("No buffer named \'%s\' is created", name.c_str());
         return;
     }
 
@@ -375,7 +365,7 @@ void ResourceManager::bindBufferShader(const std::string& name, const unsigned b
 
 void ResourceManager::generateMipMaps(const std::string& texName) {
     if (!hasTexture(texName)) {
-        std::cout << "No texture named \'" << texName << "\' is created" << std::endl;
+        LOG_E("No texture named \'%s\' is created", texName.c_str());
         return;
     }
 
@@ -390,13 +380,13 @@ void ResourceManager::generateMipMaps(const std::string& texName) {
 void ResourceManager::generateMipMaps(const ResourceHandle handle) {
     auto it = allResources_.find(handle);
     if (it == allResources_.end()) {
-        std::cout << "No resource with handle" << handle.nativeHandle << " is created" << std::endl;
+        LOG_E("No resource with handle %d is created", handle.nativeHandle);
         return;
     }
 
     auto resource = it->second;
     if (resource->type != RenderResource::ResourceType::TEXTURE) {
-        std::cout << "Can create mip maps for textures only" << std::endl;
+        LOG_E("Can create mip maps for textures only");
         return;
     }
 
@@ -412,9 +402,7 @@ GeneralApp::Shader& ResourceManager::createShader(const ShaderDesc& shaderDesc) 
     if (hasShader(shaderDesc.name, shaderDesc.uri))
         return getShader(shaderDesc.name);
 
-#ifdef DEBUG_MODEL
-    std::cout << "Creating shader \'" << shaderDesc.name << "\' with URI \'" << shaderDesc.uri << "\'" << std::endl;
-#endif
+    LOG_I("Creating shader \'%s\' with URI \'%s\'", shaderDesc.name.c_str(), shaderDesc.uri.c_str());
 
     GeneralApp::Shader* newShader = new GeneralApp::Shader(shaderDesc.vertFilename.c_str(), shaderDesc.fragFilename.c_str());
 
@@ -434,9 +422,7 @@ Framebuffer& ResourceManager::createFramebuffer(const FramebufferDesc& framebufD
     if (hasFramebuffer(framebufDesc.name))
         return getFramebuffer(framebufDesc.name);
 
-#ifdef DEBUG_MODEL
-    std::cout << "Creating framebuffer \'" << framebufDesc.name << "\' with URI \'" << framebufDesc.uri << "\'" << std::endl;
-#endif
+    LOG_I("Creating framebuffer \'%s\' with URI \'%s\'", framebufDesc.name.c_str(), framebufDesc.uri.c_str());
 
     Framebuffer* newFramebuffer = new Framebuffer();
 
@@ -446,7 +432,7 @@ Framebuffer& ResourceManager::createFramebuffer(const FramebufferDesc& framebufD
     newFramebuffer->type = RenderResource::ResourceType::FRAMEBUFFER;
 
     if (!framebufDesc.depthAttachment || framebufDesc.colorAttachmentsCount < 1) {
-        std::cout << "Framebuffer must have depth attachment and at least 1 color attachment" << std::endl;
+        LOG_E("Framebuffer must have depth attachment and at least 1 color attachment");
         delete newFramebuffer;
         return getFramebuffer(defaultFramebufferName);
     }
@@ -456,14 +442,14 @@ Framebuffer& ResourceManager::createFramebuffer(const FramebufferDesc& framebufD
 
     for (unsigned i = 0; i < framebufDesc.colorAttachmentsCount; ++i) {
         if (framebufDesc.colorAttachments[i]->faces != 1) {
-            std::cout << "Framebuffer color attachments' view must be 2D Texture" << std::endl;
+            LOG_E("Framebuffer color attachments' view must be 2D Texture");
             delete newFramebuffer;
             return getFramebuffer(defaultFramebufferName);
         }
 
         if (framebufDesc.colorAttachments[i]->images[0]->width != commonWidth ||
             framebufDesc.colorAttachments[i]->images[0]->height != commonHeigth) {
-            std::cout << "All framebuffer color attachments must have same dimensions" << std::endl;
+            LOG_E("All framebuffer color attachments must have same dimensions");
             delete newFramebuffer;
             return getFramebuffer(defaultFramebufferName);
         }
@@ -481,7 +467,7 @@ Framebuffer& ResourceManager::createFramebuffer(const FramebufferDesc& framebufD
     }
 
     if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
-        std::cout << "Framebuffer \'" << framebufDesc.name << "\' is not complete" << std::endl;
+        LOG_E("Framebuffer \'%s\' is not complete", framebufDesc.name.c_str());
         delete newFramebuffer;
         bindFramebuffer(defaultFramebufferName);
         return getFramebuffer(defaultFramebufferName);
@@ -498,7 +484,7 @@ Framebuffer& ResourceManager::createFramebuffer(const FramebufferDesc& framebufD
 
 void ResourceManager::bindFramebuffer(const std::string& name) {
     if (!hasFramebuffer(name)) {
-        std::cout << "No framebuffer named \'" << name << "\' is created" << std::endl;
+        LOG_E("No framebuffer named \'%s\' is created", name.c_str());
         return;
     }
     glBindFramebuffer(GL_FRAMEBUFFER, framebuffers_[name]->GL_id);
@@ -507,7 +493,7 @@ void ResourceManager::bindFramebuffer(const std::string& name) {
 
 void ResourceManager::resizeFramebuffer(const std::string& name, unsigned width, unsigned height) {
     if (!hasFramebuffer(name)) {
-        std::cout << "No framebuffer named \'" << name << "\' is created" << std::endl;
+        LOG_E("No framebuffer named \'%s\' is created", name.c_str());
         return;
     }
 
@@ -553,6 +539,7 @@ void ResourceManager::resizeFramebuffer(const std::string& name, unsigned width,
 
 void ResourceManager::deleteImage(const std::string& name) {
     if (auto it = images_.find(name); it != images_.end()) {
+        LOG_I("Deleting image \'%s\'", name.c_str());
         allResources_.erase(it->second->handle);
         delete images_[name];
         images_.erase(it);
@@ -561,6 +548,7 @@ void ResourceManager::deleteImage(const std::string& name) {
 
 void ResourceManager::deleteSampler(const std::string& name) {
     if (auto it = samplers_.find(name); it != samplers_.end()) {
+        LOG_I("Deleting sampler \'%s\'", name.c_str());
         glDeleteSamplers(1, &(it->second->GL_id));
         allResources_.erase(it->second->handle);
         delete samplers_[name];
@@ -570,6 +558,7 @@ void ResourceManager::deleteSampler(const std::string& name) {
 
 void ResourceManager::deleteTexture(const std::string& name) {
     if (auto it = textures_.find(name); it != textures_.end()) {
+        LOG_I("Deleting texture \'%s\'", name.c_str());
         glDeleteTextures(1, &(it->second->GL_id));
         allResources_.erase(it->second->handle);
         delete textures_[name];
@@ -579,6 +568,7 @@ void ResourceManager::deleteTexture(const std::string& name) {
 
 void ResourceManager::deleteMaterial(const std::string& name) {
     if (auto it = materials_.find(name); it != materials_.end()) {
+        LOG_I("Deleting material \'%s\'", name.c_str());
         allResources_.erase(it->second->handle);
         delete materials_[name];
         materials_.erase(it);
@@ -587,6 +577,7 @@ void ResourceManager::deleteMaterial(const std::string& name) {
 
 void ResourceManager::deleteBuffer(const std::string& name) {
     if (auto it = buffers_.find(name); it != buffers_.end()) {
+        LOG_I("Deleting buffer \'%s\'", name.c_str());
         glDeleteBuffers(1, &(it->second->GL_id));
         allResources_.erase(it->second->handle);
         delete buffers_[name];
@@ -596,6 +587,7 @@ void ResourceManager::deleteBuffer(const std::string& name) {
 
 void ResourceManager::deleteShader(const std::string& name) {
     if (auto it = shaders_.find(name); it != shaders_.end()) {
+        LOG_I("Deleting shader \'%s\'", name.c_str());
         glDeleteProgram(it->second->GL_id);
         allResources_.erase(it->second->handle);
         delete shaders_[name];
@@ -605,6 +597,7 @@ void ResourceManager::deleteShader(const std::string& name) {
 
 void ResourceManager::deleteFramebuffer(const std::string& name) {
     if (auto it = framebuffers_.find(name); it != framebuffers_.end()) {
+        LOG_I("Deleting framebuffer \'%s\'", name.c_str());
         glDeleteFramebuffers(1, &(it->second->GL_id));
         allResources_.erase(it->second->handle);
         delete framebuffers_[name];
@@ -615,7 +608,7 @@ void ResourceManager::deleteFramebuffer(const std::string& name) {
 
 Image& ResourceManager::getImage(const std::string& name) {
     if (!hasImage(name)) {
-        std::cout << "No image named \'" << name << "\' is created" << std::endl;
+        LOG_E("No image named \'%s\' is created", name.c_str());
         return *images_[defaultImagesNames[Image::DEFAULT_IMAGE_BLACK]];
     }
     return *images_[name];
@@ -623,7 +616,7 @@ Image& ResourceManager::getImage(const std::string& name) {
 
 Sampler& ResourceManager::getSampler(const std::string& name) {
     if (!hasSampler(name)) {
-        std::cout << "No sampler named \'" << name << "\' is created" << std::endl;
+        LOG_E("No sampler named \'%s\' is created", name.c_str());
         return *samplers_[defaultSamplersNames[Sampler::DEFAULT_SAMPLER_NEAREST_REPEAT]];
     }
     return *samplers_[name];
@@ -631,7 +624,7 @@ Sampler& ResourceManager::getSampler(const std::string& name) {
 
 Texture& ResourceManager::getTexture(const std::string& name) {
     if (!hasTexture(name)) {
-        std::cout << "No texture named \'" << name << "\' is created" << std::endl;
+        LOG_E("No texture named \'%s\' is created", name.c_str());
         return *textures_[defaultTexturesNames[Texture::DEFAULT_TEXTURE_BLACK]];
     }
     return *textures_[name];
@@ -639,7 +632,7 @@ Texture& ResourceManager::getTexture(const std::string& name) {
 
 Material& ResourceManager::getMaterial(const std::string& name) {
     if (!hasMaterial(name)) {
-        std::cout << "No material named \'" << name << "\' is created" << std::endl;
+        LOG_E("No material named \'%s\' is created", name.c_str());
         return *materials_[defaultMaterialName];
     }
     return *materials_[name];
@@ -647,7 +640,8 @@ Material& ResourceManager::getMaterial(const std::string& name) {
 
 Buffer& ResourceManager::getBuffer(const std::string& name) {
     if (!hasBuffer(name)) {
-        std::cout << "No buffer named \'" << name << "\' is created" << std::endl;
+        LOG_E("No buffer named \'%s\' is created", name.c_str());
+
         // TODO:
         std::abort();
     }
@@ -656,7 +650,8 @@ Buffer& ResourceManager::getBuffer(const std::string& name) {
 
 GeneralApp::Shader& ResourceManager::getShader(const std::string& name) {
     if (!hasShader(name)) {
-        std::cout << "No shader named \'" << name << "\' is created" << std::endl;
+        LOG_E("No shader named \'%s\' is created", name.c_str());
+
         // TODO:
         std::abort();
     }
@@ -665,7 +660,7 @@ GeneralApp::Shader& ResourceManager::getShader(const std::string& name) {
 
 Framebuffer& ResourceManager::getFramebuffer(const std::string& name) {
     if (!hasFramebuffer(name)) {
-        std::cout << "No framebuffer named \'" << name << "\' is created" << std::endl;
+        LOG_E("No framebuffer named \'%s\' is created", name.c_str());
         return *framebuffers_[defaultFramebufferName];
     }
     return *framebuffers_[name];
@@ -847,31 +842,38 @@ ResourceManager::~ResourceManager() {
 
 
 void ResourceManager::cleanUp() {
-    for (auto it = images_.begin(); it != images_.end(); ++it) {
+    while (!images_.empty()) {
+        auto it = images_.begin();
         deleteImage(it->first);
     }
 
-    for (auto it = samplers_.begin(); it != samplers_.end(); ++it) {
+    while (!samplers_.empty()) {
+        auto it = samplers_.begin();
         deleteSampler(it->first);
     }
 
-    for (auto it = textures_.begin(); it != textures_.end(); ++it) {
+    while (!textures_.empty()) {
+        auto it = textures_.begin();
         deleteTexture(it->first);
     }
 
-    for (auto it = materials_.begin(); it != materials_.end(); ++it) {
+    while (!materials_.empty()) {
+        auto it = materials_.begin();
         deleteMaterial(it->first);
     }
 
-    for (auto it = buffers_.begin(); it != buffers_.end(); ++it) {
+    while (!buffers_.empty()) {
+        auto it = buffers_.begin();
         deleteBuffer(it->first);
     }
 
-    for (auto it = shaders_.begin(); it != shaders_.end(); ++it) {
+    while (!shaders_.empty()) {
+        auto it = shaders_.begin();
         deleteShader(it->first);
     }
 
-    for (auto it = framebuffers_.begin(); it != framebuffers_.end(); ++it) {
+    while (!framebuffers_.empty()) {
+        auto it = framebuffers_.begin();
         deleteFramebuffer(it->first);
     }
 }
@@ -980,9 +982,7 @@ void ResourceManager::createDefaultMaterials() {
 void ResourceManager::createDefaultFramebuffer() {
     Framebuffer* defaultFramebuffer = new Framebuffer();
 
-#ifdef DEBUG_MODEL
-    std::cout << "Creating framebuffer \'" << defaultFramebufferName << "\' with URI \'" << "" << "\'" << std::endl;
-#endif
+    LOG_I("Creating framebuffer \'%s\' with URI \'\'", defaultFramebufferName.c_str());
 
     defaultFramebuffer->GL_id = 0;
     defaultFramebuffer->name = defaultFramebufferName;
