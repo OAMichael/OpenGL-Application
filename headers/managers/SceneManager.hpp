@@ -7,10 +7,14 @@
 #include "Cube.hpp"
 #include "Light.hpp"
 
+#include <freetype/ft2build.h>
+#include <freetype/freetype.h>
+
 namespace SceneResources {
 
 inline constexpr const char* FULLSCREEN_QUAD_SHADER_NAME	= "Fullscreen_Quad";
 inline constexpr const char* ENVIRONMENT_SHADER_NAME		= "Default_Environment";
+inline constexpr const char* TEXT_RENDERING_SHADER_NAME		= "Render_Text";
 inline constexpr const char* BACKGROUND_2D_TEXTURE_NAME		= "BACKGROUND_2D_TEXTURE";
 inline constexpr const char* SKYBOX_TEXTURE_NAME			= "SKYBOX_TEXTURE";
 inline constexpr const char* EQUIRECTANGULAR_TEXTURE_NAME	= "EQUIRECTANGULAR_TEXTURE";
@@ -87,6 +91,10 @@ public:
 	void drawFullscreenQuad(const std::string& textureName);
 	void setEnableBlur(bool enabled = true);
 
+	bool initializeFreeType(const std::string& fontFilename, const unsigned fontHeight = 48);
+	void setTextProjectionMatrix(const glm::mat4 proj);
+	void drawText(const std::string& text, float x, float y, float scale, glm::vec3 color);
+
 	void cleanUp();
 
 	~SceneManager();
@@ -119,6 +127,18 @@ private:
 	Resources::ResourceHandle EquirectHandle_;
 
 	EnvironmentType envType_;
+
+	struct FreeTypeCharacter {
+		Resources::ResourceHandle textureHandle;
+		glm::ivec2 size;
+		glm::ivec2 bearing;
+		unsigned advance;
+	};
+
+	std::unordered_map<char, FreeTypeCharacter> freeTypeChars_;
+	unsigned VAOTextQuad_;
+	unsigned VBOTextQuad_;
+	glm::mat4 textProjMat_;
 
 	static SceneManager* instancePtr;
 	SceneManager();

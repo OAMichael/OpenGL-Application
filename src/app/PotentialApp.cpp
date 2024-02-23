@@ -35,9 +35,11 @@ void PotentialApp::OnRenderFrame() {
     resourceManager->bindFramebuffer("CUSTOM_FRAMEBUFFER");
 
     this->showFPS();
+
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
     glClearDepth(1.0);
+
 
     Camera_.updateMatrices();
 
@@ -59,8 +61,11 @@ void PotentialApp::OnRenderFrame() {
 
     sceneManager->drawEnvironment();
 
+
     resourceManager->bindFramebuffer(Resources::defaultFramebufferName);
     sceneManager->drawFullscreenQuad("CUSTOM_FRAMEBUFFER_TEXTURE");
+
+    sceneManager->drawText("Chess", 10.0f, windowHeight_ - 30.0f, 0.7f, glm::vec3(1.0f, 0.0f, 0.0f));
 }
 
 void PotentialApp::OnRenderingEnd() {
@@ -131,6 +136,9 @@ void PotentialApp::framebufferSizeCallback(GLFWwindow* window, int width, int he
 
     auto resourceManager = Resources::ResourceManager::getInstance();
     resourceManager->resizeFramebuffer("CUSTOM_FRAMEBUFFER", width, height);
+
+    auto sceneManager = SceneResources::SceneManager::getInstance();
+    sceneManager->setTextProjectionMatrix(glm::ortho(0.0f, (float)windowWidth_, 0.0f, (float)windowHeight_));
 }
 
 
@@ -366,12 +374,6 @@ void PotentialApp::initRender() {
 
     resourceManager->bindBufferShader("Lights", 1, modelShader);
 
-    glEnable(GL_DEPTH_TEST);
-
-    glEnable(GL_CULL_FACE);
-    glCullFace(GL_BACK); 
-    glFrontFace(GL_CCW);
-
 
     Resources::ImageDesc fbImageDesc;
     fbImageDesc.name = "CUSTOM_FRAMEBUFFER_IMAGE";
@@ -405,6 +407,10 @@ void PotentialApp::initRender() {
     resourceManager->createFramebuffer(fbDesc);
 
     sceneManager->createFullscreenQuad();
+
+
+    sceneManager->initializeFreeType("../fonts/arial.ttf");
+    sceneManager->setTextProjectionMatrix(glm::ortho(0.0f, (float)windowWidth_, 0.0f, (float)windowHeight_));
 }
 
 

@@ -95,6 +95,10 @@ void Model::init() {
 }
 
 void Model::draw(GeneralApp::Shader& shader) {
+	glEnable(GL_DEPTH_TEST);
+	glEnable(GL_CULL_FACE);
+	glCullFace(GL_BACK);
+	glFrontFace(GL_CCW);
 	rootNode_->draw(shader);
 }
 

@@ -241,6 +241,8 @@ void SceneManager::drawBackground2D() {
     glDrawArrays(GL_TRIANGLES, 0, 6);
 
     glBindTexture(GL_TEXTURE_2D, 0);
+    glBindTexture(GL_TEXTURE_CUBE_MAP, 0);
+    glBindSampler(0, 0);
     glBindVertexArray(0);
 
     glDepthFunc(GL_LESS);
@@ -304,7 +306,9 @@ void SceneManager::drawSkybox() {
 
     glDrawArrays(GL_TRIANGLES, 0, 36);
 
+    glBindTexture(GL_TEXTURE_2D, 0);
     glBindTexture(GL_TEXTURE_CUBE_MAP, 0);
+    glBindSampler(0, 0);
     glBindVertexArray(0);
 
     glDepthFunc(GL_LESS);
@@ -367,6 +371,8 @@ void SceneManager::drawEquirectangular() {
     glDrawArrays(GL_TRIANGLES, 0, 36);
 
     glBindTexture(GL_TEXTURE_2D, 0);
+    glBindTexture(GL_TEXTURE_CUBE_MAP, 0);
+    glBindSampler(0, 0);
     glBindVertexArray(0);
 
     glDepthFunc(GL_LESS);
@@ -499,25 +505,23 @@ void SceneManager::createFullscreenQuad() {
 
 void SceneManager::drawFullscreenQuad(const std::string& textureName) {
     // Assume that proper framebuffer already bound
-
     auto* resourceManager = Resources::ResourceManager::getInstance();
 
-    int depthTestEnabled = 0;
-    glGetIntegerv(GL_DEPTH_TEST, &depthTestEnabled);
-
-    if (depthTestEnabled) {
-        glDisable(GL_DEPTH_TEST);
-    }
+    glDisable(GL_DEPTH_TEST);
+    glDisable(GL_BLEND);
 
     resourceManager->getShader(FULLSCREEN_QUAD_SHADER_NAME).use();
+
+    auto& texture = resourceManager->getTexture(textureName);
     glBindVertexArray(VAOFullscreenQuad_);
     glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, resourceManager->getTexture(textureName).GL_id);
+    glBindTexture(GL_TEXTURE_2D, texture.GL_id);
+    glBindSampler(0, texture.sampler->GL_id);
     glDrawArrays(GL_TRIANGLES, 0, 6);
 
-    if (depthTestEnabled) {
-        glEnable(GL_DEPTH_TEST);
-    }
+    glBindTexture(GL_TEXTURE_2D, 0);
+    glBindSampler(0, 0);
+    glBindVertexArray(0);
 }
 
 void SceneManager::setEnableBlur(bool enabled) {
@@ -539,6 +543,162 @@ void SceneManager::cleanUp() {
     }
 
     rootNode_ = nullptr;
+}
+
+bool SceneManager::initializeFreeType(const std::string& fontFilename, const unsigned fontHeight) {
+    FT_Library ft;
+    if (FT_Init_FreeType(&ft)) {
+        LOG_E("FreeType: could not init FreeType Library");
+        return false;
+    }
+
+    FT_Face face;
+    if (FT_New_Face(ft, fontFilename.c_str(), 0, &face)) {
+        LOG_E("FreeType: failed to load font");
+        return false;
+    }
+    FT_Set_Pixel_Sizes(face, 0, fontHeight);
+
+    glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+
+    auto resourceManager = Resources::ResourceManager::getInstance();
+
+    for (unsigned char c = 32; c < 127; c++) {
+        if (FT_Load_Char(face, c, FT_LOAD_RENDER)) {
+            LOG_E("FreeType: failed to load glyph for \'%c\'", c);
+            continue;
+        }
+
+        Resources::ImageDesc charImageDesc;
+        charImageDesc.name = "image_" + std::string(1, c);
+        charImageDesc.format = GL_RED;
+        charImageDesc.width = face->glyph->bitmap.width;
+        charImageDesc.height = face->glyph->bitmap.rows;
+        charImageDesc.bits = 8;
+        charImageDesc.components = 1;
+        charImageDesc.p_data = face->glyph->bitmap.buffer;
+
+        auto& charImage = resourceManager->createImage(charImageDesc);
+
+
+        Resources::SamplerDesc charSamplerDesc;
+        charSamplerDesc.name = "sampler_" + std::string(1, c);
+        charSamplerDesc.minFilter = Resources::Sampler::Filter::LINEAR;
+        charSamplerDesc.magFilter = Resources::Sampler::Filter::LINEAR;
+        charSamplerDesc.wrapS = Resources::Sampler::WrapMode::CLAMP_TO_EDGE;
+        charSamplerDesc.wrapT = Resources::Sampler::WrapMode::CLAMP_TO_EDGE;
+
+        auto& charSampler = resourceManager->createSampler(charSamplerDesc);
+
+
+        Resources::TextureDesc charTextureDesc;
+        charTextureDesc.name = "texture_" + std::string(1, c);
+        charTextureDesc.format = GL_RED;
+        charTextureDesc.p_images[0] = &charImage;
+        charTextureDesc.p_sampler = &charSampler;
+
+        auto& charTexture = resourceManager->createTexture(charTextureDesc);
+
+
+        FreeTypeCharacter character = {
+            charTexture.handle,
+            glm::ivec2(face->glyph->bitmap.width, face->glyph->bitmap.rows),
+            glm::ivec2(face->glyph->bitmap_left, face->glyph->bitmap_top),
+            static_cast<unsigned int>(face->glyph->advance.x)
+        };
+        freeTypeChars_.insert(std::pair<char, FreeTypeCharacter>(c, character));
+    }
+
+    FT_Done_Face(face);
+    FT_Done_FreeType(ft);
+
+
+    glGenVertexArrays(1, &VAOTextQuad_);
+    glGenBuffers(1, &VBOTextQuad_);
+    glBindVertexArray(VAOTextQuad_);
+    glBindBuffer(GL_ARRAY_BUFFER, VBOTextQuad_);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(float) * 6 * 4, NULL, GL_DYNAMIC_DRAW);
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 4 * sizeof(float), 0);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+    glBindVertexArray(0);
+
+
+    Resources::ShaderDesc shdrDesc;
+    shdrDesc.name = TEXT_RENDERING_SHADER_NAME;
+    shdrDesc.vertFilename = "../shaders/RenderText.vert";
+    shdrDesc.fragFilename = "../shaders/RenderText.frag";
+    auto& shdr = resourceManager->createShader(shdrDesc);
+
+    shdr.use();
+    shdr.setInt("uTextSampler", 0);
+
+    return true;
+}
+
+void SceneManager::setTextProjectionMatrix(const glm::mat4 proj) {
+    textProjMat_ = proj;
+
+    auto resourceManager = Resources::ResourceManager::getInstance();
+    auto& shdr = resourceManager->getShader(TEXT_RENDERING_SHADER_NAME);
+    shdr.setMat4("uProj", textProjMat_);
+}
+
+void SceneManager::drawText(const std::string& text, float x, float y, float scale, glm::vec3 color) {
+    glDisable(GL_DEPTH_TEST);
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+    auto resourceManager = Resources::ResourceManager::getInstance();
+    auto& shdr = resourceManager->getShader(TEXT_RENDERING_SHADER_NAME);
+    shdr.use();
+    shdr.setVec3("uTextColor", color);
+
+    glActiveTexture(GL_TEXTURE0);
+    glBindVertexArray(VAOTextQuad_);
+
+    std::string::const_iterator c;
+    for (c = text.begin(); c != text.end(); c++) {
+        FreeTypeCharacter ch = freeTypeChars_[*c];
+
+        float xpos = x + ch.bearing.x * scale;
+        float ypos = y - (ch.size.y - ch.bearing.y) * scale;
+
+        float w = ch.size.x * scale;
+        float h = ch.size.y * scale;
+
+        float vertices[6][4] = {
+            { xpos,     ypos + h,   0.0f, 0.0f },
+            { xpos,     ypos,       0.0f, 1.0f },
+            { xpos + w, ypos,       1.0f, 1.0f },
+
+            { xpos,     ypos + h,   0.0f, 0.0f },
+            { xpos + w, ypos,       1.0f, 1.0f },
+            { xpos + w, ypos + h,   1.0f, 0.0f }
+        };
+
+        auto resource = resourceManager->getResource(ch.textureHandle);
+        if (resource->type != Resources::RenderResource::ResourceType::TEXTURE) {
+            LOG_E("FreeType: invalid resource bound for character \'%c\'", c);
+            continue;
+        }
+
+        auto texture = static_cast<Resources::Texture*>(resource);
+
+        glBindTexture(GL_TEXTURE_2D, texture->GL_id);
+        glBindSampler(0, texture->sampler->GL_id);
+        glBindBuffer(GL_ARRAY_BUFFER, VBOTextQuad_);
+        glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(vertices), vertices);
+        glBindBuffer(GL_ARRAY_BUFFER, 0);
+        glDrawArrays(GL_TRIANGLES, 0, 6);
+
+        x += (ch.advance >> 6) * scale;
+    }
+    glBindVertexArray(0);
+    glBindTexture(GL_TEXTURE_2D, 0);
+    glBindSampler(0, 0);
+
+    glDisable(GL_BLEND);
 }
 
 
