@@ -37,5 +37,5 @@ void main() {
     else {
         color = texture(uScreenTexture, inUv).rgb;
     }
-    gl_FragColor = vec4(color, 1.0);
+    outColor = vec4(color, 1.0);
 }

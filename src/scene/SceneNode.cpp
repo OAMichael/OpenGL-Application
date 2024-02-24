@@ -2,6 +2,8 @@
 #include "SceneManager.hpp"
 #include "SceneNode.hpp"
 
+#include <algorithm>
+
 void SceneResources::SceneNode::init(const tinygltf::Model& model, const tinygltf::Node& node) {
 	if (parent)
 		return;

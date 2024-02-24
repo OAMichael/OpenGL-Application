@@ -2,6 +2,8 @@
 #include "ResourceManager.hpp"
 #include "Logger.hpp"
 
+#include <algorithm>
+
 namespace SceneResources {
 
 static inline SceneHandle createNewSceneHandle() {
@@ -528,6 +530,7 @@ void SceneManager::setEnableBlur(bool enabled) {
     auto* resourceManager = Resources::ResourceManager::getInstance();
     auto& fullscreenQuadShader = resourceManager->getShader(FULLSCREEN_QUAD_SHADER_NAME);
 
+    fullscreenQuadShader.use();
     fullscreenQuadShader.setBool("uEnableBlur", enabled);
 }
 

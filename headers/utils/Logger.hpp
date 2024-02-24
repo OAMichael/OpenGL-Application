@@ -44,16 +44,22 @@ public:
 	}
 
 	static void Log(const char* filename, int line, LogType logType, const char* format, ...) {
-		if (logType < logLevel) {
+		if (logType < static_cast<LogType>(logLevel)) {
 			return;
 		}
+
+		const char* reset = "\033[0m";
+		const char* yellow = "\033[33m";
+		const char* red = "\033[31m";
 
 		char logSym = 'I';
 		if (logType == LogType::LOG_TYPE_WARNING) {
 			logSym = 'W';
+			fprintf(fileOut, "%s", yellow);
 		}
 		else if (logType == LogType::LOG_TYPE_ERROR) {
 			logSym = 'E';
+			fprintf(fileOut, "%s", red);
 		}
 
 		fprintf(fileOut, "[%c] %s.%d: ", logSym, fileBaseName(filename).c_str(), line);
@@ -63,6 +69,7 @@ public:
 		vfprintf(fileOut, format, args);
 		va_end(args);
 
+		fprintf(fileOut, "%s", reset);
 		fputc('\n', fileOut);
 	}
 };
@@ -74,9 +81,9 @@ public:
 #define LOG_W(format, ...)
 #define LOG_E(format, ...)
 #else
-#define LOG_I(format, ...) Utils::Logger::Log(__FILE__, __LINE__, Utils::LogType::LOG_TYPE_INFO,	format, __VA_ARGS__)
-#define LOG_W(format, ...) Utils::Logger::Log(__FILE__, __LINE__, Utils::LogType::LOG_TYPE_WARNING,	format, __VA_ARGS__)
-#define LOG_E(format, ...) Utils::Logger::Log(__FILE__, __LINE__, Utils::LogType::LOG_TYPE_ERROR,	format, __VA_ARGS__)
+#define LOG_I(format, ...) Utils::Logger::Log(__FILE__, __LINE__, Utils::LogType::LOG_TYPE_INFO,	format, ##__VA_ARGS__)
+#define LOG_W(format, ...) Utils::Logger::Log(__FILE__, __LINE__, Utils::LogType::LOG_TYPE_WARNING,	format, ##__VA_ARGS__)
+#define LOG_E(format, ...) Utils::Logger::Log(__FILE__, __LINE__, Utils::LogType::LOG_TYPE_ERROR,	format, ##__VA_ARGS__)
 #endif
 
 #endif

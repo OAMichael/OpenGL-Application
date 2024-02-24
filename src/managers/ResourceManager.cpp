@@ -458,7 +458,7 @@ Framebuffer& ResourceManager::createFramebuffer(const FramebufferDesc& framebufD
     glGenFramebuffers(1, &newFramebuffer->GL_id);
     glBindFramebuffer(GL_FRAMEBUFFER, newFramebuffer->GL_id);
 
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_TEXTURE_2D, framebufDesc.depthAttachment->GL_id, 0);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, framebufDesc.depthAttachment->GL_id, 0);
     newFramebuffer->depthAttachment = framebufDesc.depthAttachment;
 
     for (unsigned i = 0; i < framebufDesc.colorAttachmentsCount; ++i) {

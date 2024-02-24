@@ -160,7 +160,7 @@ vec4 pbrBasic() {
 
     vec3 envSample = vec3(1.0f);
     if (environmentType == SKYBOX) {
-        envSample = textureCubeLod(uCubeSamplerSkybox, reflect(-V, N), roghness).rgb;
+        envSample = textureLod(uCubeSamplerSkybox, reflect(-V, N), roghness).rgb;
     }
     else if (environmentType == EQUIRECTANGULAR) {
         const vec3 normUv = normalize(reflect(-V, N));

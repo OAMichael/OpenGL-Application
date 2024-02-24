@@ -8,13 +8,13 @@ set(SRC_DIR ./src)
 set(HEADER_DIR ./headers)
 set(GLAD_DIR ./3rdparty/glad)
 set(INCLUDE_DIR ./headers ./3rdparty ./3rdparty/freetype)
-set(COMPILE_OPT -std=c++17 -O2)
+set(COMPILE_OPT -O2)
 set(LIB_DIR ./3rdparty/lib)
 
 if(WIN32)
 	set(LINK_OPT opengl32.lib glfw3.lib freetype.lib)
 else()
-	set(LINK_OPT -lglfw -lGL -ldl -lpthread -lX11 -lXxf86vm -lXrandr -lXi)
+	set(LINK_OPT -lglfw -lGL -ldl -lpthread -lX11 -lXxf86vm -lXrandr -lXi -lfreetype)
 endif()
 
 add_executable(App

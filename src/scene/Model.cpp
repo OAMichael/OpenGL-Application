@@ -2,6 +2,7 @@
 #include "SceneManager.hpp"
 #include "Model.hpp"
 
+#include <algorithm>
 
 namespace Geometry {
 

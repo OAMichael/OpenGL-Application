@@ -304,7 +304,7 @@ void PotentialApp::initLights() {
         SceneResources::LightDesc lightDesc;
         lightDesc.color = lightColor;
         lightDesc.position = spotLightPositions[i];
-        lightDesc.direction = spotLightDirectionsCutoffs[i].xyz;
+        lightDesc.direction = spotLightDirectionsCutoffs[i].xyz();
         lightDesc.cutoff_angle = spotLightDirectionsCutoffs[i].w;
         lightDesc.type = SceneResources::SceneLight::LightType::SPOT_LIGHT;
         sceneManager->createSceneLight(lightDesc);
