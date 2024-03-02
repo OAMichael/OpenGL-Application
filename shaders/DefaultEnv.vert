@@ -16,21 +16,21 @@ layout (std140) uniform Matrices {
     mat4 model;
 };
 
-uniform uint environmentType;
+uniform uint uEnvironmentType;
 
 
 void main()
 {
     vec4 pos = vec4(0.0);
-    if(environmentType == BACKGROUND_IMAGE_2D) {
+    if(uEnvironmentType == BACKGROUND_IMAGE_2D) {
         pos = vec4(inPos, 1.0);
         outUv.xy = inUv;
     }
-    else if(environmentType == SKYBOX) {
+    else if(uEnvironmentType == SKYBOX) {
         pos = proj * mat4(mat3(view)) * vec4(inPos, 1.0);
         outUv = inPos;
     }
-    else if(environmentType == EQUIRECTANGULAR) {
+    else if(uEnvironmentType == EQUIRECTANGULAR) {
         pos = proj * mat4(mat3(view)) * vec4(inPos, 1.0);
         outUv = inPos;
     }

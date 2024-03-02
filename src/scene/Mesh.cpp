@@ -25,7 +25,7 @@ void Geometry::Mesh::draw(GeneralApp::Shader& shader)
     glUniform1i(glGetUniformLocation(shader.getID(), "uCubeSamplerSkybox"), Resources::Material::TextureIdx::COUNT);
     glUniform1i(glGetUniformLocation(shader.getID(), "uSamplerEquirect"),   Resources::Material::TextureIdx::COUNT + 1);
 
-    shader.setUint("environmentType", (uint32_t)sceneManager->getEnvironmentType());
+    shader.setUint("uEnvironmentType", (uint32_t)sceneManager->getEnvironmentType());
 
     for (size_t i = 0; i < meshRef.primitives.size(); ++i) {
         glBindVertexArray(VAOs_[i]);

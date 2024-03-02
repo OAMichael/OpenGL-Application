@@ -159,10 +159,10 @@ vec4 pbrBasic() {
     const vec3 Kd = (1.0f - Ks) * (1.0f - metallic);
 
     vec3 envSample = vec3(1.0f);
-    if (environmentType == SKYBOX) {
+    if (uEnvironmentType == SKYBOX) {
         envSample = textureLod(uCubeSamplerSkybox, reflect(-V, N), roghness).rgb;
     }
-    else if (environmentType == EQUIRECTANGULAR) {
+    else if (uEnvironmentType == EQUIRECTANGULAR) {
         const vec3 normUv = normalize(reflect(-V, N));
         const float phi = atan(normUv.z, normUv.x);
         const float psi = asin(-normUv.y);
@@ -181,8 +181,6 @@ vec4 pbrBasic() {
 
     const vec3 emissive = GetEmissiveFull(inUv).rgb;
     color.rgb += emissive;
-
-    color.rgb = pow(color.rgb, vec3(1.0 / 2.2));
 
     return color;
 }

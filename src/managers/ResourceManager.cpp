@@ -44,12 +44,20 @@ Image& ResourceManager::createImage(const ImageDesc& imageDesc) {
     return *newImage;
 }
 
-Image& ResourceManager::createImage(const char* filename) {
+Image& ResourceManager::createImage(const char* filename, bool isHdr) {
     if (hasImage(filename))
         return getImage(filename);
 
     int width, height, nrChannels;
-    unsigned char* data = stbi_load(filename, &width, &height, &nrChannels, 0);
+    unsigned char* data = nullptr;
+    if (isHdr) {
+        data = reinterpret_cast<unsigned char*>(stbi_loadf(filename, &width, &height, &nrChannels, 0));
+    }
+    else {
+        stbi_hdr_to_ldr_gamma(1.0f);
+        data = stbi_load(filename, &width, &height, &nrChannels, 0);
+    }
+
     if (data) {
         ImageDesc imageDesc;
         imageDesc.name = filename;
@@ -57,8 +65,14 @@ Image& ResourceManager::createImage(const char* filename) {
         imageDesc.width = width;
         imageDesc.height = height;
         imageDesc.components = nrChannels;
-        imageDesc.bits = 8;                     // stb_image automatically converts
         imageDesc.p_data = data;
+
+        if (isHdr) {
+            imageDesc.bits = 8 * sizeof(float);
+        }
+        else {
+            imageDesc.bits = 8;                     // stb_image automatically converts
+        }
 
         auto& im = createImage(imageDesc);
 
@@ -72,8 +86,8 @@ Image& ResourceManager::createImage(const char* filename) {
     }
 }
 
-Image& ResourceManager::createImage(const std::string& filename) {
-    return createImage(filename.c_str());
+Image& ResourceManager::createImage(const std::string& filename, bool isHdr) {
+    return createImage(filename.c_str(), isHdr);
 }
 
 Sampler& ResourceManager::createSampler(const SamplerDesc& samplerDesc) {
@@ -153,12 +167,24 @@ Texture& ResourceManager::createTexture(const TextureDesc& textureDesc) {
         newTexture->sampler = &getSampler(defaultSamplersNames[Sampler::DefaultSamplers::DEFAULT_SAMPLER_NEAREST_REPEAT]);
     }
 
+    bool isFloat = false;
+    bool isDepth = false;
+
+    if (textureDesc.format == GL_RGB16F || textureDesc.format == GL_RGBA16F ||
+        textureDesc.format == GL_RGB32F || textureDesc.format == GL_RGBA32F) {
+
+        isFloat = true;
+    }
+    else if (textureDesc.format == GL_DEPTH_COMPONENT || textureDesc.format == GL_DEPTH_COMPONENT16
+        || textureDesc.format == GL_DEPTH_COMPONENT24 || textureDesc.format == GL_DEPTH_COMPONENT32
+        || textureDesc.format == GL_DEPTH_COMPONENT32F) {
+
+        isDepth = true;
+    }
+
     if (newTexture->faces == 1) {
         // Handle depth texture
-        if (textureDesc.format == GL_DEPTH_COMPONENT || textureDesc.format == GL_DEPTH_COMPONENT16 ||
-            textureDesc.format == GL_DEPTH_COMPONENT24 || textureDesc.format == GL_DEPTH_COMPONENT32 ||
-            textureDesc.format == GL_DEPTH_COMPONENT32F) {
-
+        if (isDepth) {
             GLenum type = GL_FLOAT;
             // TODO: type
 
@@ -194,8 +220,11 @@ Texture& ResourceManager::createTexture(const TextureDesc& textureDesc) {
             }
 
             GLenum type = GL_UNSIGNED_BYTE;
-            if (newTexture->images[0]->bits == 16)
+            if (isFloat) {
+                type = GL_FLOAT;
+            } else if (newTexture->images[0]->bits == 16) {
                 type = GL_UNSIGNED_SHORT;
+            }
 
             glTexImage2D(
                 GL_TEXTURE_2D,
@@ -232,8 +261,12 @@ Texture& ResourceManager::createTexture(const TextureDesc& textureDesc) {
             }
 
             GLenum type = GL_UNSIGNED_BYTE;
-            if (newTexture->images[i]->bits == 16)
+            if (isFloat) {
+                type = GL_FLOAT;
+            }
+            else if (newTexture->images[0]->bits == 16) {
                 type = GL_UNSIGNED_SHORT;
+            }
 
             glTexImage2D(
                 GL_TEXTURE_CUBE_MAP_POSITIVE_X + i,
@@ -507,8 +540,18 @@ void ResourceManager::resizeFramebuffer(const std::string& name, unsigned width,
         auto colorAttachment = framebuffer->colorAttachments[i];
         glBindTexture(GL_TEXTURE_2D, colorAttachment->GL_id);
 
+        bool isFloat = false;
+        if (colorAttachment->format == GL_RGB16F || colorAttachment->format == GL_RGBA16F ||
+            colorAttachment->format == GL_RGB32F || colorAttachment->format == GL_RGBA32F) {
+
+            isFloat = true;
+        }
+
         GLenum type = GL_UNSIGNED_BYTE;
-        if (colorAttachment->images[0]->bits == 16) {
+        if (isFloat) {
+            type = GL_FLOAT;
+        }
+        else if (colorAttachment->images[0]->bits == 16) {
             type = GL_UNSIGNED_SHORT;
         }
 

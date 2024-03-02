@@ -20,16 +20,17 @@ layout (std140) uniform Matrices {
     mat4 model;
 };
 
-uniform uint environmentType;
+uniform uint uEnvironmentType;
+uniform uint uIsHdr;
 
 
 void main()
 {
-    if(environmentType == BACKGROUND_IMAGE_2D)
+    if(uEnvironmentType == BACKGROUND_IMAGE_2D)
         outColor = texture(uSamplerBackground2D, inUv.xy);
-    else if(environmentType == SKYBOX)
+    else if(uEnvironmentType == SKYBOX)
         outColor = texture(uSamplerSkybox, inUv);
-    else if(environmentType == EQUIRECTANGULAR) {
+    else if(uEnvironmentType == EQUIRECTANGULAR) {
         const vec3 normUv = normalize(inUv);
         const float phi = atan(normUv.z, normUv.x);
         const float psi = asin(-normUv.y);
@@ -37,5 +38,9 @@ void main()
         const float v = 0.5f + 1.0 / PI * psi;
 
         outColor = texture(uSamplerEquirect, vec2(u, v));
+    }
+
+    if (uIsHdr == 0) {
+        outColor.rgb = pow(outColor.rgb, vec3(2.2f));
     }
 }

@@ -63,7 +63,7 @@ layout(std430, binding = 1) buffer SSBO_Lights
 
 uniform vec3 cameraWorldPos;
 uniform uint materialFlags;
-uniform uint environmentType;
+uniform uint uEnvironmentType;
 
 
 uniform float time;

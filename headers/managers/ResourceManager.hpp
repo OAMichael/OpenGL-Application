@@ -102,8 +102,8 @@ public:
 	}
 
 	Image& createImage(const ImageDesc& imageDesc);
-	Image& createImage(const char* filename);
-	Image& createImage(const std::string& filename);
+	Image& createImage(const char* filename, bool isHdr = false);
+	Image& createImage(const std::string& filename, bool isHdr = false);
 
 	Sampler& createSampler(const SamplerDesc& samplerDesc);
 	

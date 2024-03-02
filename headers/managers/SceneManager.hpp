@@ -36,7 +36,9 @@ public:
 	enum EnvironmentType : uint32_t {
 		BACKGROUND_IMAGE_2D = 0,
 		SKYBOX,
-		EQUIRECTANGULAR
+		EQUIRECTANGULAR,
+
+		COUNT
 	};
 
 	SceneManager(const SceneManager& obj) = delete;
@@ -68,20 +70,21 @@ public:
 	void updateLights();
 	const LightData& getLightData() const;
 
-	void createEnvironment(const EnvironmentType envType, const std::vector<std::string>& textureNames);
-	void createEnvironment(const EnvironmentType envType, const std::string& textureName);
+	void createEnvironment(const EnvironmentType envType, const std::vector<std::string>& textureNames, bool isHdr = false);
+	void createEnvironment(const EnvironmentType envType, const std::string& textureName, bool isHdr = false);
 	void drawEnvironment();
 
-	void createBackground2D(const std::string& textureName);
+	void createBackground2D(const std::string& textureName, bool isHdr = false);
 	void drawBackground2D();
 
-	void createSkybox(const std::vector<std::string>& textureNames);
+	void createSkybox(const std::vector<std::string>& textureNames, bool isHdr = false);
 	void drawSkybox();
 
-	void createEquirectangular(const std::string& textureName);
+	void createEquirectangular(const std::string& textureName, bool isHdr = false);
 	void drawEquirectangular();
 
 	EnvironmentType getEnvironmentType();
+	void setEnvironmentType(EnvironmentType envType);
 
 	const Resources::ResourceHandle getBackground2DHandle() const;
 	const Resources::ResourceHandle getSkyboxHandle() const;
@@ -127,6 +130,8 @@ private:
 	Resources::ResourceHandle EquirectHandle_;
 
 	EnvironmentType envType_;
+
+	std::array<uint32_t, EnvironmentType::COUNT> envHdr_ = {};
 
 	struct FreeTypeCharacter {
 		Resources::ResourceHandle textureHandle;

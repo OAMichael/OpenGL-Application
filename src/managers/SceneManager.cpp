@@ -177,8 +177,12 @@ SceneManager::EnvironmentType SceneManager::getEnvironmentType() {
     return envType_;
 }
 
+void SceneManager::setEnvironmentType(SceneManager::EnvironmentType envType) {
+    envType_ = envType;
+}
 
-void SceneManager::createBackground2D(const std::string& textureName) {
+
+void SceneManager::createBackground2D(const std::string& textureName, bool isHdr) {
     glGenVertexArrays(1, &VAOBackground2D_);
     glGenBuffers(1, &VBOBackground2D_);
     glBindVertexArray(VAOBackground2D_);
@@ -209,6 +213,9 @@ void SceneManager::createBackground2D(const std::string& textureName) {
 
     auto& newImage = resourceManager->createImage(textureName);
     texDesc.p_images[0] = &newImage;
+    if (isHdr) {
+        texDesc.format = GL_RGBA32F;
+    }
 
     Background2DHandle_ = resourceManager->createTexture(texDesc).handle;
 
@@ -251,7 +258,7 @@ void SceneManager::drawBackground2D() {
 }
 
 
-void SceneManager::createSkybox(const std::vector<std::string>& textureNames) {
+void SceneManager::createSkybox(const std::vector<std::string>& textureNames, bool isHdr) {
     glGenVertexArrays(1, &VAOSkybox_);
     glGenBuffers(1, &VBOSkybox_);
     glBindVertexArray(VAOSkybox_);
@@ -275,6 +282,11 @@ void SceneManager::createSkybox(const std::vector<std::string>& textureNames) {
         auto& newImage = resourceManager->createImage(textureNames[i]);
         texDesc.p_images[i] = &newImage;
     }
+
+    if (isHdr) {
+        texDesc.format = GL_RGBA32F;
+    }
+
     SkyboxHandle_ = resourceManager->createTexture(texDesc).handle;
     resourceManager->generateMipMaps(SkyboxHandle_);
     glEnable(GL_TEXTURE_CUBE_MAP_SEAMLESS);
@@ -317,7 +329,7 @@ void SceneManager::drawSkybox() {
 }
 
 
-void SceneManager::createEquirectangular(const std::string& textureName) {
+void SceneManager::createEquirectangular(const std::string& textureName, bool isHdr) {
     glGenVertexArrays(1, &VAOEquirect_);
     glGenBuffers(1, &VBOEquirect_);
     glBindVertexArray(VAOEquirect_);
@@ -336,8 +348,11 @@ void SceneManager::createEquirectangular(const std::string& textureName) {
     texDesc.factor = glm::vec4(1.0);
     texDesc.name = EQUIRECTANGULAR_TEXTURE_NAME;
 
-    auto& newImage = resourceManager->createImage(textureName);
+    auto& newImage = resourceManager->createImage(textureName, isHdr);
     texDesc.p_images[0] = &newImage;
+    if (isHdr) {
+        texDesc.format = GL_RGBA32F;
+    }
 
     EquirectHandle_ = resourceManager->createTexture(texDesc).handle;
     resourceManager->generateMipMaps(texDesc.name);
@@ -381,7 +396,7 @@ void SceneManager::drawEquirectangular() {
 }
 
 
-void SceneManager::createEnvironment(const EnvironmentType envType, const std::vector<std::string>& textureNames) {
+void SceneManager::createEnvironment(const EnvironmentType envType, const std::vector<std::string>& textureNames, bool isHdr) {
     auto resourceManager = Resources::ResourceManager::getInstance();
 
     Resources::ShaderDesc shaderDesc;
@@ -393,32 +408,38 @@ void SceneManager::createEnvironment(const EnvironmentType envType, const std::v
     auto& envShader = resourceManager->createShader(shaderDesc);
 
     envShader.use();
-    envShader.setUint("environmentType", (uint32_t)envType);
     envShader.setInt("uSamplerBackground2D", 0);
     envShader.setInt("uSamplerSkybox", 1);
     envShader.setInt("uSamplerEquirect", 2);
 
-    envType_ = envType;
+    if (envType < 0 || envType >= EnvironmentType::COUNT) {
+        LOG_W("Unknown environment type");
+        return;
+    }
+
+    setEnvironmentType(envType);
+    envHdr_[envType] = isHdr;
+
     switch (envType) {
     case EnvironmentType::BACKGROUND_IMAGE_2D:
         if (textureNames.size() != 1)
             return;
 
-        createBackground2D(textureNames[0]);
+        createBackground2D(textureNames[0], isHdr);
         break;
 
     case EnvironmentType::SKYBOX:
         if (textureNames.size() != 6)
             return;
 
-        createSkybox(textureNames);
+        createSkybox(textureNames, isHdr);
         break;
 
     case EnvironmentType::EQUIRECTANGULAR:
         if (textureNames.size() != 1)
             return;
 
-        createEquirectangular(textureNames[0]);
+        createEquirectangular(textureNames[0], isHdr);
         break;
 
     default:
@@ -426,16 +447,19 @@ void SceneManager::createEnvironment(const EnvironmentType envType, const std::v
     }
 }
 
-void SceneManager::createEnvironment(const EnvironmentType envType, const std::string& textureName) {
+void SceneManager::createEnvironment(const EnvironmentType envType, const std::string& textureName, bool isHdr) {
     std::vector<std::string> tmpVec;
     tmpVec.push_back(textureName);
-    createEnvironment(envType, tmpVec);
+    createEnvironment(envType, tmpVec, isHdr);
 }
 
 void SceneManager::drawEnvironment() {
     auto resourceManager = Resources::ResourceManager::getInstance();
     auto& envShader = resourceManager->getShader(ENVIRONMENT_SHADER_NAME);
     envShader.use();
+    envShader.setUint("uEnvironmentType", (uint32_t)envType_);
+    envShader.setUint("uIsHdr", envHdr_[envType_]);
+
     switch (envType_) {
     case EnvironmentType::BACKGROUND_IMAGE_2D:
         drawBackground2D();

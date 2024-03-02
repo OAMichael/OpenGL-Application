@@ -5,10 +5,6 @@
 #include "Light.hpp"
 #include "Logger.hpp"
 
-//#define ENVIRONMENT_IMAGE
-#define ENVIRONMENT_SKYBOX
-//#define ENVIRONMENT_EQUIRECT
-
 
 void PotentialApp::OnInit() {
 
@@ -60,7 +56,6 @@ void PotentialApp::OnRenderFrame() {
     }
 
     sceneManager->drawEnvironment();
-
 
     resourceManager->bindFramebuffer(Resources::defaultFramebufferName);
     sceneManager->drawFullscreenQuad("CUSTOM_FRAMEBUFFER_TEXTURE");
@@ -208,6 +203,26 @@ void PotentialApp::keyboardCallback(GLFWwindow* window, int key, int scancode, i
                 Camera_.setRightSpeed(1.0f);
             }
             break;
+
+        case GLFW_KEY_RIGHT:
+            if (action == GLFW_PRESS) {
+                auto sceneManager = SceneResources::SceneManager::getInstance();
+                auto env = sceneManager->getEnvironmentType();
+                env = static_cast<SceneResources::SceneManager::EnvironmentType>(
+                    (env + 1) % SceneResources::SceneManager::EnvironmentType::COUNT);
+                sceneManager->setEnvironmentType(env);
+            }
+            break;
+
+        case GLFW_KEY_LEFT:
+            if (action == GLFW_PRESS) {
+                auto sceneManager = SceneResources::SceneManager::getInstance();
+                auto env = sceneManager->getEnvironmentType();
+                env = static_cast<SceneResources::SceneManager::EnvironmentType>(
+                    (env + SceneResources::SceneManager::EnvironmentType::COUNT - 1) % SceneResources::SceneManager::EnvironmentType::COUNT);
+                sceneManager->setEnvironmentType(env);
+            }
+            break;
     }
 
 }
@@ -260,20 +275,15 @@ void PotentialApp::initLights() {
     auto resourceManager = Resources::ResourceManager::getInstance();
 
     glm::vec4 lightColor = glm::vec4(1.0f);
-    std::array<glm::vec4, 4> pointLightPositions = {
+    std::array<glm::vec4, 3> pointLightPositions = {
         glm::vec4(0.0f, 0.0f, 0.0f, 0.0f),
-        glm::vec4(1.0f, 0.0f, 0.0f, 0.0f),
-        glm::vec4(0.0f, 1.0f, 0.0f, 0.0f),
-        glm::vec4(0.0f, 0.0f, 1.0f, 0.0f)
+        glm::vec4(-4.0f, 0.3f, 0.0f, 0.0f),
+        glm::vec4(-3.0f, 0.5f, 0.0f, 0.0f)
     };
 
-    std::array<glm::vec4, 6> directionalLightDirections = {
-        glm::vec4(1.0f, 0.0f, 0.0f, 0.0f),
-        glm::vec4(-1.0f, 0.0f, 0.0f, 0.0f),
+    std::array<glm::vec4, 2> directionalLightDirections = {
         glm::vec4(0.0f, 1.0f, 0.0f, 0.0f),
         glm::vec4(0.0f, -1.0f, 0.0, 0.0f),
-        glm::vec4(0.0f, 0.0f, 1.0f, 0.0f),
-        glm::vec4(0.0f, 0.0f, -1.0f, 0.0f)
     };
 
     std::array<glm::vec3, 2> spotLightPositions = {
@@ -336,13 +346,11 @@ void PotentialApp::initRender() {
 
     auto& modelShader = resourceManager->createShader(shaderDesc);
     
-#ifdef ENVIRONMENT_IMAGE
-    const std::vector<std::string> texturesNames = {
+    const std::vector<std::string> background2DTexturesNames = {
         "../textures/city.jpg"
     };
-    sceneManager->createEnvironment(SceneResources::SceneManager::EnvironmentType::BACKGROUND_IMAGE_2D, texturesNames);
-#elif defined(ENVIRONMENT_SKYBOX)
-    const std::vector<std::string> texturesNames = {
+
+    const std::vector<std::string> skyboxTexturesNames = {
     "../textures/posx.jpg",
     "../textures/negx.jpg",
     "../textures/posy.jpg",
@@ -350,13 +358,14 @@ void PotentialApp::initRender() {
     "../textures/posz.jpg",
     "../textures/negz.jpg"
     };
-    sceneManager->createEnvironment(SceneResources::SceneManager::EnvironmentType::SKYBOX, texturesNames);
-#else
-    const std::vector<std::string> texturesNames = {
-        "../textures/equirect.jpg"
+
+    const std::vector<std::string> equirectTexturesNames = {
+        "../textures/kiara_1_dawn_4k.hdr"
     };
-    sceneManager->createEnvironment(SceneResources::SceneManager::EnvironmentType::EQUIRECTANGULAR, texturesNames);
-#endif
+
+    sceneManager->createEnvironment(SceneResources::SceneManager::EnvironmentType::BACKGROUND_IMAGE_2D, background2DTexturesNames);
+    sceneManager->createEnvironment(SceneResources::SceneManager::EnvironmentType::SKYBOX, skyboxTexturesNames);
+    sceneManager->createEnvironment(SceneResources::SceneManager::EnvironmentType::EQUIRECTANGULAR, equirectTexturesNames, true);
 
     Resources::BufferDesc bufDesc;
     bufDesc.name = "Matrices";
@@ -381,7 +390,7 @@ void PotentialApp::initRender() {
     fbImageDesc.width = windowWidth_;
     fbImageDesc.height = windowHeight_;
     fbImageDesc.components = 4;
-    fbImageDesc.bits = 8;
+    fbImageDesc.bits = 8 * sizeof(float);
     fbImageDesc.format = GL_RGBA;
     fbImageDesc.p_data = nullptr;
     Resources::Image& fbImage = resourceManager->createImage(fbImageDesc);
@@ -389,6 +398,7 @@ void PotentialApp::initRender() {
     Resources::TextureDesc fbTextureDesc;
     fbTextureDesc.name = "CUSTOM_FRAMEBUFFER_TEXTURE";
     fbTextureDesc.uri = "";
+    fbTextureDesc.format = GL_RGBA16F;
     fbTextureDesc.p_images[0] = &fbImage;
     Resources::Texture& fbTexture = resourceManager->createTexture(fbTextureDesc);
 
