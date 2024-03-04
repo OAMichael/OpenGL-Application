@@ -26,7 +26,7 @@ public:
 	void setParent(SceneNode* par);
 
 	void init(const tinygltf::Model& model, const tinygltf::Node& node);
-	void draw(GeneralApp::Shader& shader);
+	void draw(Resources::Shader& shader);
 
 	void calculateGlobalModelMatrix();
 	glm::mat4 getGlobalModelMatrix() { return globalMatrix_; };

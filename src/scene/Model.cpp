@@ -27,37 +27,6 @@ static inline bool nodeIsParentIdx(const tinygltf::Model& model, const int idx) 
 }
 
 
-Model::Model(const std::string& name, const std::string& filename) {
-	filename_ = filename;
-	name_ = name;
-}
-
-tinygltf::Model& Model::getModelRef() {
-	return model_;
-}
-
-const std::string& Model::getFilename() const {
-	return filename_;
-}
-
-void Model::setFilename(const std::string& filename) {
-	filename_ = filename;
-}
-
-
-const std::string& Model::getName() const {
-	return name_;
-}
-
-void Model::setName(const std::string& name) {
-	name_ = name;
-}
-
-SceneResources::SceneNode* Model::getModelRootNode() {
-	return rootNode_;
-}
-
-
 void Model::init() {
 	auto resourceManager = Resources::ResourceManager::getInstance();
 	auto sceneManager = SceneResources::SceneManager::getInstance();
@@ -95,17 +64,12 @@ void Model::init() {
 	}
 }
 
-void Model::draw(GeneralApp::Shader& shader) {
+void Model::draw(Resources::Shader& shader) {
 	glEnable(GL_DEPTH_TEST);
 	glEnable(GL_CULL_FACE);
 	glCullFace(GL_BACK);
 	glFrontFace(GL_CCW);
 	rootNode_->draw(shader);
-}
-
-
-Model::~Model() {
-
 }
 
 }

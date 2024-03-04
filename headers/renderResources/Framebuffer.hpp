@@ -15,6 +15,8 @@ struct Framebuffer : RenderResource {
 
 	Texture* colorAttachments[MAXIMUM_COLOR_ATTACHMENTS_COUNT];
 	Texture* depthAttachment;
+
+	std::vector<Framebuffer*> dependants;
 };
 
 

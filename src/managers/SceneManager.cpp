@@ -78,13 +78,6 @@ void SceneManager::deleteSceneLight(const SceneHandle handle) {
     }
 }
 
-SceneNode& SceneManager::getSceneNode(const SceneHandle handle) {
-    return *sceneNodes_[handle];
-}
-
-SceneLight& SceneManager::getSceneLight(const SceneHandle handle) {
-    return *sceneLights_[handle];
-}
 
 bool SceneManager::hasSceneNode(const std::string& name) {
     auto it = std::find_if(sceneNodes_.begin(), sceneNodes_.end(),
@@ -166,19 +159,6 @@ void SceneManager::updateLights() {
         lightData_.positions[pointLightNum + directionalLightNum + i] = glm::vec4(spotLightPositions[i], 0.0);
         lightData_.direction_cutoffs[pointLightNum + directionalLightNum + i] = glm::vec4(spotLightDirections[i], spotLightCutoffAngles[i]);
     }
-}
-
-const LightData& SceneManager::getLightData() const {
-    return lightData_;
-}
-
-
-SceneManager::EnvironmentType SceneManager::getEnvironmentType() {
-    return envType_;
-}
-
-void SceneManager::setEnvironmentType(SceneManager::EnvironmentType envType) {
-    envType_ = envType;
 }
 
 
@@ -479,18 +459,235 @@ void SceneManager::drawEnvironment() {
 }
 
 
-const Resources::ResourceHandle SceneManager::getBackground2DHandle() const {
-    return Background2DHandle_;
+void SceneManager::createPostProcess(const PostProcessInfo& ppi) {
+    postProcessInfo_ = ppi;
+
+    createFullscreenQuad();
+
+    auto resourceManager = Resources::ResourceManager::getInstance();
+
+    Resources::ShaderDesc shaderDesc;
+    shaderDesc.name = GAUSSIAN_BLUR_SHADER_NAME;
+    shaderDesc.uri = "";
+    shaderDesc.vertFilename = "../shaders/FullscreenQuad.vert";
+    shaderDesc.fragFilename = "../shaders/PostProcess/GaussianBlur.frag";
+
+    auto& blurShader = resourceManager->createShader(shaderDesc);
+    blurShader.use();
+    blurShader.setInt("uScreenTexture", 0);
+
+
+    shaderDesc.name = BLOOM_SHADER_NAME;
+    shaderDesc.vertFilename = "../shaders/FullscreenQuad.vert";
+    shaderDesc.fragFilename = "../shaders/PostProcess/Bloom.frag";
+
+    auto& bloomShader = resourceManager->createShader(shaderDesc);
+    bloomShader.use();
+    bloomShader.setInt("uScreenTexture", 0);
+
+
+    shaderDesc.name = BLOOM_FINAL_SHADER_NAME;
+    shaderDesc.vertFilename = "../shaders/FullscreenQuad.vert";
+    shaderDesc.fragFilename = "../shaders/PostProcess/BloomFinal.frag";
+
+    auto& bloomFinalShader = resourceManager->createShader(shaderDesc);
+    bloomFinalShader.use();
+    bloomFinalShader.setInt("uSceneColor", 0);
+    bloomFinalShader.setInt("uBloomBlur", 1);
+
+
+    Resources::ImageDesc fbImageDesc;
+    fbImageDesc.uri = "";
+    fbImageDesc.width = postProcessInfo_.windowWidth;
+    fbImageDesc.height = postProcessInfo_.windowHeight;
+    fbImageDesc.components = 4;
+    fbImageDesc.bits = 8 * sizeof(float);
+    fbImageDesc.format = GL_RGBA;
+    fbImageDesc.p_data = nullptr;
+
+    Resources::TextureDesc fbTextureDesc;
+    fbTextureDesc.uri = "";
+
+    Resources::FramebufferDesc fbDesc;
+    fbDesc.uri = "";
+    fbDesc.dependency = Resources::defaultFramebufferName;
+
+
+    /* Create Gaussian Blur X */
+    {
+        fbImageDesc.name = "GAUSSIAN_BLUR_X_IMAGE";
+        Resources::Image& fbImage = resourceManager->createImage(fbImageDesc);
+
+        fbTextureDesc.name = "GAUSSIAN_BLUR_X_TEXTURE";
+        fbTextureDesc.format = GL_RGBA16F;
+        fbTextureDesc.p_images[0] = &fbImage;
+        Resources::Texture& fbTexture = resourceManager->createTexture(fbTextureDesc);
+
+        fbTextureDesc.name = "GAUSSIAN_BLUR_X_TEXTURE_DEPTH";
+        fbTextureDesc.format = GL_DEPTH_COMPONENT24;
+        fbTextureDesc.p_images[0] = &fbImage;
+        Resources::Texture& fbTextureDepth = resourceManager->createTexture(fbTextureDesc);
+
+        fbDesc.name = "GAUSSIAN_BLUR_X_FRAMEBUFFER";
+        fbDesc.colorAttachmentsCount = 1;
+        fbDesc.colorAttachments[0] = &fbTexture;
+        fbDesc.depthAttachment = &fbTextureDepth;
+        Resources::Framebuffer& fb = resourceManager->createFramebuffer(fbDesc);
+
+        blurXFramebufferHandle_ = fb.handle;
+    }
+
+
+    /* Create Gaussian Blur Y */
+    {
+        fbImageDesc.name = "GAUSSIAN_BLUR_Y_IMAGE";
+        Resources::Image& fbImage = resourceManager->createImage(fbImageDesc);
+
+        fbTextureDesc.name = "GAUSSIAN_BLUR_Y_TEXTURE";
+        fbTextureDesc.format = GL_RGBA16F;
+        fbTextureDesc.p_images[0] = &fbImage;
+        Resources::Texture& fbTexture = resourceManager->createTexture(fbTextureDesc);
+
+        fbTextureDesc.name = "GAUSSIAN_BLUR_Y_TEXTURE_DEPTH";
+        fbTextureDesc.format = GL_DEPTH_COMPONENT24;
+        fbTextureDesc.p_images[0] = &fbImage;
+        Resources::Texture& fbTextureDepth = resourceManager->createTexture(fbTextureDesc);
+
+        fbDesc.name = "GAUSSIAN_BLUR_Y_FRAMEBUFFER";
+        fbDesc.colorAttachmentsCount = 1;
+        fbDesc.colorAttachments[0] = &fbTexture;
+        fbDesc.depthAttachment = &fbTextureDepth;
+        Resources::Framebuffer& fb = resourceManager->createFramebuffer(fbDesc);
+
+        blurYFramebufferHandle_ = fb.handle;
+    }
+
+
+    /* Create Bloom Buffers */
+    {
+        fbImageDesc.name = "BLOOM_COLOR_IMAGE";
+        Resources::Image& fbImage = resourceManager->createImage(fbImageDesc);
+
+        fbTextureDesc.name = "BLOOM_COLOR_TEXTURE";
+        fbTextureDesc.format = GL_RGBA16F;
+        fbTextureDesc.p_images[0] = &fbImage;
+        Resources::Texture& fbTextureColor = resourceManager->createTexture(fbTextureDesc);
+
+        fbTextureDesc.name = "BLOOM_BRIGHTNESS_TEXTURE";
+        fbTextureDesc.format = GL_RGBA16F;
+        fbTextureDesc.p_images[0] = &fbImage;
+        Resources::Texture& fbTextureBrightness = resourceManager->createTexture(fbTextureDesc);
+
+        fbTextureDesc.name = "BLOOM_COLOR_TEXTURE_DEPTH";
+        fbTextureDesc.format = GL_DEPTH_COMPONENT24;
+        fbTextureDesc.p_images[0] = &fbImage;
+        Resources::Texture& fbTextureDepth = resourceManager->createTexture(fbTextureDesc);
+
+        fbDesc.name = "BLOOM_COLOR_FRAMEBUFFER";
+        fbDesc.colorAttachmentsCount = 2;
+        fbDesc.colorAttachments[0] = &fbTextureColor;
+        fbDesc.colorAttachments[1] = &fbTextureBrightness;
+        fbDesc.depthAttachment = &fbTextureDepth;
+        Resources::Framebuffer& fb = resourceManager->createFramebuffer(fbDesc);
+
+        bloomFramebufferHandle_ = fb.handle;
+    }
+
+
+    /* Create Final Bloom */
+    {
+        fbImageDesc.name = "BLOOM_FINAL_IMAGE";
+        Resources::Image& fbImage = resourceManager->createImage(fbImageDesc);
+
+        fbTextureDesc.name = "BLOOM_FINAL_TEXTURE";
+        fbTextureDesc.format = GL_RGBA16F;
+        fbTextureDesc.p_images[0] = &fbImage;
+        Resources::Texture& fbTexture = resourceManager->createTexture(fbTextureDesc);
+
+        fbTextureDesc.name = "BLOOM_FINAL_TEXTURE_DEPTH";
+        fbTextureDesc.format = GL_DEPTH_COMPONENT24;
+        fbTextureDesc.p_images[0] = &fbImage;
+        Resources::Texture& fbTextureDepth = resourceManager->createTexture(fbTextureDesc);
+
+        fbDesc.name = "BLOOM_FINAL_FRAMEBUFFER";
+        fbDesc.colorAttachmentsCount = 1;
+        fbDesc.colorAttachments[0] = &fbTexture;
+        fbDesc.depthAttachment = &fbTextureDepth;
+        Resources::Framebuffer& fb = resourceManager->createFramebuffer(fbDesc);
+
+        bloomFinalFramebufferHandle_ = fb.handle;
+    }
 }
 
-const Resources::ResourceHandle SceneManager::getSkyboxHandle() const {
-    return SkyboxHandle_;
-}
+void SceneManager::performPostProcess(const Resources::ResourceHandle inputTextureHandle) {
+    postProcessTextureHandle_ = inputTextureHandle;
 
-const Resources::ResourceHandle SceneManager::getEquirectangularHandle() const {
-    return EquirectHandle_;
-}
+    auto resourceManager = Resources::ResourceManager::getInstance();
 
+    if (postProcessInfo_.enableBloom) {
+        auto& bloomShader = resourceManager->getShader(BLOOM_SHADER_NAME);
+        auto& blurShader = resourceManager->getShader(GAUSSIAN_BLUR_SHADER_NAME);
+        auto& bloomFinalShader = resourceManager->getShader(BLOOM_FINAL_SHADER_NAME);
+
+        auto* bloomFramebuffer = static_cast<Resources::Framebuffer*>(resourceManager->getResource(bloomFramebufferHandle_));
+        auto* blurXFramebuffer = static_cast<Resources::Framebuffer*>(resourceManager->getResource(blurXFramebufferHandle_));
+        auto* blurYFramebuffer = static_cast<Resources::Framebuffer*>(resourceManager->getResource(blurYFramebufferHandle_));
+        auto* bloomFinalFramebuffer = static_cast<Resources::Framebuffer*>(resourceManager->getResource(bloomFinalFramebufferHandle_));
+
+        auto* inputTexture = static_cast<Resources::Texture*>(resourceManager->getResource(postProcessTextureHandle_));
+        auto* bloomColorTexture = bloomFramebuffer->colorAttachments[0];
+        auto* bloomBrightnessTexture = bloomFramebuffer->colorAttachments[1];
+        auto* blurXTexture = blurXFramebuffer->colorAttachments[0];
+        auto* blurYTexture = blurYFramebuffer->colorAttachments[0];
+        auto* bloomFinalTexture = bloomFinalFramebuffer->colorAttachments[0];
+
+
+        resourceManager->bindFramebuffer(bloomFramebuffer->name);
+        drawFullscreenQuad(postProcessTextureHandle_, &bloomShader);
+
+        blurShader.use();
+        resourceManager->bindFramebuffer(blurXFramebuffer->name);
+        blurShader.setBool("uHorizontal", true);
+        drawFullscreenQuad(bloomBrightnessTexture->handle, &blurShader);
+
+        resourceManager->bindFramebuffer(blurYFramebuffer->name);
+        blurShader.setBool("uHorizontal", false);
+        drawFullscreenQuad(blurXTexture->handle, &blurShader);
+
+        resourceManager->bindFramebuffer(bloomFinalFramebuffer->name);
+        glActiveTexture(GL_TEXTURE1);
+        glBindTexture(GL_TEXTURE_2D, blurYTexture->GL_id);
+        drawFullscreenQuad(bloomColorTexture->handle, &bloomFinalShader);        // Setups only texture0
+
+
+        glActiveTexture(GL_TEXTURE1);
+        glBindTexture(GL_TEXTURE_2D, 0);
+        postProcessTextureHandle_ = bloomFinalTexture->handle;
+    }
+
+    if (postProcessInfo_.enableBlur) {
+        auto& blurShader = resourceManager->getShader(GAUSSIAN_BLUR_SHADER_NAME);
+
+        auto* blurXFramebuffer = static_cast<Resources::Framebuffer*>(resourceManager->getResource(blurXFramebufferHandle_));
+        auto* blurYFramebuffer = static_cast<Resources::Framebuffer*>(resourceManager->getResource(blurYFramebufferHandle_));
+
+        auto* inputTexture = static_cast<Resources::Texture*>(resourceManager->getResource(postProcessTextureHandle_));
+        auto* blurXTexture = blurXFramebuffer->colorAttachments[0];
+        auto* blurYTexture = blurYFramebuffer->colorAttachments[0];
+
+
+        blurShader.use();
+        resourceManager->bindFramebuffer(blurXFramebuffer->name);
+        blurShader.setBool("uHorizontal", true);
+        drawFullscreenQuad(postProcessTextureHandle_, &blurShader);
+
+        resourceManager->bindFramebuffer(blurYFramebuffer->name);
+        blurShader.setBool("uHorizontal", false);
+        drawFullscreenQuad(blurXTexture->handle, &blurShader);
+
+        postProcessTextureHandle_ = blurYTexture->handle;
+    }
+}
 
 void SceneManager::createFullscreenQuad() {
     auto* resourceManager = Resources::ResourceManager::getInstance();
@@ -526,23 +723,33 @@ void SceneManager::createFullscreenQuad() {
 
     shdr.use();
     shdr.setInt("uScreenTexture", 0);
-    shdr.setBool("uEnableBlur", 0);
 }
 
-void SceneManager::drawFullscreenQuad(const std::string& textureName) {
+void SceneManager::drawFullscreenQuad(const Resources::ResourceHandle inputTextureHandle, Resources::Shader* shader) {
     // Assume that proper framebuffer already bound
     auto* resourceManager = Resources::ResourceManager::getInstance();
+    Resources::RenderResource* resource = resourceManager->getResource(inputTextureHandle);
+    if (resource->type != Resources::RenderResource::ResourceType::TEXTURE) {
+        LOG_E("Improper resource handle");
+        return;
+    }
+
+    Resources::Texture* texture = static_cast<Resources::Texture*>(resource);
 
     glDisable(GL_DEPTH_TEST);
     glDisable(GL_BLEND);
 
-    resourceManager->getShader(FULLSCREEN_QUAD_SHADER_NAME).use();
+    if (shader) {
+        shader->use();
+    }
+    else {
+        resourceManager->getShader(FULLSCREEN_QUAD_SHADER_NAME).use();
+    }
 
-    auto& texture = resourceManager->getTexture(textureName);
     glBindVertexArray(VAOFullscreenQuad_);
     glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, texture.GL_id);
-    glBindSampler(0, texture.sampler->GL_id);
+    glBindTexture(GL_TEXTURE_2D, texture->GL_id);
+    glBindSampler(0, texture->sampler->GL_id);
     glDrawArrays(GL_TRIANGLES, 0, 6);
 
     glBindTexture(GL_TEXTURE_2D, 0);
@@ -550,13 +757,16 @@ void SceneManager::drawFullscreenQuad(const std::string& textureName) {
     glBindVertexArray(0);
 }
 
-void SceneManager::setEnableBlur(bool enabled) {
+void SceneManager::drawToDefaultFramebuffer(const Resources::ResourceHandle inputTextureHandle) {
     auto* resourceManager = Resources::ResourceManager::getInstance();
-    auto& fullscreenQuadShader = resourceManager->getShader(FULLSCREEN_QUAD_SHADER_NAME);
+    if (!resourceManager->hasShader(FULLSCREEN_QUAD_SHADER_NAME)) {
+        createFullscreenQuad();
+    }
 
-    fullscreenQuadShader.use();
-    fullscreenQuadShader.setBool("uEnableBlur", enabled);
+    resourceManager->bindFramebuffer(Resources::defaultFramebufferName);
+    drawFullscreenQuad(inputTextureHandle);
 }
+
 
 void SceneManager::cleanUp() {
     while (!sceneNodes_.empty()) {
@@ -668,6 +878,7 @@ void SceneManager::setTextProjectionMatrix(const glm::mat4 proj) {
 
     auto resourceManager = Resources::ResourceManager::getInstance();
     auto& shdr = resourceManager->getShader(TEXT_RENDERING_SHADER_NAME);
+    shdr.use();
     shdr.setMat4("uProj", textProjMat_);
 }
 
@@ -728,11 +939,4 @@ void SceneManager::drawText(const std::string& text, float x, float y, float sca
     glDisable(GL_BLEND);
 }
 
-
-SceneManager::SceneManager() {
-}
-
-SceneManager::~SceneManager() {
-    cleanUp();
-}
 }

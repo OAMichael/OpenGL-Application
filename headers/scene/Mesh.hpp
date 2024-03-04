@@ -23,7 +23,7 @@ public:
     ~Mesh() {}
 
     void init();
-    void draw(GeneralApp::Shader& shader);
+    void draw(Resources::Shader& shader);
 
     std::string name;
 

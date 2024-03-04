@@ -49,24 +49,17 @@ protected:
 public:
 	SceneHandle handle;
 
+	ISceneObject() {};
+	virtual ~ISceneObject() = 0;
 
-	glm::vec3 getPosition();
 	void setPosition(glm::vec3 pos) { Position_ = pos; }
-
+	glm::vec3 getPosition() { return Position_; }
 	void setRotation(glm::quat rot) { Rotation_ = rot; }
 	void setScale(glm::vec3 scl) { Scale_ = scl; }
-
-	void setVisibility(bool vis);
-
-    bool getVisibility();
-
-	ISceneObject() {};
-
-    virtual ~ISceneObject() = 0;
-
-    AABB getAABB();
-
-    glm::mat4 getLocalModelMatrix();
+	void setVisibility(bool vis) { isVisible_ = vis; }
+	bool getVisibility() { return isVisible_; }
+	AABB getAABB() { return boundingBox_; }
+	glm::mat4 getLocalModelMatrix() { return modelMatrix_; }
 };
 
 }

@@ -21,20 +21,19 @@ private:
 	std::string name_;
 
 public:
+	Model(const std::string& name, const std::string& filename) : name_{ name }, filename_{ filename } {};
 	Model() {};
-	Model(const std::string& name, const std::string& filename);
+	~Model() {};
 
-	~Model();
-
-	tinygltf::Model& getModelRef();
-	const std::string& getFilename() const;
-	void setFilename(const std::string& filename);
-	const std::string& getName() const;
-	void setName(const std::string& name);
-	SceneResources::SceneNode* getModelRootNode();
+	inline tinygltf::Model& getModelRef() { return model_; }
+	inline const std::string& getFilename() const { return filename_; }
+	inline void setFilename(const std::string& filename) { filename_ = filename; }
+	inline const std::string& getName() const { return name_; }
+	inline void setName(const std::string& name) { name_ = name; }
+	inline SceneResources::SceneNode* getModelRootNode() { return rootNode_; }
 
 	void init();
-	void draw(GeneralApp::Shader& shader);
+	void draw(Resources::Shader& shader);
 };
 
 }

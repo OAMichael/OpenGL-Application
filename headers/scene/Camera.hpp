@@ -34,56 +34,60 @@ private:
     glm::mat4 Model_;
 
 public:
+    Camera(const glm::vec3& pos, const glm::vec3& dir, const glm::vec3& u, const glm::vec3& r) :
+        Position_{ pos },
+        Direction_{ dir },
+        Up_{ u },
+        Right_{ r }
+    {};
     Camera() {};
-    Camera(const glm::vec3& pos, const glm::vec3& dir, const glm::vec3& u, const glm::vec3& r);
     ~Camera() {};
 
-    glm::vec3 getPosition() const;
-    void setPosition(const glm::vec3& pos);
+    inline glm::vec3 getPosition() const { return Position_; }
+    inline void setPosition(const glm::vec3& pos) { Position_ = pos; }
 
-    glm::vec3 getDirection() const;
-    void setDirection(const glm::vec3& dir);
-    
-    glm::vec3 getRight() const;
-    void setRight(const glm::vec3& r);
-    
-    glm::vec3 getUp() const;
-    void setUp(const glm::vec3& u);
+    inline glm::vec3 getDirection() const { return Direction_; }
+    inline void setDirection(const glm::vec3& dir) { Direction_ = dir; }
 
-    float getSensitivity() const;
-    void setSensitivity(const float& s);
+    inline glm::vec3 getRight() const { return Right_; }
+    inline void setRight(const glm::vec3& r) { Right_ = r; };
 
-    float getAspect() const;
-    void setAspect(const float& a);
+    inline glm::vec3 getUp() const { return Up_; }
+    inline void setUp(const glm::vec3& u) { Up_ = u; }
 
-    float getZNear() const;
-    void setZNear(const float& n);
+    inline float getSensitivity() const { return Sensitivity_; }
+    inline void setSensitivity(const float s) { Sensitivity_ = s; }
 
-    float getZFar() const;
-    void setZFar(const float& f);
-    
-    float getFov() const;
-    void setFov(const float& f);
+    inline float getAspect() const { return Aspect_; }
+    inline void setAspect(const float a) { Aspect_ = a; }
 
-    glm::mat4 getView() const;
-    glm::mat4 getProj() const;
-    glm::mat4 getModel() const;
+    inline float getZNear() const { return ZNear_; }
+    inline void setZNear(const float n) { ZNear_ = n; }
 
-    void updateMatrices();
+    inline float getZFar() const { return ZFar_; }
+    inline void setZFar(const float f) { ZFar_ = f; }
 
-    void setDirSpeed(const float& new_speed);
-    void setRightSpeed(const float& new_speed);
+    inline float getFov() const { return Fov_; }
+    inline void setFov(const float f) { Fov_ = f; }
 
-    float getYaw() const;
-    void setYaw(const float& yaw);
+    inline glm::mat4 getView() const { return View_; }
+    inline glm::mat4 getProj() const { return Proj_; }
+    inline glm::mat4 getModel() const { return Model_; }
 
-    float getPitch() const;
-    void setPitch(const float& pitch);
-    
-    void moveFront(const float& delta);
-    void moveRight(const float& delta);
+    inline void setDirSpeed(const float new_speed) { DirSpeedFactor_ = new_speed; }
+    inline void setRightSpeed(const float new_speed) { RightSpeedFactor_ = new_speed; }
+
+    inline float getYaw() const { return Yaw_; }
+    inline void setYaw(const float yaw) { Yaw_ = yaw; }
+
+    inline float getPitch() const { return Pitch_; }
+    inline void setPitch(const float pitch) { Pitch_ = pitch; }
+
+    inline void moveFront(const float delta) { Position_ += Direction_ * delta * DirSpeedFactor_; }
+    inline void moveRight(const float delta) { Position_ += Right_ * delta * RightSpeedFactor_; }
         
     void updateVectors();
+    void updateMatrices();
 };
 
 std::ostream& operator<<(std::ostream& os, const Camera& camera);

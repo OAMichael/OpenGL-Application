@@ -52,7 +52,7 @@ void SceneResources::SceneNode::calculateGlobalModelMatrix() {
 
 
 
-void SceneResources::SceneNode::draw(GeneralApp::Shader& shader) {
+void SceneResources::SceneNode::draw(Resources::Shader& shader) {
 	if (isEnabled_) {
 		if (!isRoot()) {
 			auto resourceManager = Resources::ResourceManager::getInstance();

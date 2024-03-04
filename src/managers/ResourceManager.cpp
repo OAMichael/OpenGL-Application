@@ -381,7 +381,7 @@ void ResourceManager::updateBuffer(const std::string& name, const unsigned char*
     glBindBuffer(buffer.target, 0);
 }
 
-void ResourceManager::bindBufferShader(const std::string& name, const unsigned binding, const GeneralApp::Shader& shader) {
+void ResourceManager::bindBufferShader(const std::string& name, const unsigned binding, const Shader& shader) {
     if (!hasBuffer(name)) {
         LOG_E("No buffer named \'%s\' is created", name.c_str());
         return;
@@ -431,13 +431,13 @@ void ResourceManager::generateMipMaps(const ResourceHandle handle) {
 }
 
 
-GeneralApp::Shader& ResourceManager::createShader(const ShaderDesc& shaderDesc) {
+Shader& ResourceManager::createShader(const ShaderDesc& shaderDesc) {
     if (hasShader(shaderDesc.name, shaderDesc.uri))
         return getShader(shaderDesc.name);
 
     LOG_I("Creating shader \'%s\' with URI \'%s\'", shaderDesc.name.c_str(), shaderDesc.uri.c_str());
 
-    GeneralApp::Shader* newShader = new GeneralApp::Shader(shaderDesc.vertFilename.c_str(), shaderDesc.fragFilename.c_str());
+    Shader* newShader = new Shader(shaderDesc.vertFilename.c_str(), shaderDesc.fragFilename.c_str());
 
     newShader->name = shaderDesc.name;
     newShader->uri = shaderDesc.uri;
@@ -494,10 +494,13 @@ Framebuffer& ResourceManager::createFramebuffer(const FramebufferDesc& framebufD
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, framebufDesc.depthAttachment->GL_id, 0);
     newFramebuffer->depthAttachment = framebufDesc.depthAttachment;
 
+    std::vector<unsigned> attachments;
     for (unsigned i = 0; i < framebufDesc.colorAttachmentsCount; ++i) {
         glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + i, GL_TEXTURE_2D, framebufDesc.colorAttachments[i]->GL_id, 0);
         newFramebuffer->colorAttachments[i] = framebufDesc.colorAttachments[i];
+        attachments.push_back(GL_COLOR_ATTACHMENT0 + i);
     }
+    glDrawBuffers(attachments.size(), attachments.data());
 
     if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
         LOG_E("Framebuffer \'%s\' is not complete", framebufDesc.name.c_str());
@@ -510,6 +513,16 @@ Framebuffer& ResourceManager::createFramebuffer(const FramebufferDesc& framebufD
     newFramebuffer->handle = createNewResourceHandle();
     framebuffers_[newFramebuffer->name] = newFramebuffer;
     allResources_[newFramebuffer->handle] = newFramebuffer;
+
+    if (!framebufDesc.dependency.empty()) {
+        if (hasFramebuffer(framebufDesc.dependency)) {
+            auto& dep = getFramebuffer(framebufDesc.dependency);
+            dep.dependants.push_back(newFramebuffer);
+        }
+        else {
+            LOG_W("Dependency framebuffer \'%s\' does not exist", framebufDesc.dependency.c_str());
+        }
+    }
 
     return *newFramebuffer;
 }
@@ -532,51 +545,58 @@ void ResourceManager::resizeFramebuffer(const std::string& name, unsigned width,
 
     auto framebuffer = framebuffers_[name];
 
-    auto depthAttachment = framebuffer->depthAttachment;
-    glBindTexture(GL_TEXTURE_2D, depthAttachment->GL_id);
-    glTexImage2D(GL_TEXTURE_2D, 0, depthAttachment->format, width, height, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
+    // Do all this stuff only for user created framebuffers
+    if (framebuffer->GL_id != 0) {
+        auto depthAttachment = framebuffer->depthAttachment;
+        glBindTexture(GL_TEXTURE_2D, depthAttachment->GL_id);
+        glTexImage2D(GL_TEXTURE_2D, 0, depthAttachment->format, width, height, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
 
-    for (int i = 0; i < framebuffer->colorAttachmentsCount; ++i) {
-        auto colorAttachment = framebuffer->colorAttachments[i];
-        glBindTexture(GL_TEXTURE_2D, colorAttachment->GL_id);
+        for (int i = 0; i < framebuffer->colorAttachmentsCount; ++i) {
+            auto colorAttachment = framebuffer->colorAttachments[i];
+            glBindTexture(GL_TEXTURE_2D, colorAttachment->GL_id);
 
-        bool isFloat = false;
-        if (colorAttachment->format == GL_RGB16F || colorAttachment->format == GL_RGBA16F ||
-            colorAttachment->format == GL_RGB32F || colorAttachment->format == GL_RGBA32F) {
+            bool isFloat = false;
+            if (colorAttachment->format == GL_RGB16F || colorAttachment->format == GL_RGBA16F ||
+                colorAttachment->format == GL_RGB32F || colorAttachment->format == GL_RGBA32F) {
 
-            isFloat = true;
+                isFloat = true;
+            }
+
+            GLenum type = GL_UNSIGNED_BYTE;
+            if (isFloat) {
+                type = GL_FLOAT;
+            }
+            else if (colorAttachment->images[0]->bits == 16) {
+                type = GL_UNSIGNED_SHORT;
+            }
+
+            GLenum format = GL_RGBA;
+            switch (colorAttachment->images[0]->components) {
+            case 1:
+                format = GL_RED;
+                break;
+            case 2:
+                format = GL_RG;
+                break;
+            case 3:
+                format = GL_RGB;
+                break;
+            case 4:
+                format = GL_RGBA;
+                break;
+            default:
+                break;
+            }
+
+            glTexImage2D(GL_TEXTURE_2D, 0, colorAttachment->format, width, height, 0, format, type, NULL);
         }
 
-        GLenum type = GL_UNSIGNED_BYTE;
-        if (isFloat) {
-            type = GL_FLOAT;
-        }
-        else if (colorAttachment->images[0]->bits == 16) {
-            type = GL_UNSIGNED_SHORT;
-        }
-
-        GLenum format = GL_RGBA;
-        switch (colorAttachment->images[0]->components) {
-        case 1:
-            format = GL_RED;
-            break;
-        case 2:
-            format = GL_RG;
-            break;
-        case 3:
-            format = GL_RGB;
-            break;
-        case 4:
-            format = GL_RGBA;
-            break;
-        default:
-            break;
-        }
-
-        glTexImage2D(GL_TEXTURE_2D, 0, colorAttachment->format, width, height, 0, format, type, NULL);
+        glBindTexture(GL_TEXTURE_2D, 0);
     }
 
-    glBindTexture(GL_TEXTURE_2D, 0);
+    for (auto dep : framebuffer->dependants) {
+        resizeFramebuffer(dep->name, width, height);
+    }
 }
 
 
@@ -691,7 +711,7 @@ Buffer& ResourceManager::getBuffer(const std::string& name) {
     return *buffers_[name];
 }
 
-GeneralApp::Shader& ResourceManager::getShader(const std::string& name) {
+Shader& ResourceManager::getShader(const std::string& name) {
     if (!hasShader(name)) {
         LOG_E("No shader named \'%s\' is created", name.c_str());
 
@@ -877,10 +897,6 @@ ResourceManager::ResourceManager() {
     createDefaultTextures();
     createDefaultMaterials();
     createDefaultFramebuffer();
-}
-
-ResourceManager::~ResourceManager() {
-    cleanUp();
 }
 
 

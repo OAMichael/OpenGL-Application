@@ -3,7 +3,7 @@
 #include "SceneManager.hpp"
 #include "GLTFLoader.hpp"
 
-void Geometry::Mesh::draw(GeneralApp::Shader& shader)
+void Geometry::Mesh::draw(Resources::Shader& shader)
 {
     if (!meshPtr_ || !modelPtr_)
         return;

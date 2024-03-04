@@ -27,7 +27,9 @@
 #define BUFFER_OFFSET(i) ((char *)NULL + (i))
 
 static inline constexpr const char* CONFIG_PATH = "../configs/models.json";
-inline constexpr const char* MODEL_SHADER_NAME = "Model_Shader";
+static inline constexpr const char* MODEL_SHADER_NAME = "Model_Shader";
+static inline constexpr const char* MODEL_FRAMEBUFFER_NAME = "MODEL_FRAMEBUFFER";
+static inline constexpr const char* MODEL_FRAMEBUFFER_TEXTURE_NAME = "MODEL_FRAMEBUFFER_TEXTURE";
 
 class PotentialApp : public GeneralApp::IApplication {
 private:
@@ -48,6 +50,8 @@ private:
     bool MouseHidden_ = true;
 
     std::vector<Geometry::Model> Models_;
+
+    Resources::ResourceHandle modelFramebufferTextureHandle_;
 
 public:
     PotentialApp();

@@ -66,6 +66,7 @@ struct FramebufferDesc : RenderResourceDesc {
 	unsigned colorAttachmentsCount = 1;
 	Texture* colorAttachments[Framebuffer::MAXIMUM_COLOR_ATTACHMENTS_COUNT] = {};
 	Texture* depthAttachment = nullptr;
+	std::string dependency = "";
 };
 
 
@@ -76,7 +77,7 @@ private:
 	std::unordered_map<std::string, Texture*> textures_;
 	std::unordered_map<std::string, Material*> materials_;
 	std::unordered_map<std::string, Buffer*> buffers_;
-	std::unordered_map<std::string, GeneralApp::Shader*> shaders_;
+	std::unordered_map<std::string, Shader*> shaders_;
 	std::unordered_map<std::string, Framebuffer*> framebuffers_;
 
 	std::unordered_map<ResourceHandle, RenderResource*> allResources_;
@@ -115,13 +116,13 @@ public:
 
 	Buffer& createBuffer(const BufferDesc& bufDesc);
 	void updateBuffer(const std::string& name, const unsigned char* data, const size_t bytesize, const size_t byteoffset = 0);
-	void bindBufferShader(const std::string& name, const unsigned binding, const GeneralApp::Shader& shader);
+	void bindBufferShader(const std::string& name, const unsigned binding, const Shader& shader);
 
 	Framebuffer& createFramebuffer(const FramebufferDesc& framebufDesc);
 	void bindFramebuffer(const std::string& name);
 	void resizeFramebuffer(const std::string& name, unsigned width, unsigned height);
 
-	GeneralApp::Shader& createShader(const ShaderDesc& shaderDesc);
+	Shader& createShader(const ShaderDesc& shaderDesc);
 
 	void generateMipMaps(const std::string& texName);
 	void generateMipMaps(const ResourceHandle handle);
@@ -139,7 +140,7 @@ public:
 	Texture& getTexture(const std::string& name);
 	Material& getMaterial(const std::string& name);
 	Buffer& getBuffer(const std::string& name);
-	GeneralApp::Shader& getShader(const std::string& name);
+	Shader& getShader(const std::string& name);
 	Framebuffer& getFramebuffer(const std::string& name);
 
 	RenderResource* getResource(const ResourceHandle handle);
@@ -164,7 +165,7 @@ public:
 
 	void cleanUp();
 
-	~ResourceManager();
+	~ResourceManager() { cleanUp(); }
 };
 
 }

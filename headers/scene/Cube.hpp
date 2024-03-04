@@ -64,12 +64,11 @@ private:
     };
 
 public:
-	Cube();
 	Cube(const glm::vec3& pos);
-	~Cube();
+    Cube() {};
+    ~Cube() {};
 
-	const std::vector<float>& getVertices() const;
-
+    const std::vector<float>& getVertices() const { return vertices_; }
 };
 
 }

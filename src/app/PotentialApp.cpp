@@ -28,7 +28,7 @@ void PotentialApp::OnRenderFrame() {
 
     auto& modelShader = resourceManager->getShader(MODEL_SHADER_NAME);
 
-    resourceManager->bindFramebuffer("CUSTOM_FRAMEBUFFER");
+    resourceManager->bindFramebuffer(MODEL_FRAMEBUFFER_NAME);
 
     this->showFPS();
 
@@ -56,10 +56,8 @@ void PotentialApp::OnRenderFrame() {
     }
 
     sceneManager->drawEnvironment();
-
-    resourceManager->bindFramebuffer(Resources::defaultFramebufferName);
-    sceneManager->drawFullscreenQuad("CUSTOM_FRAMEBUFFER_TEXTURE");
-
+    sceneManager->performPostProcess(modelFramebufferTextureHandle_);
+    sceneManager->drawToDefaultFramebuffer(sceneManager->getPostProcessTextureHandle());
     sceneManager->drawText("Chess", 10.0f, windowHeight_ - 30.0f, 0.7f, glm::vec3(1.0f, 0.0f, 0.0f));
 }
 
@@ -130,7 +128,7 @@ void PotentialApp::framebufferSizeCallback(GLFWwindow* window, int width, int he
     needToRender_ = width > 1 && height > 1;
 
     auto resourceManager = Resources::ResourceManager::getInstance();
-    resourceManager->resizeFramebuffer("CUSTOM_FRAMEBUFFER", width, height);
+    resourceManager->resizeFramebuffer(Resources::defaultFramebufferName, width, height);
 
     auto sceneManager = SceneResources::SceneManager::getInstance();
     sceneManager->setTextProjectionMatrix(glm::ortho(0.0f, (float)windowWidth_, 0.0f, (float)windowHeight_));
@@ -177,15 +175,6 @@ void PotentialApp::keyboardCallback(GLFWwindow* window, int key, int scancode, i
             }
             break;
 
-        case GLFW_KEY_B:
-            if (action == GLFW_PRESS) {
-                auto sceneManager = SceneResources::SceneManager::getInstance();
-                IsEnableBlur_ = !IsEnableBlur_;
-
-                sceneManager->setEnableBlur(IsEnableBlur_);
-            }
-            break;
-
         case GLFW_KEY_LEFT_CONTROL:
             if(action == GLFW_PRESS)
                 Camera_.setFov(30.0f);
@@ -221,6 +210,13 @@ void PotentialApp::keyboardCallback(GLFWwindow* window, int key, int scancode, i
                 env = static_cast<SceneResources::SceneManager::EnvironmentType>(
                     (env + SceneResources::SceneManager::EnvironmentType::COUNT - 1) % SceneResources::SceneManager::EnvironmentType::COUNT);
                 sceneManager->setEnvironmentType(env);
+            }
+            break;
+
+        case GLFW_KEY_B:
+            if (action == GLFW_PRESS) {
+                auto sceneManager = SceneResources::SceneManager::getInstance();
+                sceneManager->setEnableBloom(!sceneManager->getEnableBloom());
             }
             break;
     }
@@ -385,7 +381,7 @@ void PotentialApp::initRender() {
 
 
     Resources::ImageDesc fbImageDesc;
-    fbImageDesc.name = "CUSTOM_FRAMEBUFFER_IMAGE";
+    fbImageDesc.name = MODEL_FRAMEBUFFER_NAME + std::string("_IMAGE");
     fbImageDesc.uri = "";
     fbImageDesc.width = windowWidth_;
     fbImageDesc.height = windowHeight_;
@@ -396,28 +392,35 @@ void PotentialApp::initRender() {
     Resources::Image& fbImage = resourceManager->createImage(fbImageDesc);
 
     Resources::TextureDesc fbTextureDesc;
-    fbTextureDesc.name = "CUSTOM_FRAMEBUFFER_TEXTURE";
+    fbTextureDesc.name = MODEL_FRAMEBUFFER_TEXTURE_NAME;
     fbTextureDesc.uri = "";
     fbTextureDesc.format = GL_RGBA16F;
     fbTextureDesc.p_images[0] = &fbImage;
     Resources::Texture& fbTexture = resourceManager->createTexture(fbTextureDesc);
 
-    fbTextureDesc.name = "CUSTOM_FRAMEBUFFER_TEXTURE_DEPTH";
+    fbTextureDesc.name = MODEL_FRAMEBUFFER_TEXTURE_NAME + std::string("_DEPTH");
     fbTextureDesc.uri = "";
     fbTextureDesc.format = GL_DEPTH_COMPONENT24;
     fbTextureDesc.p_images[0] = &fbImage;
     Resources::Texture& fbTextureDepth = resourceManager->createTexture(fbTextureDesc);
 
     Resources::FramebufferDesc fbDesc;
-    fbDesc.name = "CUSTOM_FRAMEBUFFER";
+    fbDesc.name = MODEL_FRAMEBUFFER_NAME;
     fbDesc.uri = "";
     fbDesc.colorAttachmentsCount = 1;
     fbDesc.colorAttachments[0] = &fbTexture;
     fbDesc.depthAttachment = &fbTextureDepth;
-    resourceManager->createFramebuffer(fbDesc);
+    fbDesc.dependency = Resources::defaultFramebufferName;
+    Resources::Framebuffer& fb = resourceManager->createFramebuffer(fbDesc);
 
-    sceneManager->createFullscreenQuad();
+    modelFramebufferTextureHandle_ = fb.colorAttachments[0]->handle;
 
+    SceneResources::SceneManager::PostProcessInfo ppi;
+    ppi.enableBlur = false;
+    ppi.enableBloom = true;
+    ppi.windowWidth = windowWidth_;
+    ppi.windowHeight = windowHeight_;
+    sceneManager->createPostProcess(ppi);
 
     sceneManager->initializeFreeType("../fonts/arial.ttf");
     sceneManager->setTextProjectionMatrix(glm::ortho(0.0f, (float)windowWidth_, 0.0f, (float)windowHeight_));

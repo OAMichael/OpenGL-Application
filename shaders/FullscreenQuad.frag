@@ -8,9 +8,10 @@ uniform sampler2D uScreenTexture;
 
 void main() {
     const float gamma = 2.2;
+    const float exposure = 0.8;
     vec3 hdrColor = texture(uScreenTexture, inUv).rgb;
 
-    vec3 mapped = hdrColor / (hdrColor + vec3(1.0));
+    vec3 mapped = vec3(1.0) - exp(-hdrColor * exposure);
     mapped = pow(mapped, vec3(1.0 / gamma));
 
     outColor = vec4(mapped, 1.0);
