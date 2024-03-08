@@ -55,6 +55,13 @@ private:
     Resources::ResourceHandle modelFramebufferHandle_;
     Resources::ResourceHandle modelFramebufferTextureHandle_;
 
+    bool keyPressedA_ = false;
+    bool keyPressedW_ = false;
+    bool keyPressedS_ = false;
+    bool keyPressedD_ = false;
+
+    void processMovement();
+
 public:
     PotentialApp();
 

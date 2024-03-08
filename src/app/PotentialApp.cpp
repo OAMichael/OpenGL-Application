@@ -22,6 +22,7 @@ void PotentialApp::OnRenderingStart() {
 }
 
 void PotentialApp::OnRenderFrame() {
+    processMovement();
 
     auto resourceManager = Resources::ResourceManager::getInstance();
     auto sceneManager = SceneResources::SceneManager::getInstance();
@@ -135,14 +136,33 @@ void PotentialApp::framebufferSizeCallback(GLFWwindow* window, int width, int he
 
 void PotentialApp::keyboardCallback(GLFWwindow* window, int key, int scancode, int action, int mods) {
     if(MouseHidden_) {
-        if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
-            Camera_.moveFront(4 * deltaTime_);
-        if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
-            Camera_.moveFront(-4 * deltaTime_);
-        if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
-            Camera_.moveRight(-4 * deltaTime_);
-        if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
-            Camera_.moveRight(4 * deltaTime_);
+        if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS) {
+            keyPressedA_ = true;
+        }
+        else if (glfwGetKey(window, GLFW_KEY_A) == GLFW_RELEASE) {
+            keyPressedA_ = false;
+        }
+
+        if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) {
+            keyPressedW_ = true;
+        }
+        else if (glfwGetKey(window, GLFW_KEY_W) == GLFW_RELEASE) {
+            keyPressedW_ = false;
+        }
+
+        if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS) {
+            keyPressedS_ = true;
+        }
+        else if (glfwGetKey(window, GLFW_KEY_S) == GLFW_RELEASE) {
+            keyPressedS_ = false;
+        }
+
+        if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS) {
+            keyPressedD_ = true;
+        }
+        else if (glfwGetKey(window, GLFW_KEY_D) == GLFW_RELEASE) {
+            keyPressedD_ = false;
+        }
     }
 
     switch(key) {
@@ -438,4 +458,20 @@ void PotentialApp::initCamera() {
     Camera_.setAspect((float)windowWidth_ / windowHeight_);
     Camera_.setZNear(0.01f);
     Camera_.setZFar(100.0f);
+}
+
+
+void PotentialApp::processMovement() {
+    if (keyPressedA_) {
+        Camera_.moveRight(-2 * deltaTime_);
+    }
+    if (keyPressedW_) {
+        Camera_.moveFront(2 * deltaTime_);
+    }
+    if (keyPressedS_) {
+        Camera_.moveFront(-2 * deltaTime_);
+    }
+    if (keyPressedD_) {
+        Camera_.moveRight(2 * deltaTime_);
+    }
 }
