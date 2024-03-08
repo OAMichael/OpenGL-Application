@@ -1,3 +1,5 @@
 #include "Framebuffer.hpp"
 
-std::string Resources::defaultFramebufferName = "DEFAULT_FRAMEBUFFER";
+std::string Resources::defaultFramebufferNames[Framebuffer::DefaultFramebuffers::COUNT] = {
+	"DEFAULT_FRAMEBUFFER"
+};

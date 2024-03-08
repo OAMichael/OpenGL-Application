@@ -18,6 +18,9 @@ inline constexpr const char* GAUSSIAN_BLUR_SHADER_NAME		= "Gaussian_Blur";
 inline constexpr const char* BLOOM_SHADER_NAME				= "Bloom";
 inline constexpr const char* BLOOM_FINAL_SHADER_NAME		= "Bloom_Final";
 inline constexpr const char* TEXT_RENDERING_SHADER_NAME		= "Render_Text";
+inline constexpr const char* IRRADIANCE_MAP_SHADER_NAME		= "Irradiance_Map";
+inline constexpr const char* PREFILTER_HDR_SHADER_NAME		= "Prefilter_HDR";
+inline constexpr const char* BRDF_LUT_SHADER_NAME			= "BRDF_LUT";
 inline constexpr const char* BACKGROUND_2D_TEXTURE_NAME		= "BACKGROUND_2D_TEXTURE";
 inline constexpr const char* SKYBOX_TEXTURE_NAME			= "SKYBOX_TEXTURE";
 inline constexpr const char* EQUIRECTANGULAR_TEXTURE_NAME	= "EQUIRECTANGULAR_TEXTURE";
@@ -82,6 +85,7 @@ public:
 
 	void createEnvironment(const EnvironmentType envType, const std::vector<std::string>& textureNames, bool isHdr = false);
 	void createEnvironment(const EnvironmentType envType, const std::string& textureName, bool isHdr = false);
+	void createImageBasedLightingTextures(const EnvironmentType envType);
 	void drawEnvironment();
 
 	void createBackground2D(const std::string& textureName, bool isHdr = false);
@@ -113,6 +117,12 @@ public:
 	void drawToDefaultFramebuffer(const Resources::ResourceHandle inputTextureHandle);
 
 	inline const Resources::ResourceHandle getPostProcessTextureHandle() const { return postProcessTextureHandle_; }
+	inline const Resources::ResourceHandle getIrradianceMapSkyboxTextureHandle() const { return irradianceMapSkyboxTextureHandle_; }
+	inline const Resources::ResourceHandle getIrradianceMapEquirectTextureHandle() const { return irradianceMapEquirectTextureHandle_; }
+	inline const Resources::ResourceHandle getPrefilterHDRMapSkyboxTextureHandle() const { return prefilterHDRSkyboxTextureHandle_; }
+	inline const Resources::ResourceHandle getPrefilterHDRMapEquirectTextureHandle() const { return prefilterHDREquirectTextureHandle_; }
+	inline const Resources::ResourceHandle getBRDFLUTSkyboxTextureHandle() const { return brdfLUTSkyboxTextureHandle_; }
+	inline const Resources::ResourceHandle getBRDFLUTEquirectTextureHandle() const { return brdfLUTEquirectTextureHandle_; }
 
 	bool initializeFreeType(const std::string& fontFilename, const unsigned fontHeight = 48);
 	void setTextProjectionMatrix(const glm::mat4 proj);
@@ -132,26 +142,26 @@ private:
 
 	SceneNode* rootNode_ = nullptr;
 
-	unsigned VAOFullscreenQuad_;
-	unsigned VBOFullscreenQuad_;
+	unsigned VAOFullscreenQuad_ = 0;
+	unsigned VBOFullscreenQuad_ = 0;
 
-	unsigned VAOBackground2D_;
-	unsigned VBOBackground2D_;
+	unsigned VAODefaultQuad_ = 0;
+	unsigned VBODefaultQuad_ = 0;
+	unsigned VAODefaultCube_ = 0;
+	unsigned VBODefaultCube_ = 0;
+
+	Geometry::Cube defaultCube_{glm::vec3(0.0f)};
+
 	Resources::ResourceHandle Background2DHandle_;
-
-	unsigned VAOSkybox_;
-	unsigned VBOSkybox_;
-	Geometry::Cube Skybox_{glm::vec3(0.0f)};
 	Resources::ResourceHandle SkyboxHandle_;
-
-	unsigned VAOEquirect_;
-	unsigned VBOEquirect_;
-	Geometry::Cube Equirect_{glm::vec3(0.0f)};
 	Resources::ResourceHandle EquirectHandle_;
 
 	EnvironmentType envType_;
-
 	std::array<uint32_t, EnvironmentType::COUNT> envHdr_ = {};
+	int irradianceMapSize_ = 32;
+	int prefilteredHDRMapSize_ = 256;
+	unsigned maxMipLevelsPrefilterHDR_ = 5;
+	int brdfLUTSize_ = 512;
 
 	struct FreeTypeCharacter {
 		Resources::ResourceHandle textureHandle;
@@ -172,6 +182,25 @@ private:
 	Resources::ResourceHandle bloomFinalFramebufferHandle_;
 
 	Resources::ResourceHandle postProcessTextureHandle_;
+	Resources::ResourceHandle irradianceMapSkyboxTextureHandle_;
+	Resources::ResourceHandle irradianceMapEquirectTextureHandle_;
+	Resources::ResourceHandle prefilterHDRSkyboxTextureHandle_;
+	Resources::ResourceHandle prefilterHDREquirectTextureHandle_;
+	Resources::ResourceHandle brdfLUTSkyboxTextureHandle_;
+	Resources::ResourceHandle brdfLUTEquirectTextureHandle_;
+
+	Resources::ResourceHandle fullscreenShaderHandle_;
+	Resources::ResourceHandle environmentShaderHandle_;
+	Resources::ResourceHandle gaussianBlurShaderHandle_;
+	Resources::ResourceHandle bloomShaderHandle_;
+	Resources::ResourceHandle bloomFinalShaderHandle_;
+	Resources::ResourceHandle textRenderingShaderHandle_;
+
+	void initializeDefaultCube();
+	void drawDefaultCube();
+
+	void initializeDefaultQuad();
+	void drawDefaultQuad();
 
 	static SceneManager* instancePtr;
 	SceneManager() {};

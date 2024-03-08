@@ -17,10 +17,16 @@ struct Framebuffer : RenderResource {
 	Texture* depthAttachment;
 
 	std::vector<Framebuffer*> dependants;
+
+	enum DefaultFramebuffers : uint32_t {
+		DEFAULT_FRAMEBUFFER = 0,
+
+		COUNT
+	};
 };
 
 
-extern std::string defaultFramebufferName;
+extern std::string defaultFramebufferNames[Framebuffer::DefaultFramebuffers::COUNT];
 
 }
 #endif

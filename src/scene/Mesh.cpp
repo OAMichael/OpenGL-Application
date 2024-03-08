@@ -14,17 +14,19 @@ void Geometry::Mesh::draw(Resources::Shader& shader)
     auto resourceManager = Resources::ResourceManager::getInstance();
     auto sceneManager = SceneResources::SceneManager::getInstance();
 
-    const int materialTextures[Resources::Material::TextureIdx::COUNT] = {
+    const int materialTextures[Resources::Material::TextureIdx::IDX_COUNT] = {
         Resources::Material::BASE_COLOR,
         Resources::Material::METALLIC_ROUGHNESS,
         Resources::Material::EMISSIVE,
         Resources::Material::NORMAL,
         Resources::Material::OCCLUSION
     };
-    glUniform1iv(glGetUniformLocation(shader.getID(), "materialTextures"),  Resources::Material::TextureIdx::COUNT, materialTextures);
-    glUniform1i(glGetUniformLocation(shader.getID(), "uCubeSamplerSkybox"), Resources::Material::TextureIdx::COUNT);
-    glUniform1i(glGetUniformLocation(shader.getID(), "uSamplerEquirect"),   Resources::Material::TextureIdx::COUNT + 1);
 
+    shader.use();
+    shader.setIntArray("uMaterialTextures", materialTextures, Resources::Material::TextureIdx::IDX_COUNT);
+    shader.setInt("uIrradianceMap", Resources::Material::TextureIdx::IDX_COUNT);
+    shader.setInt("uPrefilterMap", Resources::Material::TextureIdx::IDX_COUNT + 1);
+    shader.setInt("uBrdfLUT", Resources::Material::TextureIdx::IDX_COUNT + 2);
     shader.setUint("uEnvironmentType", (uint32_t)sceneManager->getEnvironmentType());
 
     for (size_t i = 0; i < meshRef.primitives.size(); ++i) {
@@ -34,37 +36,44 @@ void Geometry::Mesh::draw(Resources::Shader& shader)
         const tinygltf::Accessor& indexAccessor = modelRef.accessors[primitive.indices];
         const tinygltf::BufferView& bufView = modelRef.bufferViews[indexAccessor.bufferView];
 
-        auto primitiveMaterial = static_cast<Resources::Material*>(resourceManager->getResource(primitiveMaterial_[i]));
+        auto& primitiveMaterial = resourceManager->getMaterial(primitiveMaterial_[i]);
 
-        glm::vec4 materialTexturesFactors[Resources::Material::TextureIdx::COUNT];
-        for (int i = 0; i < Resources::Material::TextureIdx::COUNT; ++i) {
-            auto tex = static_cast<Resources::Texture*>(resourceManager->getResource(primitiveMaterial->textures[i]->handle));
+        glm::vec4 materialTexturesFactors[Resources::Material::TextureIdx::IDX_COUNT];
+        for (int i = 0; i < Resources::Material::TextureIdx::IDX_COUNT; ++i) {
+            auto tex = primitiveMaterial.textures[i];
             materialTexturesFactors[i] = tex->factor;
-
-            glActiveTexture(GL_TEXTURE0 + i);
-            glBindTexture(GL_TEXTURE_2D, tex->GL_id);
-            glBindSampler(i, tex->sampler->GL_id);
+            resourceManager->bindTexture(tex->handle, i);
         }
 
-        if (sceneManager->getEnvironmentType() == SceneResources::SceneManager::EnvironmentType::SKYBOX) {
-            Resources::Texture* skyboxTexture = static_cast<Resources::Texture*>(resourceManager->getResource(
-                sceneManager->getSkyboxHandle()
-            ));
-            glActiveTexture(GL_TEXTURE0 + Resources::Material::TextureIdx::COUNT);
-            glBindTexture(GL_TEXTURE_CUBE_MAP, skyboxTexture->GL_id);
-            glBindSampler(Resources::Material::TextureIdx::COUNT, skyboxTexture->sampler->GL_id);
+        auto envType = sceneManager->getEnvironmentType();
+        Resources::ResourceHandle irradianceHandle;
+        Resources::ResourceHandle prefilterHandle;
+        Resources::ResourceHandle brdfLUTHandle;
+
+        if (envType == SceneResources::SceneManager::EnvironmentType::SKYBOX) {
+            irradianceHandle = sceneManager->getIrradianceMapSkyboxTextureHandle();
+            prefilterHandle = sceneManager->getPrefilterHDRMapSkyboxTextureHandle();
+            brdfLUTHandle = sceneManager->getBRDFLUTSkyboxTextureHandle();
         }
-        else if (sceneManager->getEnvironmentType() == SceneResources::SceneManager::EnvironmentType::EQUIRECTANGULAR) {
-            Resources::Texture* equirectTexture = static_cast<Resources::Texture*>(resourceManager->getResource(
-                sceneManager->getEquirectangularHandle()
-            ));
-            glActiveTexture(GL_TEXTURE0 + Resources::Material::TextureIdx::COUNT + 1);
-            glBindTexture(GL_TEXTURE_2D, equirectTexture->GL_id);
-            glBindSampler(Resources::Material::TextureIdx::COUNT + 1, equirectTexture->sampler->GL_id);
+        else if (envType == SceneResources::SceneManager::EnvironmentType::EQUIRECTANGULAR) {
+            irradianceHandle = sceneManager->getIrradianceMapEquirectTextureHandle();
+            prefilterHandle = sceneManager->getPrefilterHDRMapEquirectTextureHandle();
+            brdfLUTHandle = sceneManager->getBRDFLUTEquirectTextureHandle();
         }
 
-        glUniform4fv(glGetUniformLocation(shader.getID(), "materialTexturesFactors"), Resources::Material::TextureIdx::COUNT, &materialTexturesFactors[0][0]);
-        shader.setUint("materialFlags", primitiveMaterial->materialFlags);
+        if (irradianceHandle.isValid() && prefilterHandle.isValid() && brdfLUTHandle.isValid()) {
+            resourceManager->bindTexture(irradianceHandle, Resources::Material::TextureIdx::IDX_COUNT);
+            resourceManager->bindTexture(prefilterHandle, Resources::Material::TextureIdx::IDX_COUNT + 1);
+            resourceManager->bindTexture(brdfLUTHandle, Resources::Material::TextureIdx::IDX_COUNT + 2);
+        }
+        else {
+            resourceManager->bindTexture(Resources::defaultTexturesNames[Resources::Texture::DefaultTextures::DEFAULT_TEXTURE_CUBEMAP_BLACK], Resources::Material::TextureIdx::IDX_COUNT);
+            resourceManager->bindTexture(Resources::defaultTexturesNames[Resources::Texture::DefaultTextures::DEFAULT_TEXTURE_CUBEMAP_BLACK], Resources::Material::TextureIdx::IDX_COUNT + 1);
+            resourceManager->bindTexture(Resources::defaultTexturesNames[Resources::Texture::DefaultTextures::DEFAULT_TEXTURE_BLACK], Resources::Material::TextureIdx::IDX_COUNT + 2);
+        }
+
+        shader.setVec4Array("uMaterialTexturesFactors", &materialTexturesFactors[0][0], Resources::Material::TextureIdx::IDX_COUNT);
+        shader.setUint("uMaterialFlags", primitiveMaterial.materialFlags);
 
         glBindBuffer(bufView.target, VBOs_.at(indexAccessor.bufferView));
         if (primitive.indices >= 0) {
@@ -75,13 +84,6 @@ void Geometry::Mesh::draw(Resources::Shader& shader)
             const auto& accessor = modelRef.accessors[accessorIdx];
             glDrawArrays(primitive.mode, 0, accessor.count);
         }
-
-        for (int i = 0; i < Resources::Material::TextureIdx::COUNT; ++i) {
-            glBindSampler(i, 0);
-        }
-        glBindSampler(Resources::Material::TextureIdx::COUNT, 0);
-        glBindSampler(Resources::Material::TextureIdx::COUNT + 1, 0);
-        glActiveTexture(GL_TEXTURE0);
     }
     glBindVertexArray(0);
 }
@@ -161,8 +163,8 @@ void Geometry::Mesh::init()
                 baseDir = it.second->getFilename();
         }
 
-        Resources::Image& defaultWhiteImage = resourceManager->getImage(Resources::defaultImagesNames[Resources::Image::DEFAULT_IMAGE_WHITE]);
-        Resources::Texture& defaultWhiteTexture = resourceManager->getTexture(Resources::defaultTexturesNames[Resources::Texture::DEFAULT_TEXTURE_WHITE]);
+        Resources::Image& defaultWhiteImage = resourceManager->getImage(Resources::Image::DEFAULT_IMAGE_WHITE);
+        Resources::Texture& defaultWhiteTexture = resourceManager->getTexture(Resources::Texture::DEFAULT_TEXTURE_WHITE);
         
         Resources::MaterialDesc matDesc;
         matDesc.name = modelRef.materials[primitive.material].name;

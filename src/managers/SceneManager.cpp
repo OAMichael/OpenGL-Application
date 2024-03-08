@@ -163,26 +163,7 @@ void SceneManager::updateLights() {
 
 
 void SceneManager::createBackground2D(const std::string& textureName, bool isHdr) {
-    glGenVertexArrays(1, &VAOBackground2D_);
-    glGenBuffers(1, &VBOBackground2D_);
-    glBindVertexArray(VAOBackground2D_);
-
-    const std::vector<float>& vertsBackground2D = {
-        -1.0f,  1.0f, 0.0f,     0.0f, 0.0f,
-        -1.0f, -1.0f, 0.0f,     0.0f, 1.0f,
-         1.0f, -1.0f, 0.0f,     1.0f, 1.0f,
-         1.0f, -1.0f, 0.0f,     1.0f, 1.0f,
-         1.0f,  1.0f, 0.0f,     1.0f, 0.0f,
-        -1.0f,  1.0f, 0.0f,     0.0f, 0.0f
-    };
-    glBindBuffer(GL_ARRAY_BUFFER, VBOBackground2D_);
-    glBufferData(GL_ARRAY_BUFFER, vertsBackground2D.size() * sizeof(float), vertsBackground2D.data(), GL_STATIC_DRAW);
-
-    glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)0);
-
-    glEnableVertexAttribArray(1);
-    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * sizeof(float)));
+    initializeDefaultQuad();
 
     auto resourceManager = Resources::ResourceManager::getInstance();
 
@@ -198,9 +179,6 @@ void SceneManager::createBackground2D(const std::string& textureName, bool isHdr
     }
 
     Background2DHandle_ = resourceManager->createTexture(texDesc).handle;
-
-    glBindVertexArray(0);
-    glBindBuffer(GL_ARRAY_BUFFER, 0);
 }
 
 void SceneManager::drawBackground2D() {
@@ -209,46 +187,18 @@ void SceneManager::drawBackground2D() {
     glDepthFunc(GL_LEQUAL);
     glFrontFace(GL_CCW);
 
-    const auto background2DTexture = static_cast<Resources::Texture*>(resourceManager->getResource(Background2DHandle_));
-    Resources::Texture& defaultBlackCubemap = resourceManager->getTexture(Resources::defaultTexturesNames[Resources::Texture::DefaultTextures::DEFAULT_TEXTURE_CUBEMAP_BLACK]);
-    Resources::Texture& defaultBlackTexture = resourceManager->getTexture(Resources::defaultTexturesNames[Resources::Texture::DefaultTextures::DEFAULT_TEXTURE_BLACK]);
+    resourceManager->bindTexture(Background2DHandle_, 0);
+    resourceManager->bindTexture(Resources::defaultTexturesNames[Resources::Texture::DefaultTextures::DEFAULT_TEXTURE_CUBEMAP_BLACK], 1);
+    resourceManager->bindTexture(Resources::defaultTexturesNames[Resources::Texture::DefaultTextures::DEFAULT_TEXTURE_BLACK], 2);
 
-    glBindVertexArray(VAOBackground2D_);
-
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, background2DTexture->GL_id);
-    glBindSampler(0, background2DTexture->sampler->GL_id);
-
-    glActiveTexture(GL_TEXTURE1);
-    glBindTexture(GL_TEXTURE_CUBE_MAP, defaultBlackCubemap.GL_id);
-    glBindSampler(1, defaultBlackCubemap.sampler->GL_id);
-
-    glActiveTexture(GL_TEXTURE2);
-    glBindTexture(GL_TEXTURE_2D, defaultBlackTexture.GL_id);
-    glBindSampler(2, defaultBlackTexture.sampler->GL_id);
-
-    glDrawArrays(GL_TRIANGLES, 0, 6);
-
-    glBindTexture(GL_TEXTURE_2D, 0);
-    glBindTexture(GL_TEXTURE_CUBE_MAP, 0);
-    glBindSampler(0, 0);
-    glBindVertexArray(0);
+    drawDefaultQuad();
 
     glDepthFunc(GL_LESS);
 }
 
 
 void SceneManager::createSkybox(const std::vector<std::string>& textureNames, bool isHdr) {
-    glGenVertexArrays(1, &VAOSkybox_);
-    glGenBuffers(1, &VBOSkybox_);
-    glBindVertexArray(VAOSkybox_);
-
-    const std::vector<float>& vertsSkybox = Skybox_.getVertices();
-    glBindBuffer(GL_ARRAY_BUFFER, VBOSkybox_);
-    glBufferData(GL_ARRAY_BUFFER, vertsSkybox.size() * sizeof(float), vertsSkybox.data(), GL_STATIC_DRAW);
-
-    glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
+    initializeDefaultCube();
 
     auto resourceManager = Resources::ResourceManager::getInstance();
 
@@ -262,6 +212,7 @@ void SceneManager::createSkybox(const std::vector<std::string>& textureNames, bo
         auto& newImage = resourceManager->createImage(textureNames[i]);
         texDesc.p_images[i] = &newImage;
     }
+    texDesc.p_sampler = &resourceManager->getSampler(Resources::Sampler::DefaultSamplers::DEFAULT_SAMPLER_LINEAR_MIPMAP_LINEAR_CLAMP);
 
     if (isHdr) {
         texDesc.format = GL_RGBA32F;
@@ -270,9 +221,6 @@ void SceneManager::createSkybox(const std::vector<std::string>& textureNames, bo
     SkyboxHandle_ = resourceManager->createTexture(texDesc).handle;
     resourceManager->generateMipMaps(SkyboxHandle_);
     glEnable(GL_TEXTURE_CUBE_MAP_SEAMLESS);
-
-    glBindVertexArray(0);
-    glBindBuffer(GL_ARRAY_BUFFER, 0);
 }
 
 void SceneManager::drawSkybox() {
@@ -281,45 +229,18 @@ void SceneManager::drawSkybox() {
     glDepthFunc(GL_LEQUAL);
     glFrontFace(GL_CCW);
 
-    const auto skyboxTexture = static_cast<Resources::Texture*>(resourceManager->getResource(SkyboxHandle_));
-    Resources::Texture& defaultBlackTexture = resourceManager->getTexture(Resources::defaultTexturesNames[Resources::Texture::DefaultTextures::DEFAULT_TEXTURE_BLACK]);
+    resourceManager->bindTexture(Resources::defaultTexturesNames[Resources::Texture::DefaultTextures::DEFAULT_TEXTURE_BLACK], 0);
+    resourceManager->bindTexture(SkyboxHandle_, 1);
+    resourceManager->bindTexture(Resources::defaultTexturesNames[Resources::Texture::DefaultTextures::DEFAULT_TEXTURE_BLACK], 2);
 
-    glBindVertexArray(VAOSkybox_);
-
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, defaultBlackTexture.GL_id);
-    glBindSampler(0, defaultBlackTexture.sampler->GL_id);
-
-    glActiveTexture(GL_TEXTURE1);
-    glBindTexture(GL_TEXTURE_CUBE_MAP, skyboxTexture->GL_id);
-    glBindSampler(1, skyboxTexture->sampler->GL_id);
-
-    glActiveTexture(GL_TEXTURE2);
-    glBindTexture(GL_TEXTURE_2D, defaultBlackTexture.GL_id);
-    glBindSampler(2, defaultBlackTexture.sampler->GL_id);
-
-    glDrawArrays(GL_TRIANGLES, 0, 36);
-
-    glBindTexture(GL_TEXTURE_2D, 0);
-    glBindTexture(GL_TEXTURE_CUBE_MAP, 0);
-    glBindSampler(0, 0);
-    glBindVertexArray(0);
+    drawDefaultCube();
 
     glDepthFunc(GL_LESS);
 }
 
 
 void SceneManager::createEquirectangular(const std::string& textureName, bool isHdr) {
-    glGenVertexArrays(1, &VAOEquirect_);
-    glGenBuffers(1, &VBOEquirect_);
-    glBindVertexArray(VAOEquirect_);
-
-    const std::vector<float>& cubeMapVert = Equirect_.getVertices();
-    glBindBuffer(GL_ARRAY_BUFFER, VBOEquirect_);
-    glBufferData(GL_ARRAY_BUFFER, cubeMapVert.size() * sizeof(float), cubeMapVert.data(), GL_STATIC_DRAW);
-
-    glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
+    initializeDefaultCube();
 
     auto resourceManager = Resources::ResourceManager::getInstance();
 
@@ -330,15 +251,13 @@ void SceneManager::createEquirectangular(const std::string& textureName, bool is
 
     auto& newImage = resourceManager->createImage(textureName, isHdr);
     texDesc.p_images[0] = &newImage;
+
     if (isHdr) {
         texDesc.format = GL_RGBA32F;
     }
 
     EquirectHandle_ = resourceManager->createTexture(texDesc).handle;
-    resourceManager->generateMipMaps(texDesc.name);
-
-    glBindVertexArray(0);
-    glBindBuffer(GL_ARRAY_BUFFER, 0);
+    resourceManager->generateMipMaps(EquirectHandle_);
 }
 
 void SceneManager::drawEquirectangular() {
@@ -347,30 +266,11 @@ void SceneManager::drawEquirectangular() {
     glDepthFunc(GL_LEQUAL);
     glFrontFace(GL_CCW);
 
-    const auto equirectTexture = static_cast<Resources::Texture*>(resourceManager->getResource(EquirectHandle_));
-    Resources::Texture& defaultBlackCubemap = resourceManager->getTexture(Resources::defaultTexturesNames[Resources::Texture::DefaultTextures::DEFAULT_TEXTURE_CUBEMAP_BLACK]);
-    Resources::Texture& defaultBlackTexture = resourceManager->getTexture(Resources::defaultTexturesNames[Resources::Texture::DefaultTextures::DEFAULT_TEXTURE_BLACK]);
+    resourceManager->bindTexture(Resources::defaultTexturesNames[Resources::Texture::DefaultTextures::DEFAULT_TEXTURE_BLACK], 0);
+    resourceManager->bindTexture(Resources::defaultTexturesNames[Resources::Texture::DefaultTextures::DEFAULT_TEXTURE_CUBEMAP_BLACK], 1);
+    resourceManager->bindTexture(EquirectHandle_, 2);
 
-    glBindVertexArray(VAOEquirect_);
-
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, defaultBlackTexture.GL_id);
-    glBindSampler(0, defaultBlackTexture.sampler->GL_id);
-
-    glActiveTexture(GL_TEXTURE1);
-    glBindTexture(GL_TEXTURE_CUBE_MAP, defaultBlackCubemap.GL_id);
-    glBindSampler(1, defaultBlackCubemap.sampler->GL_id);
-
-    glActiveTexture(GL_TEXTURE2);
-    glBindTexture(GL_TEXTURE_2D, equirectTexture->GL_id);
-    glBindSampler(2, equirectTexture->sampler->GL_id);
-
-    glDrawArrays(GL_TRIANGLES, 0, 36);
-
-    glBindTexture(GL_TEXTURE_2D, 0);
-    glBindTexture(GL_TEXTURE_CUBE_MAP, 0);
-    glBindSampler(0, 0);
-    glBindVertexArray(0);
+    drawDefaultCube();
 
     glDepthFunc(GL_LESS);
 }
@@ -386,6 +286,7 @@ void SceneManager::createEnvironment(const EnvironmentType envType, const std::v
     shaderDesc.fragFilename = "../shaders/DefaultEnv.frag";
 
     auto& envShader = resourceManager->createShader(shaderDesc);
+    environmentShaderHandle_ = envShader.handle;
 
     envShader.use();
     envShader.setInt("uSamplerBackground2D", 0);
@@ -433,12 +334,214 @@ void SceneManager::createEnvironment(const EnvironmentType envType, const std::s
     createEnvironment(envType, tmpVec, isHdr);
 }
 
+void SceneManager::createImageBasedLightingTextures(const EnvironmentType envType) {
+    if (envType != EnvironmentType::SKYBOX && envType != EnvironmentType::EQUIRECTANGULAR) {
+        LOG_W("Irradiance map is only supported for skybox and equirectangular environments");
+        return;
+    }
+
+    if (envType == EnvironmentType::SKYBOX && !SkyboxHandle_.isValid()) {
+        LOG_E("Cannot create IBL textures for non existing skybox environment");
+        return;
+    }
+
+    if (envType == EnvironmentType::EQUIRECTANGULAR && !EquirectHandle_.isValid()) {
+        LOG_E("Cannot create IBL textures for non existing equirectangular environment");
+        return;
+    }
+
+    initializeDefaultQuad();
+    initializeDefaultCube();
+
+    auto resourceManager = Resources::ResourceManager::getInstance();
+
+    Resources::ShaderDesc shaderDesc;
+
+    shaderDesc.name = IRRADIANCE_MAP_SHADER_NAME;
+    shaderDesc.vertFilename = "../shaders/DefaultCubemap.vert";
+    shaderDesc.fragFilename = "../shaders/IBL/IrradianceMap.frag";
+    auto& irradianceMapShader = resourceManager->createShader(shaderDesc);
+
+    shaderDesc.name = PREFILTER_HDR_SHADER_NAME;
+    shaderDesc.vertFilename = "../shaders/DefaultCubemap.vert";
+    shaderDesc.fragFilename = "../shaders/IBL/PrefilterHDRMap.frag";
+    auto& prefilterHDRShader = resourceManager->createShader(shaderDesc);
+
+    shaderDesc.name = BRDF_LUT_SHADER_NAME;
+    shaderDesc.vertFilename = "../shaders/IBL/BRDF_LUT.vert";
+    shaderDesc.fragFilename = "../shaders/IBL/BRDF_LUT.frag";
+    auto& brdfLUTShader = resourceManager->createShader(shaderDesc);
+
+
+    Resources::ImageDesc imageDesc;
+    imageDesc.format = GL_RGB;
+    imageDesc.components = 3;
+    imageDesc.bits = 8 * sizeof(float);
+    imageDesc.p_data = nullptr;
+
+    imageDesc.name = "IRRADIANCE_FACE_IMAGE";
+    imageDesc.width = irradianceMapSize_;
+    imageDesc.height = irradianceMapSize_;
+    auto& irradianceFaceImage = resourceManager->createImage(imageDesc);
+
+    imageDesc.name = "PREFILTER_HDR_FACE_IMAGE";
+    imageDesc.width = prefilteredHDRMapSize_;
+    imageDesc.height = prefilteredHDRMapSize_;
+    auto& prefilterHDRFaceImage = resourceManager->createImage(imageDesc);
+
+    imageDesc.name = "BRDF_LUT_IMAGE";
+    imageDesc.width = brdfLUTSize_;
+    imageDesc.height = brdfLUTSize_;
+    imageDesc.format = GL_RG;
+    imageDesc.components = 2;
+    auto& brdfLUTImage = resourceManager->createImage(imageDesc);
+
+
+    Resources::TextureDesc textureDesc;
+    textureDesc.faces = 6;
+    textureDesc.format = GL_RGB16F;
+
+    textureDesc.name = std::string("IRRADIANCE_FACE_TEXTURE_") + (envType == EnvironmentType::SKYBOX ? "SKYBOX" : "EQUIRECT");
+    textureDesc.p_sampler = &resourceManager->getSampler(Resources::Sampler::DefaultSamplers::DEFAULT_SAMPLER_LINEAR_CLAMP);
+    for (int i = 0; i < 6; ++i) {
+        textureDesc.p_images[i] = &irradianceFaceImage;
+    }
+    auto& irradianceMapTex = resourceManager->createTexture(textureDesc);
+
+    textureDesc.name = std::string("PREFILTER_HDR_FACE_TEXTURE_") + (envType == EnvironmentType::SKYBOX ? "SKYBOX" : "EQUIRECT");
+    textureDesc.p_sampler = &resourceManager->getSampler(Resources::Sampler::DefaultSamplers::DEFAULT_SAMPLER_LINEAR_MIPMAP_LINEAR_CLAMP);
+    for (int i = 0; i < 6; ++i) {
+        textureDesc.p_images[i] = &prefilterHDRFaceImage;
+    }
+    auto& prefilterHDRTex = resourceManager->createTexture(textureDesc);
+    resourceManager->generateMipMaps(prefilterHDRTex.handle);
+
+    textureDesc.name = std::string("BRDF_LUT_TEXTURE_") + (envType == EnvironmentType::SKYBOX ? "SKYBOX" : "EQUIRECT");
+    textureDesc.p_sampler = &resourceManager->getSampler(Resources::Sampler::DefaultSamplers::DEFAULT_SAMPLER_LINEAR_CLAMP);
+    textureDesc.faces = 1;
+    textureDesc.format = GL_RG16F;
+    textureDesc.p_images[0] = &brdfLUTImage;
+    auto& brdfLUTTexture = resourceManager->createTexture(textureDesc);
+
+
+    if (envType == EnvironmentType::SKYBOX) {
+        irradianceMapSkyboxTextureHandle_ = irradianceMapTex.handle;
+        prefilterHDRSkyboxTextureHandle_ = prefilterHDRTex.handle;
+        brdfLUTSkyboxTextureHandle_ = brdfLUTTexture.handle;
+    }
+    else {
+        irradianceMapEquirectTextureHandle_ = irradianceMapTex.handle;
+        prefilterHDREquirectTextureHandle_ = prefilterHDRTex.handle;
+        brdfLUTEquirectTextureHandle_ = brdfLUTTexture.handle;
+    }
+
+
+    glm::mat4 captureProjection = glm::perspective(glm::radians(90.0f), 1.0f, 0.1f, 10.0f);
+    glm::mat4 captureViews[] =
+    {
+        glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(1.0f,  0.0f,  0.0f), glm::vec3(0.0f, -1.0f,  0.0f)),
+        glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(-1.0f, 0.0f,  0.0f), glm::vec3(0.0f, -1.0f,  0.0f)),
+        glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f,  1.0f,  0.0f), glm::vec3(0.0f,  0.0f,  1.0f)),
+        glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, -1.0f,  0.0f), glm::vec3(0.0f,  0.0f, -1.0f)),
+        glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f,  0.0f,  1.0f), glm::vec3(0.0f, -1.0f,  0.0f)),
+        glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f,  0.0f, -1.0f), glm::vec3(0.0f, -1.0f,  0.0f))
+    };
+
+    unsigned framebufferIBL;
+    unsigned renderbufferIBL;
+
+    glGenFramebuffers(1, &framebufferIBL);
+    glGenRenderbuffers(1, &renderbufferIBL);
+    glBindFramebuffer(GL_FRAMEBUFFER, framebufferIBL);
+    glBindRenderbuffer(GL_RENDERBUFFER, renderbufferIBL);
+    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT24, irradianceMapSize_, irradianceMapSize_);
+    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, renderbufferIBL);
+
+    irradianceMapShader.use();
+    irradianceMapShader.setInt("uSamplerSkybox", 0);
+    irradianceMapShader.setInt("uSamplerEquirect", 1);
+    irradianceMapShader.setUint("uEnvironmentType", envType);
+    irradianceMapShader.setMat4("proj", captureProjection);
+
+    Resources::Texture* cubemap = nullptr;
+    if (envType == EnvironmentType::SKYBOX) {
+        cubemap = &resourceManager->getTexture(SkyboxHandle_);
+    }
+    else {
+        cubemap = &resourceManager->getTexture(Resources::Texture::DefaultTextures::DEFAULT_TEXTURE_CUBEMAP_BLACK);
+    }
+    resourceManager->bindTexture(cubemap->handle, 0);
+
+    Resources::Texture* equirect = nullptr;
+    if (envType == EnvironmentType::SKYBOX) {
+        equirect = &resourceManager->getTexture(Resources::Texture::DefaultTextures::DEFAULT_TEXTURE_BLACK);
+    }
+    else {
+        equirect = &resourceManager->getTexture(EquirectHandle_);
+    }
+    resourceManager->bindTexture(equirect->handle, 1);
+
+
+    GLint prevViewport[4];
+    glGetIntegerv(GL_VIEWPORT, prevViewport);
+    glViewport(0, 0, irradianceMapSize_, irradianceMapSize_);
+    for (unsigned int i = 0; i < 6; ++i) {
+        irradianceMapShader.setMat4("view", captureViews[i]);
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, irradianceMapTex.GL_id, 0);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        drawDefaultCube();
+    }
+
+
+
+    prefilterHDRShader.use();
+    prefilterHDRShader.setInt("uSamplerSkybox", 0);
+    prefilterHDRShader.setInt("uSamplerEquirect", 1);
+    prefilterHDRShader.setUint("uEnvironmentType", envType);
+    prefilterHDRShader.setMat4("proj", captureProjection);
+
+    for (unsigned int mip = 0; mip < maxMipLevelsPrefilterHDR_; ++mip) {
+        unsigned int mipWidth = prefilteredHDRMapSize_ * std::pow(0.5, mip);
+        unsigned int mipHeight = prefilteredHDRMapSize_ * std::pow(0.5, mip);
+        glBindRenderbuffer(GL_RENDERBUFFER, renderbufferIBL);
+        glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT24, mipWidth, mipHeight);
+        glViewport(0, 0, mipWidth, mipHeight);
+
+        float roughness = (float)mip / (float)(maxMipLevelsPrefilterHDR_ - 1);
+        prefilterHDRShader.setFloat("uRoughness", roughness);
+        for (unsigned int i = 0; i < 6; ++i) {
+            prefilterHDRShader.setMat4("view", captureViews[i]);
+            glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, prefilterHDRTex.GL_id, mip);
+            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+            drawDefaultCube();
+        }
+    }
+
+
+
+    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT24, brdfLUTSize_, brdfLUTSize_);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, brdfLUTTexture.GL_id, 0);
+
+    brdfLUTShader.use();
+    glViewport(0, 0, brdfLUTSize_, brdfLUTSize_);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    drawDefaultQuad();
+
+    resourceManager->generateMipMaps(brdfLUTTexture.handle);
+
+
+    resourceManager->bindFramebuffer(Resources::defaultFramebufferNames[Resources::Framebuffer::DefaultFramebuffers::DEFAULT_FRAMEBUFFER]);
+    glDeleteFramebuffers(1, &framebufferIBL);
+    glDeleteRenderbuffers(1, &renderbufferIBL);
+    glViewport(prevViewport[0], prevViewport[1], prevViewport[2], prevViewport[3]);
+}
+
 void SceneManager::drawEnvironment() {
     auto resourceManager = Resources::ResourceManager::getInstance();
-    auto& envShader = resourceManager->getShader(ENVIRONMENT_SHADER_NAME);
+    auto& envShader = resourceManager->getShader(environmentShaderHandle_);
     envShader.use();
     envShader.setUint("uEnvironmentType", (uint32_t)envType_);
-    envShader.setUint("uIsHdr", envHdr_[envType_]);
+    envShader.setBool("uIsHdr", envHdr_[envType_]);
 
     switch (envType_) {
     case EnvironmentType::BACKGROUND_IMAGE_2D:
@@ -469,28 +572,31 @@ void SceneManager::createPostProcess(const PostProcessInfo& ppi) {
     Resources::ShaderDesc shaderDesc;
     shaderDesc.name = GAUSSIAN_BLUR_SHADER_NAME;
     shaderDesc.uri = "";
-    shaderDesc.vertFilename = "../shaders/FullscreenQuad.vert";
+    shaderDesc.vertFilename = "../shaders/PostProcess/FullscreenQuad.vert";
     shaderDesc.fragFilename = "../shaders/PostProcess/GaussianBlur.frag";
 
     auto& blurShader = resourceManager->createShader(shaderDesc);
+    gaussianBlurShaderHandle_ = blurShader.handle;
     blurShader.use();
     blurShader.setInt("uScreenTexture", 0);
 
 
     shaderDesc.name = BLOOM_SHADER_NAME;
-    shaderDesc.vertFilename = "../shaders/FullscreenQuad.vert";
+    shaderDesc.vertFilename = "../shaders/PostProcess/FullscreenQuad.vert";
     shaderDesc.fragFilename = "../shaders/PostProcess/Bloom.frag";
 
     auto& bloomShader = resourceManager->createShader(shaderDesc);
+    bloomShaderHandle_ = bloomShader.handle;
     bloomShader.use();
     bloomShader.setInt("uScreenTexture", 0);
 
 
     shaderDesc.name = BLOOM_FINAL_SHADER_NAME;
-    shaderDesc.vertFilename = "../shaders/FullscreenQuad.vert";
+    shaderDesc.vertFilename = "../shaders/PostProcess/FullscreenQuad.vert";
     shaderDesc.fragFilename = "../shaders/PostProcess/BloomFinal.frag";
 
     auto& bloomFinalShader = resourceManager->createShader(shaderDesc);
+    bloomFinalShaderHandle_ = bloomFinalShader.handle;
     bloomFinalShader.use();
     bloomFinalShader.setInt("uSceneColor", 0);
     bloomFinalShader.setInt("uBloomBlur", 1);
@@ -510,7 +616,7 @@ void SceneManager::createPostProcess(const PostProcessInfo& ppi) {
 
     Resources::FramebufferDesc fbDesc;
     fbDesc.uri = "";
-    fbDesc.dependency = Resources::defaultFramebufferName;
+    fbDesc.dependency = Resources::defaultFramebufferNames[Resources::Framebuffer::DefaultFramebuffers::DEFAULT_FRAMEBUFFER];
 
 
     /* Create Gaussian Blur X */
@@ -625,63 +731,58 @@ void SceneManager::performPostProcess(const Resources::ResourceHandle inputTextu
     auto resourceManager = Resources::ResourceManager::getInstance();
 
     if (postProcessInfo_.enableBloom) {
-        auto& bloomShader = resourceManager->getShader(BLOOM_SHADER_NAME);
-        auto& blurShader = resourceManager->getShader(GAUSSIAN_BLUR_SHADER_NAME);
-        auto& bloomFinalShader = resourceManager->getShader(BLOOM_FINAL_SHADER_NAME);
+        auto& bloomShader = resourceManager->getShader(bloomShaderHandle_);
+        auto& blurShader = resourceManager->getShader(gaussianBlurShaderHandle_);
+        auto& bloomFinalShader = resourceManager->getShader(bloomFinalShaderHandle_);
 
-        auto* bloomFramebuffer = static_cast<Resources::Framebuffer*>(resourceManager->getResource(bloomFramebufferHandle_));
-        auto* blurXFramebuffer = static_cast<Resources::Framebuffer*>(resourceManager->getResource(blurXFramebufferHandle_));
-        auto* blurYFramebuffer = static_cast<Resources::Framebuffer*>(resourceManager->getResource(blurYFramebufferHandle_));
-        auto* bloomFinalFramebuffer = static_cast<Resources::Framebuffer*>(resourceManager->getResource(bloomFinalFramebufferHandle_));
+        auto& bloomFramebuffer = resourceManager->getFramebuffer(bloomFramebufferHandle_);
+        auto& blurXFramebuffer = resourceManager->getFramebuffer(blurXFramebufferHandle_);
+        auto& blurYFramebuffer = resourceManager->getFramebuffer(blurYFramebufferHandle_);
+        auto& bloomFinalFramebuffer = resourceManager->getFramebuffer(bloomFinalFramebufferHandle_);
 
-        auto* inputTexture = static_cast<Resources::Texture*>(resourceManager->getResource(postProcessTextureHandle_));
-        auto* bloomColorTexture = bloomFramebuffer->colorAttachments[0];
-        auto* bloomBrightnessTexture = bloomFramebuffer->colorAttachments[1];
-        auto* blurXTexture = blurXFramebuffer->colorAttachments[0];
-        auto* blurYTexture = blurYFramebuffer->colorAttachments[0];
-        auto* bloomFinalTexture = bloomFinalFramebuffer->colorAttachments[0];
+        auto* bloomColorTexture = bloomFramebuffer.colorAttachments[0];
+        auto* bloomBrightnessTexture = bloomFramebuffer.colorAttachments[1];
+        auto* blurXTexture = blurXFramebuffer.colorAttachments[0];
+        auto* blurYTexture = blurYFramebuffer.colorAttachments[0];
+        auto* bloomFinalTexture = bloomFinalFramebuffer.colorAttachments[0];
 
 
-        resourceManager->bindFramebuffer(bloomFramebuffer->name);
+        resourceManager->bindFramebuffer(bloomFramebufferHandle_);
         drawFullscreenQuad(postProcessTextureHandle_, &bloomShader);
 
         blurShader.use();
-        resourceManager->bindFramebuffer(blurXFramebuffer->name);
+        resourceManager->bindFramebuffer(blurXFramebufferHandle_);
         blurShader.setBool("uHorizontal", true);
         drawFullscreenQuad(bloomBrightnessTexture->handle, &blurShader);
 
-        resourceManager->bindFramebuffer(blurYFramebuffer->name);
+        resourceManager->bindFramebuffer(blurYFramebufferHandle_);
         blurShader.setBool("uHorizontal", false);
         drawFullscreenQuad(blurXTexture->handle, &blurShader);
 
-        resourceManager->bindFramebuffer(bloomFinalFramebuffer->name);
-        glActiveTexture(GL_TEXTURE1);
-        glBindTexture(GL_TEXTURE_2D, blurYTexture->GL_id);
+        resourceManager->bindFramebuffer(bloomFinalFramebufferHandle_);
+        resourceManager->bindTexture(blurYTexture->handle, 1);
         drawFullscreenQuad(bloomColorTexture->handle, &bloomFinalShader);        // Setups only texture0
 
-
-        glActiveTexture(GL_TEXTURE1);
-        glBindTexture(GL_TEXTURE_2D, 0);
         postProcessTextureHandle_ = bloomFinalTexture->handle;
     }
 
     if (postProcessInfo_.enableBlur) {
-        auto& blurShader = resourceManager->getShader(GAUSSIAN_BLUR_SHADER_NAME);
+        auto& blurShader = resourceManager->getShader(gaussianBlurShaderHandle_);
 
-        auto* blurXFramebuffer = static_cast<Resources::Framebuffer*>(resourceManager->getResource(blurXFramebufferHandle_));
-        auto* blurYFramebuffer = static_cast<Resources::Framebuffer*>(resourceManager->getResource(blurYFramebufferHandle_));
+        auto& blurXFramebuffer = resourceManager->getFramebuffer(blurXFramebufferHandle_);
+        auto& blurYFramebuffer = resourceManager->getFramebuffer(blurYFramebufferHandle_);
 
-        auto* inputTexture = static_cast<Resources::Texture*>(resourceManager->getResource(postProcessTextureHandle_));
-        auto* blurXTexture = blurXFramebuffer->colorAttachments[0];
-        auto* blurYTexture = blurYFramebuffer->colorAttachments[0];
+        auto& inputTexture = resourceManager->getTexture(postProcessTextureHandle_);
+        auto* blurXTexture = blurXFramebuffer.colorAttachments[0];
+        auto* blurYTexture = blurYFramebuffer.colorAttachments[0];
 
 
         blurShader.use();
-        resourceManager->bindFramebuffer(blurXFramebuffer->name);
+        resourceManager->bindFramebuffer(blurXFramebufferHandle_);
         blurShader.setBool("uHorizontal", true);
         drawFullscreenQuad(postProcessTextureHandle_, &blurShader);
 
-        resourceManager->bindFramebuffer(blurYFramebuffer->name);
+        resourceManager->bindFramebuffer(blurYFramebufferHandle_);
         blurShader.setBool("uHorizontal", false);
         drawFullscreenQuad(blurXTexture->handle, &blurShader);
 
@@ -717,9 +818,10 @@ void SceneManager::createFullscreenQuad() {
     Resources::ShaderDesc shdrDesc;
     shdrDesc.name = FULLSCREEN_QUAD_SHADER_NAME;
     shdrDesc.uri = "";
-    shdrDesc.vertFilename = "../shaders/FullscreenQuad.vert";
-    shdrDesc.fragFilename = "../shaders/FullscreenQuad.frag";
+    shdrDesc.vertFilename = "../shaders/PostProcess/FullscreenQuad.vert";
+    shdrDesc.fragFilename = "../shaders/PostProcess/FullscreenQuad.frag";
     auto& shdr = resourceManager->createShader(shdrDesc);
+    fullscreenShaderHandle_ = shdr.handle;
 
     shdr.use();
     shdr.setInt("uScreenTexture", 0);
@@ -728,13 +830,6 @@ void SceneManager::createFullscreenQuad() {
 void SceneManager::drawFullscreenQuad(const Resources::ResourceHandle inputTextureHandle, Resources::Shader* shader) {
     // Assume that proper framebuffer already bound
     auto* resourceManager = Resources::ResourceManager::getInstance();
-    Resources::RenderResource* resource = resourceManager->getResource(inputTextureHandle);
-    if (resource->type != Resources::RenderResource::ResourceType::TEXTURE) {
-        LOG_E("Improper resource handle");
-        return;
-    }
-
-    Resources::Texture* texture = static_cast<Resources::Texture*>(resource);
 
     glDisable(GL_DEPTH_TEST);
     glDisable(GL_BLEND);
@@ -743,17 +838,12 @@ void SceneManager::drawFullscreenQuad(const Resources::ResourceHandle inputTextu
         shader->use();
     }
     else {
-        resourceManager->getShader(FULLSCREEN_QUAD_SHADER_NAME).use();
+        resourceManager->getShader(fullscreenShaderHandle_).use();
     }
 
+    resourceManager->bindTexture(inputTextureHandle);
     glBindVertexArray(VAOFullscreenQuad_);
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, texture->GL_id);
-    glBindSampler(0, texture->sampler->GL_id);
     glDrawArrays(GL_TRIANGLES, 0, 6);
-
-    glBindTexture(GL_TEXTURE_2D, 0);
-    glBindSampler(0, 0);
     glBindVertexArray(0);
 }
 
@@ -763,7 +853,7 @@ void SceneManager::drawToDefaultFramebuffer(const Resources::ResourceHandle inpu
         createFullscreenQuad();
     }
 
-    resourceManager->bindFramebuffer(Resources::defaultFramebufferName);
+    resourceManager->bindFramebuffer(Resources::defaultFramebufferNames[Resources::Framebuffer::DefaultFramebuffers::DEFAULT_FRAMEBUFFER]);
     drawFullscreenQuad(inputTextureHandle);
 }
 
@@ -863,9 +953,10 @@ bool SceneManager::initializeFreeType(const std::string& fontFilename, const uns
 
     Resources::ShaderDesc shdrDesc;
     shdrDesc.name = TEXT_RENDERING_SHADER_NAME;
-    shdrDesc.vertFilename = "../shaders/RenderText.vert";
-    shdrDesc.fragFilename = "../shaders/RenderText.frag";
+    shdrDesc.vertFilename = "../shaders/PostProcess/RenderText.vert";
+    shdrDesc.fragFilename = "../shaders/PostProcess/RenderText.frag";
     auto& shdr = resourceManager->createShader(shdrDesc);
+    textRenderingShaderHandle_ = shdr.handle;
 
     shdr.use();
     shdr.setInt("uTextSampler", 0);
@@ -877,7 +968,7 @@ void SceneManager::setTextProjectionMatrix(const glm::mat4 proj) {
     textProjMat_ = proj;
 
     auto resourceManager = Resources::ResourceManager::getInstance();
-    auto& shdr = resourceManager->getShader(TEXT_RENDERING_SHADER_NAME);
+    auto& shdr = resourceManager->getShader(textRenderingShaderHandle_);
     shdr.use();
     shdr.setMat4("uProj", textProjMat_);
 }
@@ -888,7 +979,7 @@ void SceneManager::drawText(const std::string& text, float x, float y, float sca
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
     auto resourceManager = Resources::ResourceManager::getInstance();
-    auto& shdr = resourceManager->getShader(TEXT_RENDERING_SHADER_NAME);
+    auto& shdr = resourceManager->getShader(textRenderingShaderHandle_);
     shdr.use();
     shdr.setVec3("uTextColor", color);
 
@@ -915,16 +1006,8 @@ void SceneManager::drawText(const std::string& text, float x, float y, float sca
             { xpos + w, ypos + h,   1.0f, 0.0f }
         };
 
-        auto resource = resourceManager->getResource(ch.textureHandle);
-        if (resource->type != Resources::RenderResource::ResourceType::TEXTURE) {
-            LOG_E("FreeType: invalid resource bound for character \'%c\'", c);
-            continue;
-        }
-
-        auto texture = static_cast<Resources::Texture*>(resource);
-
-        glBindTexture(GL_TEXTURE_2D, texture->GL_id);
-        glBindSampler(0, texture->sampler->GL_id);
+        auto& texture = resourceManager->getTexture(ch.textureHandle);
+        resourceManager->bindTexture(ch.textureHandle);
         glBindBuffer(GL_ARRAY_BUFFER, VBOTextQuad_);
         glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(vertices), vertices);
         glBindBuffer(GL_ARRAY_BUFFER, 0);
@@ -932,11 +1015,79 @@ void SceneManager::drawText(const std::string& text, float x, float y, float sca
 
         x += (ch.advance >> 6) * scale;
     }
-    glBindVertexArray(0);
-    glBindTexture(GL_TEXTURE_2D, 0);
-    glBindSampler(0, 0);
 
     glDisable(GL_BLEND);
+}
+
+void SceneManager::initializeDefaultCube() {
+    if (VAODefaultCube_ != 0) {
+        return;
+    }
+
+    glGenVertexArrays(1, &VAODefaultCube_);
+    glGenBuffers(1, &VBODefaultCube_);
+    glBindVertexArray(VAODefaultCube_);
+
+    const std::vector<float>& vertsCube = defaultCube_.getVertices();
+    glBindBuffer(GL_ARRAY_BUFFER, VBODefaultCube_);
+    glBufferData(GL_ARRAY_BUFFER, vertsCube.size() * sizeof(float), vertsCube.data(), GL_STATIC_DRAW);
+
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
+
+    glBindVertexArray(0);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+}
+
+void SceneManager::drawDefaultCube() {
+    if (VAODefaultCube_ == 0) {
+        return;
+    }
+
+    glBindVertexArray(VAODefaultCube_);
+    glDrawArrays(GL_TRIANGLES, 0, 36);
+    glBindVertexArray(0);
+}
+
+
+void SceneManager::initializeDefaultQuad() {
+    if (VAODefaultQuad_ != 0) {
+        return;
+    }
+
+    glGenVertexArrays(1, &VAODefaultQuad_);
+    glGenBuffers(1, &VBODefaultQuad_);
+    glBindVertexArray(VAODefaultQuad_);
+
+    const std::vector<float>& vertsQuad = {
+        -1.0f,  1.0f, 0.0f,     0.0f, 0.0f,
+        -1.0f, -1.0f, 0.0f,     0.0f, 1.0f,
+         1.0f, -1.0f, 0.0f,     1.0f, 1.0f,
+         1.0f, -1.0f, 0.0f,     1.0f, 1.0f,
+         1.0f,  1.0f, 0.0f,     1.0f, 0.0f,
+        -1.0f,  1.0f, 0.0f,     0.0f, 0.0f
+    };
+    glBindBuffer(GL_ARRAY_BUFFER, VBODefaultQuad_);
+    glBufferData(GL_ARRAY_BUFFER, vertsQuad.size() * sizeof(float), vertsQuad.data(), GL_STATIC_DRAW);
+
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)0);
+
+    glEnableVertexAttribArray(1);
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * sizeof(float)));
+
+    glBindVertexArray(0);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+}
+
+void SceneManager::drawDefaultQuad() {
+    if (VAODefaultQuad_ == 0) {
+        return;
+    }
+
+    glBindVertexArray(VAODefaultQuad_);
+    glDrawArrays(GL_TRIANGLES, 0, 6);
+    glBindVertexArray(0);
 }
 
 }

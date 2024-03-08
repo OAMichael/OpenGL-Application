@@ -29,44 +29,6 @@ vec3 applyNormalMap(const vec3 N, const vec3 V, const vec2 uv)
 
 
 
-// D component
-float GGX_Trowbridge_Reitz(const float alpha, const vec3 N, const vec3 H) {
-    const float alpha2 = pow(alpha, 2.0f);
-    const float num = alpha2;
-
-    const float NoH = max(dot(N, H), 0.0f);
-    float den = PI * pow(pow(NoH, 2.0f) * (alpha2 - 1.0) + 1.0, 2.0f);
-    den = max(den, 0.000001f);
-
-    return num / den;
-}
-
-
-// Schlick - Beckmann
-float G1_Schlick_Beckmann(const float alpha, const vec3 N, const vec3 X) {
-    const float NoX = max(dot(N, X), 0.0f);
-    const float num = NoX;
-
-    const float k = alpha / 2.0f;
-    float den = NoX * (1 - k) + k;
-    den = max(den, 0.000001f);
-
-    return num / den;
-}
-
-
-// Schlick_Beckmann full G function
-float G_Schlick_Beckmann(const float alpha, const vec3 N, const vec3 V, const vec3 L) {
-    return G1_Schlick_Beckmann(alpha, N, V) * G1_Schlick_Beckmann(alpha, N, L);
-}
-
-
-// Fresnel - Schlick 
-vec3 Fresnel_Schlick(const vec3 F0, const vec3 V, const vec3 H) {
-    return F0 + (vec3(1.0f) - F0) * pow(1 - max(dot(V, H), 0.0f), 5.0f);
-}
-
-
 vec3 calculateBRDF(const vec3 N, const vec3 L, const vec3 V) {
     vec3 baseReflectivity = vec3(0.04);
     const vec3 H = normalize(L + V);
@@ -96,15 +58,15 @@ vec3 calculateBRDF(const vec3 N, const vec3 L, const vec3 V) {
 }
 
 
-
 vec4 pbrBasic() {
     vec4 color = vec4(0.0f);
     const vec3 worldPos = inPosition;
 
     vec3 N = normalize(inNormal);
-    const vec3 V = normalize(cameraWorldPos - worldPos);
+    const vec3 V = normalize(uCameraWorldPos - worldPos);
+    vec3 R = reflect(-V, N);
 
-    if ((materialFlags & MATERIAL_FLAG_NORMAL_MAP_BIT) == MATERIAL_FLAG_NORMAL_MAP_BIT) {
+    if ((uMaterialFlags & MATERIAL_FLAG_NORMAL_MAP_BIT) == MATERIAL_FLAG_NORMAL_MAP_BIT) {
         N = applyNormalMap(N, V, inUv);
     }
 
@@ -155,28 +117,24 @@ vec4 pbrBasic() {
     vec3 baseColor = GetBaseColorFull(inUv).rgb;
     baseReflectivity = mix(baseReflectivity, baseColor, metallic);
 
-    const vec3 Ks = Fresnel_Schlick(baseReflectivity, V, N);
+    const vec3 Ks = Fresnel_Schlick_Roughness(baseReflectivity, V, N, roghness);
     const vec3 Kd = (1.0f - Ks) * (1.0f - metallic);
 
-    vec3 envSample = vec3(1.0f);
-    if (uEnvironmentType == SKYBOX) {
-        envSample = textureLod(uCubeSamplerSkybox, reflect(-V, N), roghness).rgb;
-    }
-    else if (uEnvironmentType == EQUIRECTANGULAR) {
-        const vec3 normUv = normalize(reflect(-V, N));
-        const float phi = atan(normUv.z, normUv.x);
-        const float psi = asin(-normUv.y);
-        const float u = phi / 2.0 / PI;
-        const float v = 0.5f + 1.0 / PI * psi;
-
-        envSample = textureLod(uSamplerEquirect, vec2(u, v), roghness).rgb;
+    vec3 irradiance = vec3(1.0f);
+    if (uEnvironmentType == SKYBOX || uEnvironmentType == EQUIRECTANGULAR) {
+        irradiance = texture(uIrradianceMap, normalize(N)).rgb;
     }
 
-    const vec3 diffuse = envSample * baseColor;
+    const vec3 diffuse = irradiance * baseColor;
+
+    const float MAX_REFLECTION_LOD = 4.0;
+    const vec3 prefilteredColor = textureLod(uPrefilterMap, R, roghness * MAX_REFLECTION_LOD).rgb;
+    const vec2 brdf = texture(uBrdfLUT, vec2(max(dot(N, V), 0.0), roghness)).rg;
+    const vec3 specular = prefilteredColor * (Ks * brdf.x + brdf.y);
 
     const float ao = GetOcclusionFull(inUv).x;
 
-    const vec3 ambient = Kd * diffuse * ao;
+    const vec3 ambient = (Kd * diffuse + specular) * ao;
     color.rgb += ambient;
 
     const vec3 emissive = GetEmissiveFull(inUv).rgb;

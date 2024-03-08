@@ -16,7 +16,7 @@ struct Material : RenderResource {
 		NORMAL = 3,
 		OCCLUSION = 4,
 
-		COUNT
+		IDX_COUNT
 	};
 
 	enum MaterialFlags : uint32_t {
@@ -25,15 +25,17 @@ struct Material : RenderResource {
 
 	uint32_t materialFlags;
 
-	Texture* textures[TextureIdx::COUNT];
+	Texture* textures[TextureIdx::IDX_COUNT];
 
 	enum DefaultMaterials : uint32_t {
 		DEFAULT_MATERIAL = 0,
+
+		COUNT
 	};
 };
 
 
-extern std::string defaultMaterialName;
+extern std::string defaultMaterialNames[Material::DefaultMaterials::COUNT];
 
 }
 #endif

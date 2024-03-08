@@ -4,10 +4,10 @@
 #include "InOutModel.h"
 
 #define CONSTRUCT_ALL_SAMPLING(name, idx)       vec4 Get##name##Sample(const vec2 uv) {                 \
-                                                    return texture(materialTextures[idx], uv);          \
+                                                    return texture(uMaterialTextures[idx], uv);         \
                                                 }                                                       \
                                                 vec4 Get##name##Factor() {                              \
-                                                    return materialTexturesFactors[idx];                \
+                                                    return uMaterialTexturesFactors[idx];               \
                                                 }                                                       \
                                                 vec4 Get##name##Full(const vec2 uv) {                   \
                                                     return Get##name##Sample(uv) * Get##name##Factor(); \

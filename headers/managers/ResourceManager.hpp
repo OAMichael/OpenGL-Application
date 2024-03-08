@@ -2,6 +2,7 @@
 #define RESOURCE_MANAGER_HPP
 
 #include <unordered_map>
+#include <array>
 
 #include "Image.hpp"
 #include "Sampler.hpp"
@@ -46,7 +47,7 @@ struct TextureDesc : RenderResourceDesc {
 
 struct MaterialDesc : RenderResourceDesc {
 
-	Texture* p_TexArray[Material::TextureIdx::COUNT];
+	Texture* p_TexArray[Material::TextureIdx::IDX_COUNT];
 };
 
 struct BufferDesc : RenderResourceDesc {
@@ -82,6 +83,12 @@ private:
 
 	std::unordered_map<ResourceHandle, RenderResource*> allResources_;
 
+	std::array<Image*, Image::DefaultImages::COUNT> defaultImages_;
+	std::array<Sampler*, Sampler::DefaultSamplers::COUNT> defaultSamplers_;
+	std::array<Texture*, Texture::DefaultTextures::COUNT> defaultTextures_;
+	std::array<Material*, Material::DefaultMaterials::COUNT> defaultMaterials_;
+	std::array<Framebuffer*, Framebuffer::DefaultFramebuffers::COUNT> defaultFramebuffers_;
+
 	void createDefaultImages();
 	void createDefaultSamplers();
 	void createDefaultTextures();
@@ -111,6 +118,9 @@ public:
 	Texture& createTexture(const TextureDesc& textureDesc);
 	Texture& createTexture(const char* filename, Sampler* sampler = nullptr);
 	Texture& createTexture(const std::string& filename, Sampler* sampler = nullptr);
+	void bindTexture(const std::string& name, const unsigned texUnit = 0);
+	void bindTexture(const ResourceHandle handle, const unsigned texUnit = 0);
+	void unbindTexture(const GLenum target = GL_TEXTURE_2D, const unsigned texUnit = 0);
 
 	Material& createMaterial(const MaterialDesc& matDesc);
 
@@ -120,7 +130,9 @@ public:
 
 	Framebuffer& createFramebuffer(const FramebufferDesc& framebufDesc);
 	void bindFramebuffer(const std::string& name);
+	void bindFramebuffer(const ResourceHandle handle);
 	void resizeFramebuffer(const std::string& name, unsigned width, unsigned height);
+	void resizeFramebuffer(const ResourceHandle handle, unsigned width, unsigned height);
 
 	Shader& createShader(const ShaderDesc& shaderDesc);
 
@@ -143,7 +155,20 @@ public:
 	Shader& getShader(const std::string& name);
 	Framebuffer& getFramebuffer(const std::string& name);
 
-	RenderResource* getResource(const ResourceHandle handle);
+	Image& getImage(const ResourceHandle handle);
+	Sampler& getSampler(const ResourceHandle handle);
+	Texture& getTexture(const ResourceHandle handle);
+	Material& getMaterial(const ResourceHandle handle);
+	Buffer& getBuffer(const ResourceHandle handle);
+	Shader& getShader(const ResourceHandle handle);
+	Framebuffer& getFramebuffer(const ResourceHandle handle);
+
+	inline Image& getImage(const Image::DefaultImages defaultImage) { return *defaultImages_[defaultImage]; }
+	inline Sampler& getSampler(const Sampler::DefaultSamplers defaultSampler) { return *defaultSamplers_[defaultSampler]; };
+	inline Texture& getTexture(const Texture::DefaultTextures defaultTexture) { return *defaultTextures_[defaultTexture]; };
+	inline Material& getMaterial(const Material::DefaultMaterials defaultMaterial) { return *defaultMaterials_[defaultMaterial]; };
+	inline Framebuffer& getFramebuffer(const Framebuffer::DefaultFramebuffers defaultFramebuffer) { return *defaultFramebuffers_[defaultFramebuffer]; };
+	// TODO: Buffer, Shader
 
 	bool hasImage(const std::string& name);
 	bool hasSampler(const std::string& name);

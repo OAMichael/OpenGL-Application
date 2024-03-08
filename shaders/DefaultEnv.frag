@@ -1,10 +1,6 @@
 #version 460 core
 
-#define	BACKGROUND_IMAGE_2D 0
-#define	SKYBOX 1
-#define	EQUIRECTANGULAR 2
-
-#define PI 3.14159
+#include "Constants.h"
 
 layout(location = 0) in vec3 inUv;
 
@@ -21,7 +17,7 @@ layout (std140) uniform Matrices {
 };
 
 uniform uint uEnvironmentType;
-uniform uint uIsHdr;
+uniform bool uIsHdr;
 
 
 void main()
@@ -31,16 +27,12 @@ void main()
     else if(uEnvironmentType == SKYBOX)
         outColor = texture(uSamplerSkybox, inUv);
     else if(uEnvironmentType == EQUIRECTANGULAR) {
-        const vec3 normUv = normalize(inUv);
-        const float phi = atan(normUv.z, normUv.x);
-        const float psi = asin(-normUv.y);
-        const float u = phi / 2.0 / PI;
-        const float v = 0.5f + 1.0 / PI * psi;
-
-        outColor = texture(uSamplerEquirect, vec2(u, v));
+        outColor = texture(uSamplerEquirect, CubemapToEquirect(normalize(inUv)));
     }
 
-    if (uIsHdr == 0) {
-        outColor.rgb = pow(outColor.rgb, vec3(2.2f));
+    if (!uIsHdr) {
+        // Yes, it is expensive but I don't care
+        const float exposure = 0.8f;
+        outColor.rgb = -1.0 / exposure * log(1 -  pow(outColor.rgb, vec3(2.2f)));
     }
 }

@@ -1,48 +1,14 @@
 #ifndef IN_OUT_MODEL_H
 #define IN_OUT_MODEL_H
 
-#define TEXTURE_INDEX_BASE_COLOR            0
-#define TEXTURE_INDEX_METALLIC_ROUGHNESS    1
-#define TEXTURE_INDEX_EMISSIVE              2
-#define TEXTURE_INDEX_NORMAL                3
-#define TEXTURE_INDEX_OCCLUSION             4
+#include "Constants.h"
 
-#define TEXTURE_INDEX_COUNT                 5
+uniform sampler2D uMaterialTextures[TEXTURE_INDEX_COUNT];
+uniform vec4 uMaterialTexturesFactors[TEXTURE_INDEX_COUNT];
 
-
-#define MATERIAL_FLAG_NORMAL_MAP_BIT        1 << 0
-
-#define	BACKGROUND_IMAGE_2D 0
-#define	SKYBOX 1
-#define	EQUIRECTANGULAR 2
-
-#define PI 3.14159
-
-
-#define POINT_LIGHT          0
-#define DIRECTIONAL_LIGHT    1
-#define SPOT_LIGHT           2
-
-#define MAX_NUMBER_OF_LIGHTS 64
-
-
-struct LightData {
-	vec4 colors[MAX_NUMBER_OF_LIGHTS];
-	vec4 positions[MAX_NUMBER_OF_LIGHTS];
-	vec4 direction_cutoffs[MAX_NUMBER_OF_LIGHTS];
-
-	uint point_light_offset;
-	uint directional_light_offset;
-	uint spot_light_offset;
-	uint num_of_lights;
-};
-
-
-uniform sampler2D materialTextures[TEXTURE_INDEX_COUNT];
-uniform vec4 materialTexturesFactors[TEXTURE_INDEX_COUNT];
-
-uniform samplerCube uCubeSamplerSkybox;
-uniform sampler2D uSamplerEquirect;
+uniform samplerCube uIrradianceMap;
+uniform samplerCube uPrefilterMap;
+uniform sampler2D uBrdfLUT;
 
 layout(location = 0) in vec3 inNormal;
 layout(location = 1) in vec3 inPosition;
@@ -61,12 +27,9 @@ layout(std430, binding = 1) buffer SSBO_Lights
 };
 
 
-uniform vec3 cameraWorldPos;
-uniform uint materialFlags;
+uniform vec3 uCameraWorldPos;
+uniform uint uMaterialFlags;
 uniform uint uEnvironmentType;
-
-
-uniform float time;
 
 out vec4 outColor;
 

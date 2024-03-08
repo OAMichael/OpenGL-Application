@@ -26,9 +26,9 @@ void PotentialApp::OnRenderFrame() {
     auto resourceManager = Resources::ResourceManager::getInstance();
     auto sceneManager = SceneResources::SceneManager::getInstance();
 
-    auto& modelShader = resourceManager->getShader(MODEL_SHADER_NAME);
+    auto& modelShader = resourceManager->getShader(modelShaderHandle_);
 
-    resourceManager->bindFramebuffer(MODEL_FRAMEBUFFER_NAME);
+    resourceManager->bindFramebuffer(modelFramebufferHandle_);
 
     this->showFPS();
 
@@ -47,9 +47,7 @@ void PotentialApp::OnRenderFrame() {
     resourceManager->updateBuffer("Matrices", (const unsigned char*)&ubo, sizeof(ubo));
 
     modelShader.use();
-
-    modelShader.setFloat("time", lastFrame_);
-    modelShader.setVec3("cameraWorldPos", Camera_.getPosition());
+    modelShader.setVec3("uCameraWorldPos", Camera_.getPosition());
 
     for (auto& model : Models_) {
         model.draw(modelShader);
@@ -58,7 +56,7 @@ void PotentialApp::OnRenderFrame() {
     sceneManager->drawEnvironment();
     sceneManager->performPostProcess(modelFramebufferTextureHandle_);
     sceneManager->drawToDefaultFramebuffer(sceneManager->getPostProcessTextureHandle());
-    sceneManager->drawText("Chess", 10.0f, windowHeight_ - 30.0f, 0.7f, glm::vec3(1.0f, 0.0f, 0.0f));
+    sceneManager->drawText("Damaged Helmet", 10.0f, windowHeight_ - 30.0f, 0.7f, glm::vec3(1.0f, 0.0f, 0.0f));
 }
 
 void PotentialApp::OnRenderingEnd() {
@@ -128,7 +126,7 @@ void PotentialApp::framebufferSizeCallback(GLFWwindow* window, int width, int he
     needToRender_ = width > 1 && height > 1;
 
     auto resourceManager = Resources::ResourceManager::getInstance();
-    resourceManager->resizeFramebuffer(Resources::defaultFramebufferName, width, height);
+    resourceManager->resizeFramebuffer(Resources::defaultFramebufferNames[Resources::Framebuffer::DefaultFramebuffers::DEFAULT_FRAMEBUFFER], width, height);
 
     auto sceneManager = SceneResources::SceneManager::getInstance();
     sceneManager->setTextProjectionMatrix(glm::ortho(0.0f, (float)windowWidth_, 0.0f, (float)windowHeight_));
@@ -272,14 +270,18 @@ void PotentialApp::initLights() {
 
     glm::vec4 lightColor = glm::vec4(1.0f);
     std::array<glm::vec4, 3> pointLightPositions = {
-        glm::vec4(0.0f, 0.0f, 0.0f, 0.0f),
-        glm::vec4(-4.0f, 0.3f, 0.0f, 0.0f),
+        glm::vec4(4.0f, 0.0f, -3.0f, 0.0f),
+        glm::vec4(4.0f, 0.0f, 3.0f, 0.0f),
         glm::vec4(-3.0f, 0.5f, 0.0f, 0.0f)
     };
 
-    std::array<glm::vec4, 2> directionalLightDirections = {
-        glm::vec4(0.0f, 1.0f, 0.0f, 0.0f),
-        glm::vec4(0.0f, -1.0f, 0.0, 0.0f),
+    std::array<glm::vec4, 6> directionalLightDirections = {
+        glm::vec4(1.0f,  0.0f, 0.0f, 0.0f),
+        glm::vec4(-1.0f, 0.0f, 0.0f, 0.0f),
+        glm::vec4(0.0f,  1.0f, 0.0f, 0.0f),
+        glm::vec4(0.0f, -1.0f, 0.0f, 0.0f),
+        glm::vec4(0.0f,  0.0f, 1.0f, 0.0f),
+        glm::vec4(0.0f, 0.0f, -1.0f, 0.0f)
     };
 
     std::array<glm::vec3, 2> spotLightPositions = {
@@ -341,7 +343,8 @@ void PotentialApp::initRender() {
     shaderDesc.fragFilename = "../shaders/Model.frag";
 
     auto& modelShader = resourceManager->createShader(shaderDesc);
-    
+    modelShaderHandle_ = modelShader.handle;
+
     const std::vector<std::string> background2DTexturesNames = {
         "../textures/city.jpg"
     };
@@ -356,12 +359,15 @@ void PotentialApp::initRender() {
     };
 
     const std::vector<std::string> equirectTexturesNames = {
-        "../textures/kiara_1_dawn_4k.hdr"
+        "../textures/bethnal_green_entrance_4k.hdr"
     };
 
     sceneManager->createEnvironment(SceneResources::SceneManager::EnvironmentType::BACKGROUND_IMAGE_2D, background2DTexturesNames);
     sceneManager->createEnvironment(SceneResources::SceneManager::EnvironmentType::SKYBOX, skyboxTexturesNames);
     sceneManager->createEnvironment(SceneResources::SceneManager::EnvironmentType::EQUIRECTANGULAR, equirectTexturesNames, true);
+
+    sceneManager->createImageBasedLightingTextures(SceneResources::SceneManager::EnvironmentType::SKYBOX);
+    sceneManager->createImageBasedLightingTextures(SceneResources::SceneManager::EnvironmentType::EQUIRECTANGULAR);
 
     Resources::BufferDesc bufDesc;
     bufDesc.name = "Matrices";
@@ -410,9 +416,10 @@ void PotentialApp::initRender() {
     fbDesc.colorAttachmentsCount = 1;
     fbDesc.colorAttachments[0] = &fbTexture;
     fbDesc.depthAttachment = &fbTextureDepth;
-    fbDesc.dependency = Resources::defaultFramebufferName;
+    fbDesc.dependency = Resources::defaultFramebufferNames[Resources::Framebuffer::DefaultFramebuffers::DEFAULT_FRAMEBUFFER];
     Resources::Framebuffer& fb = resourceManager->createFramebuffer(fbDesc);
 
+    modelFramebufferHandle_ = fb.handle;
     modelFramebufferTextureHandle_ = fb.colorAttachments[0]->handle;
 
     SceneResources::SceneManager::PostProcessInfo ppi;

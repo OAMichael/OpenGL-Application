@@ -1,8 +1,6 @@
 #version 460 core
 
-#define	BACKGROUND_IMAGE_2D 0
-#define	SKYBOX 1
-#define	EQUIRECTANGULAR 2
+#include "Constants.h"
 
 layout(location = 0) in vec3 inPos;
 layout(location = 1) in vec2 inUv;

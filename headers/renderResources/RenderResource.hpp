@@ -12,6 +12,7 @@ struct ResourceHandle {
 	uint64_t nativeHandle = INVALID_HANDLE;
 
 	bool operator==(const ResourceHandle& other) const { return nativeHandle == other.nativeHandle; }
+	inline bool isValid() const { return nativeHandle != INVALID_HANDLE; }
 };
 
 struct RenderResource {

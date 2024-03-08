@@ -1,5 +1,5 @@
 #include "Material.hpp"
 
-std::string Resources::defaultMaterialName = {
+std::string Resources::defaultMaterialNames[Material::DefaultMaterials::COUNT] = {
 	"DEFAULT_MATERIAL"
 };
