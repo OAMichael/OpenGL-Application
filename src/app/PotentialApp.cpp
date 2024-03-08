@@ -37,7 +37,6 @@ void PotentialApp::OnRenderFrame() {
     glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
     glClearDepth(1.0);
 
-
     Camera_.updateMatrices();
 
     Matrices ubo;
@@ -50,9 +49,11 @@ void PotentialApp::OnRenderFrame() {
     modelShader.use();
     modelShader.setVec3("uCameraWorldPos", Camera_.getPosition());
 
+    glPolygonMode(GL_FRONT_AND_BACK, IsWireframe_ ? GL_LINE : GL_FILL);
     for (auto& model : Models_) {
         model.draw(modelShader);
     }
+    glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
     sceneManager->drawEnvironment();
     sceneManager->performPostProcess(modelFramebufferTextureHandle_);
@@ -188,8 +189,6 @@ void PotentialApp::keyboardCallback(GLFWwindow* window, int key, int scancode, i
         case GLFW_KEY_M:
             if (action == GLFW_PRESS) {
                 IsWireframe_ = !IsWireframe_;
-
-                glPolygonMode(GL_FRONT_AND_BACK, IsWireframe_ ? GL_LINE : GL_FILL);
             }
             break;
 
