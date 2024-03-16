@@ -1,9 +1,6 @@
 #ifndef MODEL_HPP
 #define MODEL_HPP
 
-#include <glad/glad.h>
-#include <GLFW/glfw3.h>
-
 #include <tinygltf/tiny_gltf.h>
 
 #include "ISceneObject.hpp"

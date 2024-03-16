@@ -2,7 +2,7 @@
     "models": [
         {
             "name": "Chess",
-            "filename": "../models/DamagedHelmet/DamagedHelmet.gltf",
+            "filename": "models://DamagedHelmet/DamagedHelmet.gltf",
             "position": [ 4.0, 0.0, -3.0 ],
             "rotation": [ 1.0, 0.0, 0.0, 0.0 ],
             "scale": [ 1.0, 1.0, 1.0 ]

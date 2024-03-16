@@ -2,7 +2,6 @@
 #define CAMERA_HPP
 
 #include <glm/glm.hpp>
-#include <GLFW/glfw3.h>
 #include <glm/gtc/matrix_transform.hpp>
 #include <iostream>
 

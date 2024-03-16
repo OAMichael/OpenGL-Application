@@ -1,6 +1,7 @@
 #include <iostream>
 
 #include "GLTFLoader.hpp"
+#include "FileManager.hpp"
 #include "Logger.hpp"
 
 namespace GLTF {
@@ -9,10 +10,13 @@ GLTFLoader* GLTFLoader::instancePtr = nullptr;
 
 
 bool GLTFLoader::load(Geometry::Model& model, const std::string& filename) {
+    auto fileManager = FileSystem::FileManager::getInstance();
+    std::string absPath = fileManager->getAbsolutePath(filename);
+
     std::string err;
     std::string warn;
 
-    bool res = loader_.LoadASCIIFromFile(&model.getModelRef(), &err, &warn, filename.c_str());
+    bool res = loader_.LoadASCIIFromFile(&model.getModelRef(), &err, &warn, absPath.c_str());
     if (!warn.empty()) {
         LOG_W("%s", warn.c_str());
     }

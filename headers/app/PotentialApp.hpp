@@ -6,9 +6,6 @@
 #include <algorithm>
 #include <chrono>
 
-#include <glad/glad.h>
-#include <GLFW/glfw3.h>
-
 #define GLM_FORCE_SWIZZLE
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
@@ -26,7 +23,7 @@
 
 #define BUFFER_OFFSET(i) ((char *)NULL + (i))
 
-static inline constexpr const char* CONFIG_PATH = "../configs/models.json";
+static inline constexpr const char* CONFIG_PATH = "configs://models.json";
 static inline constexpr const char* MODEL_SHADER_NAME = "Model_Shader";
 static inline constexpr const char* MODEL_FRAMEBUFFER_NAME = "MODEL_FRAMEBUFFER";
 static inline constexpr const char* MODEL_FRAMEBUFFER_TEXTURE_NAME = "MODEL_FRAMEBUFFER_TEXTURE";
@@ -39,14 +36,12 @@ private:
         glm::mat4 model;
     };
 
-    GeneralApp::Camera Camera_{glm::vec3(4.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, -1.0f), glm::vec3(0.0f, 1.0f, 0.0f), glm::vec3(1.0f, 0.0f, 0.0f)};
+    GeneralApp::Camera Camera_{glm::vec3(4.0f, 1.0f, 0.0f), glm::vec3(0.0f, 0.0f, -1.0f), glm::vec3(0.0f, 1.0f, 0.0f), glm::vec3(1.0f, 0.0f, 0.0f)};
 
     float MouseLastX_ = windowWidth_ / 2.0f, MouseLastY_ = windowHeight_ / 2.0f;
     bool FirstMouse_ = true;
     bool IsFullscreen_ = false;
     bool IsWireframe_ = false;
-    bool IsEnableBlur_ = false;
-
     bool MouseHidden_ = true;
 
     std::vector<Geometry::Model> Models_;
@@ -72,11 +67,15 @@ public:
     void OnRenderingEnd() override;
     void OnWindowDestroy() override;
 
+#ifdef __ANDROID__
+    int32_t handleInputCallback(android_app* app, AInputEvent* event) override;
+#else
     void mouseCallback(GLFWwindow* window, int button, int action, int mods) override;
     void cursorCallback(GLFWwindow* window, double xpos, double ypos) override;
     void scrollCallback(GLFWwindow* window, double xoffset, double yoffset) override;
     void framebufferSizeCallback(GLFWwindow* window, int width, int height) override;
     void keyboardCallback(GLFWwindow* window, int key, int scancode, int action, int mods) override;
+#endif
 
     void initModels();
     void initLights();

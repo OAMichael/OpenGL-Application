@@ -1,4 +1,4 @@
-#version 460 core
+#include "GLSLversion.h"
 
 layout(location = 0) in vec3 inPos;
 

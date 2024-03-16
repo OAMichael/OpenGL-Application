@@ -1,4 +1,4 @@
-#version 460 core
+#include "../GLSLversion.h"
 
 #include "../Constants.h"
 

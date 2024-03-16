@@ -119,7 +119,7 @@ std::string Shader::PreprocessIncludes(const std::string& source, const std::str
                 include_string = include_lines.str();
             }
             catch (std::ifstream::failure& e) {
-                LOG_E("Compiling shader: %s.%d: cannot open include file \'%s\'", filename.c_str(), line_number, include_filename);
+                LOG_E("Compiling shader: %s.%d: cannot open include file \'%s\'", filename.c_str(), line_number, include_filename.c_str());
             }
             output << PreprocessIncludes(include_string, include_filename, level + 1) << std::endl;
         }

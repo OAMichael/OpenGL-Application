@@ -190,6 +190,7 @@ void Geometry::Mesh::init()
                 const tinygltf::Texture& tex = modelRef.textures[baseColorTexIdx];
                 if (tex.source > -1 && tex.source < modelRef.images.size()) {
                     auto& image = modelRef.images[tex.source];
+                    int format = image.component == 4 ? GL_SRGB8_ALPHA8 : GL_SRGB8;
 
                     Resources::ImageDesc imDesc = {
                         image.name, 
@@ -198,11 +199,12 @@ void Geometry::Mesh::init()
                         image.height,
                         image.component,
                         image.bits,
-                        GL_SRGB8,
+                        format,
                         image.image.data()
                     };
                     auto& baseColorImage = resourceManager->createImage(imDesc);
                     texDesc.name = baseColorImage.name;
+                    texDesc.format = format;
                     texDesc.uri = baseDir + "/textures/" + std::to_string(baseColorTexIdx);
                     texDesc.p_images[0] = &baseColorImage;
                 }

@@ -3,3 +3,6 @@ build/
 
 */*.exe
 */*.o
+android/.idea
+android/.gradle
+android/app/.cxx

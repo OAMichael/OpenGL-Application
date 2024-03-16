@@ -109,6 +109,8 @@ public:
 		return instancePtr;
 	}
 
+	void Init();
+
 	Image& createImage(const ImageDesc& imageDesc);
 	Image& createImage(const char* filename, bool isHdr = false);
 	Image& createImage(const std::string& filename, bool isHdr = false);
@@ -187,6 +189,8 @@ public:
 	bool hasBuffer(const std::string& name, const std::string& uri);
 	bool hasShader(const std::string& name, const std::string& uri);
 	bool hasFramebuffer(const std::string& name, const std::string& uri);
+
+	unsigned chooseDefaultInternalFormat(const int components, bool isFloat = false) const;
 
 	void cleanUp();
 

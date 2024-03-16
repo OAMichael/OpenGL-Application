@@ -5,19 +5,37 @@
 #include <string>
 #include <algorithm>
 #include <sstream>
+
+#ifdef __ANDROID__
+#include <EGL/egl.h>
+#include <GLES3/gl32.h>
+#include <GLES3/gl3ext.h>
+#include <android_native_app_glue.h>
+#include <jni.h>
+#else
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
+#endif
 
 
 namespace GeneralApp {
+
+struct WindowCreateInfo {
+#ifdef __ANDROID__
+    android_app* app;
+#else
+    unsigned winWidth;
+    unsigned winHeight;
+#endif
+    std::string name;
+};
 
 class IApplication {
 
 protected:
 
-    GLFWwindow* window_;
-    unsigned windowWidth_;
-    unsigned windowHeight_;
+    unsigned windowWidth_ = 0;
+    unsigned windowHeight_ = 0;
 
     std::string windowName_;
 
@@ -45,11 +63,21 @@ protected:
     virtual void OnRenderingEnd() = 0;
     virtual void OnWindowDestroy() = 0;
 
+#ifdef __ANDROID__
+    android_app* android_app_;
+    EGLDisplay display_;
+    EGLSurface surface_;
+    EGLContext context_;
+    virtual void handleCmdCallback(android_app* app, int32_t cmd);
+    virtual int32_t handleInputCallback(android_app* app, AInputEvent* event) = 0;
+#else
+    GLFWwindow* window_;
     virtual void framebufferSizeCallback(GLFWwindow* window, int width, int height) = 0;
     virtual void cursorCallback(GLFWwindow* window, double xpos, double ypos) = 0;
     virtual void mouseCallback(GLFWwindow* window, int button, int action, int mods) = 0;
     virtual void scrollCallback(GLFWwindow* window, double xoffset, double yoffset) = 0;
     virtual void keyboardCallback(GLFWwindow* window, int key, int scancode, int action, int mods) = 0;
+#endif
 
     IApplication() {};
     IApplication(const IApplication& other) {};
@@ -60,6 +88,15 @@ protected:
 
 private:
 
+#ifdef __ANDROID__
+    static void handleCmdCallbackStatic(android_app* app, int32_t cmd) {
+        m_Application->handleCmdCallback(app, cmd);
+    }
+
+    static int32_t handleInputCallbackStatic(android_app* app, AInputEvent* event) {
+        return m_Application->handleInputCallback(app, event);
+    }
+#else
     static void framebufferSizeCallbackStatic(GLFWwindow* window, int width, int height) {
         m_Application->framebufferSizeCallback(window, width, height);
     }
@@ -79,14 +116,13 @@ private:
     static void keyboardCallbackStatic(GLFWwindow* window, int key, int scancode, int action, int mods) {
         m_Application->keyboardCallback(window, key, scancode, action, mods);
     }
+#endif
 
 public:
 
     virtual ~IApplication();
 
-    GLFWwindow* createWindow(const unsigned& GLFWVerMaj, const unsigned& GLFWVerMin, const unsigned& winWidth,
-        const unsigned& winHeight, const std::string& name);
-
+    void createWindow(const WindowCreateInfo& winInfo);
     void renderToWindow();
     void terminateWindow();
 };

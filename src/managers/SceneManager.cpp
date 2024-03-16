@@ -1,5 +1,6 @@
 #include "SceneManager.hpp"
 #include "ResourceManager.hpp"
+#include "FileManager.hpp"
 #include "Logger.hpp"
 
 #include <algorithm>
@@ -174,9 +175,7 @@ void SceneManager::createBackground2D(const std::string& textureName, bool isHdr
 
     auto& newImage = resourceManager->createImage(textureName);
     texDesc.p_images[0] = &newImage;
-    if (isHdr) {
-        texDesc.format = GL_RGBA32F;
-    }
+    texDesc.format = resourceManager->chooseDefaultInternalFormat(newImage.components, isHdr);
 
     Background2DHandle_ = resourceManager->createTexture(texDesc).handle;
 }
@@ -208,19 +207,21 @@ void SceneManager::createSkybox(const std::vector<std::string>& textureNames, bo
     texDesc.factor = glm::vec4(1.0);
     texDesc.name = SKYBOX_TEXTURE_NAME;
 
+    int components = 0;
     for (unsigned i = 0; i < faces; ++i) {
         auto& newImage = resourceManager->createImage(textureNames[i]);
         texDesc.p_images[i] = &newImage;
+        components = newImage.components;
     }
     texDesc.p_sampler = &resourceManager->getSampler(Resources::Sampler::DefaultSamplers::DEFAULT_SAMPLER_LINEAR_MIPMAP_LINEAR_CLAMP);
-
-    if (isHdr) {
-        texDesc.format = GL_RGBA32F;
-    }
+    texDesc.format = resourceManager->chooseDefaultInternalFormat(components, isHdr);
 
     SkyboxHandle_ = resourceManager->createTexture(texDesc).handle;
     resourceManager->generateMipMaps(SkyboxHandle_);
+
+#ifndef __ANDROID__
     glEnable(GL_TEXTURE_CUBE_MAP_SEAMLESS);
+#endif
 }
 
 void SceneManager::drawSkybox() {
@@ -251,10 +252,7 @@ void SceneManager::createEquirectangular(const std::string& textureName, bool is
 
     auto& newImage = resourceManager->createImage(textureName, isHdr);
     texDesc.p_images[0] = &newImage;
-
-    if (isHdr) {
-        texDesc.format = GL_RGBA32F;
-    }
+    texDesc.format = resourceManager->chooseDefaultInternalFormat(newImage.components, isHdr);
 
     EquirectHandle_ = resourceManager->createTexture(texDesc).handle;
     resourceManager->generateMipMaps(EquirectHandle_);
@@ -278,12 +276,13 @@ void SceneManager::drawEquirectangular() {
 
 void SceneManager::createEnvironment(const EnvironmentType envType, const std::vector<std::string>& textureNames, bool isHdr) {
     auto resourceManager = Resources::ResourceManager::getInstance();
+    auto fileManager = FileSystem::FileManager::getInstance();
 
     Resources::ShaderDesc shaderDesc;
     shaderDesc.name = ENVIRONMENT_SHADER_NAME;
     shaderDesc.uri = "";
-    shaderDesc.vertFilename = "../shaders/DefaultEnv.vert";
-    shaderDesc.fragFilename = "../shaders/DefaultEnv.frag";
+    shaderDesc.vertFilename = fileManager->getAbsolutePath("shaders://DefaultEnv.vert");
+    shaderDesc.fragFilename = fileManager->getAbsolutePath("shaders://DefaultEnv.frag");
 
     auto& envShader = resourceManager->createShader(shaderDesc);
     environmentShaderHandle_ = envShader.handle;
@@ -354,22 +353,23 @@ void SceneManager::createImageBasedLightingTextures(const EnvironmentType envTyp
     initializeDefaultCube();
 
     auto resourceManager = Resources::ResourceManager::getInstance();
+    auto fileManager = FileSystem::FileManager::getInstance();
 
     Resources::ShaderDesc shaderDesc;
 
     shaderDesc.name = IRRADIANCE_MAP_SHADER_NAME;
-    shaderDesc.vertFilename = "../shaders/DefaultCubemap.vert";
-    shaderDesc.fragFilename = "../shaders/IBL/IrradianceMap.frag";
+    shaderDesc.vertFilename = fileManager->getAbsolutePath("shaders://DefaultCubemap.vert");
+    shaderDesc.fragFilename = fileManager->getAbsolutePath("shaders://IBL/IrradianceMap.frag");
     auto& irradianceMapShader = resourceManager->createShader(shaderDesc);
 
     shaderDesc.name = PREFILTER_HDR_SHADER_NAME;
-    shaderDesc.vertFilename = "../shaders/DefaultCubemap.vert";
-    shaderDesc.fragFilename = "../shaders/IBL/PrefilterHDRMap.frag";
+    shaderDesc.vertFilename = fileManager->getAbsolutePath("shaders://DefaultCubemap.vert");
+    shaderDesc.fragFilename = fileManager->getAbsolutePath("shaders://IBL/PrefilterHDRMap.frag");
     auto& prefilterHDRShader = resourceManager->createShader(shaderDesc);
 
     shaderDesc.name = BRDF_LUT_SHADER_NAME;
-    shaderDesc.vertFilename = "../shaders/IBL/BRDF_LUT.vert";
-    shaderDesc.fragFilename = "../shaders/IBL/BRDF_LUT.frag";
+    shaderDesc.vertFilename = fileManager->getAbsolutePath("shaders://IBL/BRDF_LUT.vert");
+    shaderDesc.fragFilename = fileManager->getAbsolutePath("shaders://IBL/BRDF_LUT.frag");
     auto& brdfLUTShader = resourceManager->createShader(shaderDesc);
 
 
@@ -568,12 +568,13 @@ void SceneManager::createPostProcess(const PostProcessInfo& ppi) {
     createFullscreenQuad();
 
     auto resourceManager = Resources::ResourceManager::getInstance();
+    auto fileManager = FileSystem::FileManager::getInstance();
 
     Resources::ShaderDesc shaderDesc;
     shaderDesc.name = GAUSSIAN_BLUR_SHADER_NAME;
     shaderDesc.uri = "";
-    shaderDesc.vertFilename = "../shaders/PostProcess/FullscreenQuad.vert";
-    shaderDesc.fragFilename = "../shaders/PostProcess/GaussianBlur.frag";
+    shaderDesc.vertFilename = fileManager->getAbsolutePath("shaders://PostProcess/FullscreenQuad.vert");
+    shaderDesc.fragFilename = fileManager->getAbsolutePath("shaders://PostProcess/GaussianBlur.frag");
 
     auto& blurShader = resourceManager->createShader(shaderDesc);
     gaussianBlurShaderHandle_ = blurShader.handle;
@@ -582,8 +583,8 @@ void SceneManager::createPostProcess(const PostProcessInfo& ppi) {
 
 
     shaderDesc.name = BLOOM_SHADER_NAME;
-    shaderDesc.vertFilename = "../shaders/PostProcess/FullscreenQuad.vert";
-    shaderDesc.fragFilename = "../shaders/PostProcess/Bloom.frag";
+    shaderDesc.vertFilename = fileManager->getAbsolutePath("shaders://PostProcess/FullscreenQuad.vert");
+    shaderDesc.fragFilename = fileManager->getAbsolutePath("shaders://PostProcess/Bloom.frag");
 
     auto& bloomShader = resourceManager->createShader(shaderDesc);
     bloomShaderHandle_ = bloomShader.handle;
@@ -592,8 +593,8 @@ void SceneManager::createPostProcess(const PostProcessInfo& ppi) {
 
 
     shaderDesc.name = BLOOM_FINAL_SHADER_NAME;
-    shaderDesc.vertFilename = "../shaders/PostProcess/FullscreenQuad.vert";
-    shaderDesc.fragFilename = "../shaders/PostProcess/BloomFinal.frag";
+    shaderDesc.vertFilename = fileManager->getAbsolutePath("shaders://PostProcess/FullscreenQuad.vert");
+    shaderDesc.fragFilename = fileManager->getAbsolutePath("shaders://PostProcess/BloomFinal.frag");
 
     auto& bloomFinalShader = resourceManager->createShader(shaderDesc);
     bloomFinalShaderHandle_ = bloomFinalShader.handle;
@@ -630,7 +631,7 @@ void SceneManager::createPostProcess(const PostProcessInfo& ppi) {
         Resources::Texture& fbTexture = resourceManager->createTexture(fbTextureDesc);
 
         fbTextureDesc.name = "GAUSSIAN_BLUR_X_TEXTURE_DEPTH";
-        fbTextureDesc.format = GL_DEPTH_COMPONENT24;
+        fbTextureDesc.format = GL_DEPTH_COMPONENT32F;
         fbTextureDesc.p_images[0] = &fbImage;
         Resources::Texture& fbTextureDepth = resourceManager->createTexture(fbTextureDesc);
 
@@ -655,7 +656,7 @@ void SceneManager::createPostProcess(const PostProcessInfo& ppi) {
         Resources::Texture& fbTexture = resourceManager->createTexture(fbTextureDesc);
 
         fbTextureDesc.name = "GAUSSIAN_BLUR_Y_TEXTURE_DEPTH";
-        fbTextureDesc.format = GL_DEPTH_COMPONENT24;
+        fbTextureDesc.format = GL_DEPTH_COMPONENT32F;
         fbTextureDesc.p_images[0] = &fbImage;
         Resources::Texture& fbTextureDepth = resourceManager->createTexture(fbTextureDesc);
 
@@ -685,7 +686,7 @@ void SceneManager::createPostProcess(const PostProcessInfo& ppi) {
         Resources::Texture& fbTextureBrightness = resourceManager->createTexture(fbTextureDesc);
 
         fbTextureDesc.name = "BLOOM_COLOR_TEXTURE_DEPTH";
-        fbTextureDesc.format = GL_DEPTH_COMPONENT24;
+        fbTextureDesc.format = GL_DEPTH_COMPONENT32F;
         fbTextureDesc.p_images[0] = &fbImage;
         Resources::Texture& fbTextureDepth = resourceManager->createTexture(fbTextureDesc);
 
@@ -711,7 +712,7 @@ void SceneManager::createPostProcess(const PostProcessInfo& ppi) {
         Resources::Texture& fbTexture = resourceManager->createTexture(fbTextureDesc);
 
         fbTextureDesc.name = "BLOOM_FINAL_TEXTURE_DEPTH";
-        fbTextureDesc.format = GL_DEPTH_COMPONENT24;
+        fbTextureDesc.format = GL_DEPTH_COMPONENT32F;
         fbTextureDesc.p_images[0] = &fbImage;
         Resources::Texture& fbTextureDepth = resourceManager->createTexture(fbTextureDesc);
 
@@ -792,6 +793,7 @@ void SceneManager::performPostProcess(const Resources::ResourceHandle inputTextu
 
 void SceneManager::createFullscreenQuad() {
     auto* resourceManager = Resources::ResourceManager::getInstance();
+    auto* fileManager = FileSystem::FileManager::getInstance();
 
     float quadVertices[] = {
         -1.0f,  1.0f,  0.0f, 1.0f,
@@ -818,8 +820,8 @@ void SceneManager::createFullscreenQuad() {
     Resources::ShaderDesc shdrDesc;
     shdrDesc.name = FULLSCREEN_QUAD_SHADER_NAME;
     shdrDesc.uri = "";
-    shdrDesc.vertFilename = "../shaders/PostProcess/FullscreenQuad.vert";
-    shdrDesc.fragFilename = "../shaders/PostProcess/FullscreenQuad.frag";
+    shdrDesc.vertFilename = fileManager->getAbsolutePath("shaders://PostProcess/FullscreenQuad.vert");
+    shdrDesc.fragFilename = fileManager->getAbsolutePath("shaders://PostProcess/FullscreenQuad.frag");
     auto& shdr = resourceManager->createShader(shdrDesc);
     fullscreenShaderHandle_ = shdr.handle;
 
@@ -873,6 +875,7 @@ void SceneManager::cleanUp() {
 }
 
 bool SceneManager::initializeFreeType(const std::string& fontFilename, const unsigned fontHeight) {
+#ifndef __ANDROID__
     FT_Library ft;
     if (FT_Init_FreeType(&ft)) {
         LOG_E("FreeType: could not init FreeType Library");
@@ -950,30 +953,34 @@ bool SceneManager::initializeFreeType(const std::string& fontFilename, const uns
     glBindBuffer(GL_ARRAY_BUFFER, 0);
     glBindVertexArray(0);
 
+    auto fileManager = FileSystem::FileManager::getInstance();
 
     Resources::ShaderDesc shdrDesc;
     shdrDesc.name = TEXT_RENDERING_SHADER_NAME;
-    shdrDesc.vertFilename = "../shaders/PostProcess/RenderText.vert";
-    shdrDesc.fragFilename = "../shaders/PostProcess/RenderText.frag";
+    shdrDesc.vertFilename = fileManager->getAbsolutePath("shaders://PostProcess/RenderText.vert");
+    shdrDesc.fragFilename = fileManager->getAbsolutePath("shaders://PostProcess/RenderText.frag");
     auto& shdr = resourceManager->createShader(shdrDesc);
     textRenderingShaderHandle_ = shdr.handle;
 
     shdr.use();
     shdr.setInt("uTextSampler", 0);
-
+#endif
     return true;
 }
 
 void SceneManager::setTextProjectionMatrix(const glm::mat4 proj) {
+#ifndef __ANDROID__
     textProjMat_ = proj;
 
     auto resourceManager = Resources::ResourceManager::getInstance();
     auto& shdr = resourceManager->getShader(textRenderingShaderHandle_);
     shdr.use();
     shdr.setMat4("uProj", textProjMat_);
+#endif
 }
 
 void SceneManager::drawText(const std::string& text, float x, float y, float scale, glm::vec3 color) {
+#ifndef __ANDROID__
     glDisable(GL_DEPTH_TEST);
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -1017,6 +1024,7 @@ void SceneManager::drawText(const std::string& text, float x, float y, float sca
     }
 
     glDisable(GL_BLEND);
+#endif
 }
 
 void SceneManager::initializeDefaultCube() {
@@ -1041,7 +1049,7 @@ void SceneManager::initializeDefaultCube() {
 
 void SceneManager::drawDefaultCube() {
     if (VAODefaultCube_ == 0) {
-        return;
+        initializeDefaultCube();
     }
 
     glBindVertexArray(VAODefaultCube_);
@@ -1082,7 +1090,7 @@ void SceneManager::initializeDefaultQuad() {
 
 void SceneManager::drawDefaultQuad() {
     if (VAODefaultQuad_ == 0) {
-        return;
+        initializeDefaultQuad();
     }
 
     glBindVertexArray(VAODefaultQuad_);

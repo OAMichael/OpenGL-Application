@@ -1,29 +1,29 @@
 #ifndef CONSTANTS_H
 #define CONSTANTS_H
 
-#define TEXTURE_INDEX_BASE_COLOR            0
-#define TEXTURE_INDEX_METALLIC_ROUGHNESS    1
-#define TEXTURE_INDEX_EMISSIVE              2
-#define TEXTURE_INDEX_NORMAL                3
-#define TEXTURE_INDEX_OCCLUSION             4
+#define TEXTURE_INDEX_BASE_COLOR            0u
+#define TEXTURE_INDEX_METALLIC_ROUGHNESS    1u
+#define TEXTURE_INDEX_EMISSIVE              2u
+#define TEXTURE_INDEX_NORMAL                3u
+#define TEXTURE_INDEX_OCCLUSION             4u
 
-#define TEXTURE_INDEX_COUNT                 5
-
-
-#define MATERIAL_FLAG_NORMAL_MAP_BIT        1 << 0
-
-#define	BACKGROUND_IMAGE_2D 0
-#define	SKYBOX 1
-#define	EQUIRECTANGULAR 2
-
-#define PI 3.14159
+#define TEXTURE_INDEX_COUNT                 5u
 
 
-#define POINT_LIGHT          0
-#define DIRECTIONAL_LIGHT    1
-#define SPOT_LIGHT           2
+#define MATERIAL_FLAG_NORMAL_MAP_BIT        (1u << 0u)
 
-#define MAX_NUMBER_OF_LIGHTS 64
+#define	BACKGROUND_IMAGE_2D 0u
+#define	SKYBOX 1u
+#define	EQUIRECTANGULAR 2u
+
+#define PI 3.14159f
+
+
+#define POINT_LIGHT          0u
+#define DIRECTIONAL_LIGHT    1u
+#define SPOT_LIGHT           2u
+
+#define MAX_NUMBER_OF_LIGHTS 64u
 
 
 struct LightData {
@@ -49,10 +49,10 @@ vec2 CubemapToEquirect(vec3 v) {
 
 // D component
 float GGX_Trowbridge_Reitz(const float alpha, const vec3 N, const vec3 H) {
-    const float alpha2 = pow(alpha, 2.0f);
-    const float num = alpha2;
+    float alpha2 = pow(alpha, 2.0f);
+    float num = alpha2;
 
-    const float NoH = max(dot(N, H), 0.0f);
+    float NoH = max(dot(N, H), 0.0f);
     float den = PI * pow(pow(NoH, 2.0f) * (alpha2 - 1.0) + 1.0, 2.0f);
     den = max(den, 0.000001f);
 
@@ -61,11 +61,11 @@ float GGX_Trowbridge_Reitz(const float alpha, const vec3 N, const vec3 H) {
 
 // Schlick - Beckmann
 float G1_Schlick_Beckmann(const float alpha, const vec3 N, const vec3 X) {
-    const float NoX = max(dot(N, X), 0.0f);
-    const float num = NoX;
+    float NoX = max(dot(N, X), 0.0f);
+    float num = NoX;
 
-    const float k = alpha / 2.0f;
-    float den = NoX * (1 - k) + k;
+    float k = alpha / 2.0f;
+    float den = NoX * (1.0f - k) + k;
     den = max(den, 0.000001f);
 
     return num / den;
@@ -78,11 +78,11 @@ float G_Schlick_Beckmann(const float alpha, const vec3 N, const vec3 V, const ve
 
 // Fresnel - Schlick 
 vec3 Fresnel_Schlick(const vec3 F0, const vec3 V, const vec3 H) {
-    return F0 + (vec3(1.0f) - F0) * pow(1 - max(dot(V, H), 0.0f), 5.0f);
+    return F0 + (vec3(1.0f) - F0) * pow(1.0f - max(dot(V, H), 0.0f), 5.0f);
 }
 
 vec3  Fresnel_Schlick_Roughness(const vec3 F0, const vec3 V, const vec3 H, float roughness) {
-	return F0 + (max(vec3(1.0 - roughness), F0) - F0) * pow(1 - max(dot(V, H), 0.0f), 5.0f);
+	return F0 + (max(vec3(1.0f - roughness), F0) - F0) * pow(1.0f - max(dot(V, H), 0.0f), 5.0f);
 }
 
 // http://holger.dammertz.org/stuff/notes_HammersleyOnHemisphere.html

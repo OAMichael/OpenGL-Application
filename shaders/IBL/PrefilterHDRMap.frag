@@ -1,4 +1,4 @@
-#version 460 core
+#include "../GLSLversion.h"
 
 #include "../Constants.h"
 
@@ -20,16 +20,16 @@ void main() {
     vec3 R = N;
     vec3 V = R;
 
-    const bool isEquirect = uEnvironmentType == EQUIRECTANGULAR;
+    bool isEquirect = uEnvironmentType == EQUIRECTANGULAR;
     const uint SAMPLE_COUNT = 512u;
 
     float totalArea = 1.0f;
     if(isEquirect) {
         ivec2 size = textureSize(uSamplerEquirect, 0);
-        totalArea = size.x * size.y;
+        totalArea = float(size.x * size.y);
     }
     else {
-        float size = textureSize(uSamplerSkybox, 0).x;
+        float size = float(textureSize(uSamplerSkybox, 0).x);
         totalArea = 6.0f * size * size;
     }
 

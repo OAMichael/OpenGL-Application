@@ -1,7 +1,6 @@
 #ifndef SAMPLER_HPP
 #define SAMPLER_HPP
 
-#include <glad/glad.h>
 #include <string>
 
 #include <RenderResource.hpp>
@@ -23,7 +22,9 @@ struct Sampler : RenderResource {
 		CLAMP_TO_BORDER = GL_CLAMP_TO_BORDER,
 		MIRRORED_REPEAT = GL_MIRRORED_REPEAT,
 		REPEAT = GL_REPEAT,
+#ifndef __ANDROID__
 		MIRROR_CLAMP_TO_EDGE = GL_MIRROR_CLAMP_TO_EDGE
+#endif
 	};
 
 	unsigned int GL_id;

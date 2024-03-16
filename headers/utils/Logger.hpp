@@ -4,6 +4,10 @@
 #include <iostream>
 #include <cstdarg>
 
+#ifdef __ANDROID__
+#include <android/log.h>
+#endif
+
 namespace Utils {
 
 static inline std::string fileBaseName(const std::string& path)
@@ -48,6 +52,32 @@ public:
 			return;
 		}
 
+#ifdef __ANDROID__
+		android_LogPriority prio = ANDROID_LOG_UNKNOWN;
+		switch (logType) {
+			case LOG_TYPE_INFO: {
+				prio = ANDROID_LOG_INFO;
+				break;
+			}
+			case LOG_TYPE_WARNING: {
+				prio = ANDROID_LOG_WARN;
+				break;
+			}
+			case LOG_TYPE_ERROR: {
+				prio = ANDROID_LOG_ERROR;
+				break;
+			}
+			default: {
+				break;
+			}
+		}
+
+		va_list args;
+		va_start(args, format);
+		__android_log_vprint(prio, "native-activity", format, args);
+		va_end(args);
+#else
+
 		const char* reset = "\033[0m";
 		const char* yellow = "\033[33m";
 		const char* red = "\033[31m";
@@ -71,6 +101,7 @@ public:
 
 		fprintf(fileOut, "%s", reset);
 		fputc('\n', fileOut);
+#endif
 	}
 };
 

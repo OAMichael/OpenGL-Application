@@ -170,15 +170,20 @@ Texture& ResourceManager::createTexture(const TextureDesc& textureDesc) {
     bool isFloat = false;
     bool isDepth = false;
 
-    if (textureDesc.format == GL_RGB16F || textureDesc.format == GL_RGBA16F ||
+    if (textureDesc.format == GL_R16F   || textureDesc.format == GL_R32F ||
+        textureDesc.format == GL_RG16F  || textureDesc.format == GL_RG32F ||
+        textureDesc.format == GL_RGB16F || textureDesc.format == GL_RGBA16F ||
         textureDesc.format == GL_RGB32F || textureDesc.format == GL_RGBA32F) {
 
         isFloat = true;
     }
     else if (textureDesc.format == GL_DEPTH_COMPONENT || textureDesc.format == GL_DEPTH_COMPONENT16
-        || textureDesc.format == GL_DEPTH_COMPONENT24 || textureDesc.format == GL_DEPTH_COMPONENT32
-        || textureDesc.format == GL_DEPTH_COMPONENT32F) {
-
+        || textureDesc.format == GL_DEPTH_COMPONENT24 || textureDesc.format == GL_DEPTH_COMPONENT32F
+#ifndef __ANDROID__
+        || textureDesc.format == GL_DEPTH_COMPONENT32
+#endif
+        )
+    {
         isDepth = true;
     }
 
@@ -493,6 +498,7 @@ Framebuffer& ResourceManager::createFramebuffer(const FramebufferDesc& framebufD
         }
     }
 
+
     glGenFramebuffers(1, &newFramebuffer->GL_id);
     glBindFramebuffer(GL_FRAMEBUFFER, newFramebuffer->GL_id);
 
@@ -507,8 +513,9 @@ Framebuffer& ResourceManager::createFramebuffer(const FramebufferDesc& framebufD
     }
     glDrawBuffers(attachments.size(), attachments.data());
 
-    if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
-        LOG_E("Framebuffer \'%s\' is not complete", framebufDesc.name.c_str());
+    auto status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+    if (status != GL_FRAMEBUFFER_COMPLETE) {
+        LOG_E("Framebuffer \'%s\' is not complete: %d", framebufDesc.name.c_str(), status);
         delete newFramebuffer;
         bindFramebuffer(defaultFramebuffers_[Framebuffer::DefaultFramebuffers::DEFAULT_FRAMEBUFFER]->handle);
         return getFramebuffer(Framebuffer::DefaultFramebuffers::DEFAULT_FRAMEBUFFER);
@@ -975,11 +982,7 @@ bool ResourceManager::hasFramebuffer(const std::string& name, const std::string&
 
 
 ResourceManager::ResourceManager() {
-    createDefaultImages();
-    createDefaultSamplers();
-    createDefaultTextures();
-    createDefaultMaterials();
-    createDefaultFramebuffer();
+
 }
 
 
@@ -1143,6 +1146,55 @@ void ResourceManager::createDefaultFramebuffer() {
     framebuffers_[defaultFramebuffer->name] = defaultFramebuffer;
     allResources_[defaultFramebuffer->handle] = defaultFramebuffer;
     defaultFramebuffers_[Framebuffer::DefaultFramebuffers::DEFAULT_FRAMEBUFFER] = defaultFramebuffer;
+}
+
+void ResourceManager::Init() {
+    createDefaultImages();
+    createDefaultSamplers();
+    createDefaultTextures();
+    createDefaultMaterials();
+    createDefaultFramebuffer();
+}
+
+
+unsigned ResourceManager::chooseDefaultInternalFormat(const int components, bool isFloat) const {
+    switch (components) {
+        case 1: {
+            if (isFloat) {
+                return GL_R32F;
+            }
+            else {
+                return GL_R8;
+            }
+        }
+        case 2: {
+            if (isFloat) {
+                return GL_RG32F;
+            }
+            else {
+                return GL_RG;
+            }
+        }
+        case 3: {
+            if (isFloat) {
+                return GL_RGB32F;
+            }
+            else {
+                return GL_RGB;
+            }
+        }
+        case 4: {
+            if (isFloat) {
+                return GL_RGBA32F;
+            } else {
+                return GL_RGBA;
+            }
+        }
+        default: {
+            LOG_W("Undefined image format");
+            return GL_RGBA;
+        }
+    }
 }
 
 }

@@ -6,6 +6,14 @@
 #include <string>
 #include <unordered_set>
 
+#ifdef __ANDROID__
+#include <EGL/egl.h>
+#include <GLES3/gl32.h>
+#include <GLES3/gl3ext.h>
+#else
+#include <glad/glad.h>
+#endif
+
 namespace Resources {
 
 struct ResourceHandle {

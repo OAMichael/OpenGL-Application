@@ -1,4 +1,4 @@
-#version 460 core
+#include "../GLSLversion.h"
 layout (location = 0) in vec4 inVertex;
 
 layout (location = 0) out vec2 outUv;

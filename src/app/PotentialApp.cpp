@@ -2,12 +2,30 @@
 #include "ResourceManager.hpp"
 #include "SceneManager.hpp"
 #include "JSONImporter.hpp"
+#include "FileManager.hpp"
 #include "Light.hpp"
 #include "Logger.hpp"
 
 
-void PotentialApp::OnInit() {
+#define TINYGLTF_IMPLEMENTATION
+#define STB_IMAGE_WRITE_IMPLEMENTATION
+#define STB_IMAGE_IMPLEMENTATION
+#include <tinygltf/tiny_gltf.h>
 
+
+void PotentialApp::OnInit() {
+    auto fileManager = FileSystem::FileManager::getInstance();
+#ifdef __ANDROID__
+    std::string basedir = "/sdcard/Android/data/com.opengl.native_activity/files";
+#else
+    std::string basedir = fileManager->getAbsolutePath(fileManager->getCurrentDirectory() + "/../../../..");
+#endif
+    fileManager->setBasedir(basedir);
+    fileManager->registerProtocol("configs", basedir + "/configs");
+    fileManager->registerProtocol("fonts", basedir + "/fonts");
+    fileManager->registerProtocol("models", basedir + "/models");
+    fileManager->registerProtocol("shaders", basedir + "/shaders");
+    fileManager->registerProtocol("textures", basedir + "/textures");
 }
 
 void PotentialApp::OnWindowCreate() {
@@ -15,6 +33,9 @@ void PotentialApp::OnWindowCreate() {
 }
 
 void PotentialApp::OnRenderingStart() {
+    auto resourceManager = Resources::ResourceManager::getInstance();
+    resourceManager->Init();
+
     this->initModels();
     this->initLights();
     this->initRender();
@@ -35,7 +56,11 @@ void PotentialApp::OnRenderFrame() {
 
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
+#ifdef __ANDROID__
+    glClearDepthf(1.0);
+#else
     glClearDepth(1.0);
+#endif
 
     Camera_.updateMatrices();
 
@@ -49,11 +74,15 @@ void PotentialApp::OnRenderFrame() {
     modelShader.use();
     modelShader.setVec3("uCameraWorldPos", Camera_.getPosition());
 
+#ifndef __ANDROID__
     glPolygonMode(GL_FRONT_AND_BACK, IsWireframe_ ? GL_LINE : GL_FILL);
+#endif
     for (auto& model : Models_) {
         model.draw(modelShader);
     }
+#ifndef __ANDROID__
     glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+#endif
 
     sceneManager->drawEnvironment();
     sceneManager->performPostProcess(modelFramebufferTextureHandle_);
@@ -74,6 +103,53 @@ void PotentialApp::OnWindowDestroy() {
 }
 
 
+#ifdef __ANDROID__
+int32_t PotentialApp::handleInputCallback(android_app* app, AInputEvent* event) {
+    int32_t type = AInputEvent_getType(event);
+    int32_t action = AMotionEvent_getAction(event);
+
+    if (type == AINPUT_EVENT_TYPE_MOTION) {
+        static int32_t startPointerId = 0;
+        static int32_t startX = 0;
+        static int32_t startY = 0;
+
+        switch (action) {
+            case AMOTION_EVENT_ACTION_MOVE: {
+                int32_t horizontalDistance = 0;
+                int32_t verticalDistance = 0;
+
+                if (startPointerId == AMotionEvent_getPointerId(event, 0)) {
+                    horizontalDistance = AMotionEvent_getX(event, 0) - startX;
+                    verticalDistance = AMotionEvent_getY(event, 0) - startY;
+                }
+
+                const float sensitivity = Camera_.getSensitivity();
+                horizontalDistance *= sensitivity;
+                verticalDistance *= sensitivity;
+
+                Camera_.setYaw(Camera_.getYaw() + horizontalDistance);
+                Camera_.setPitch(std::clamp(Camera_.getPitch() - verticalDistance, -89.0f, 89.0f));
+                Camera_.updateVectors();
+
+                startPointerId = AMotionEvent_getPointerId(event, 0);
+                startX = AMotionEvent_getX(event, 0);
+                startY = AMotionEvent_getY(event, 0);
+                return 1;
+            }
+            case AMOTION_EVENT_ACTION_UP: {
+                return 1;
+            }
+            case AMOTION_EVENT_ACTION_DOWN: {
+                startPointerId = AMotionEvent_getPointerId(event, 0);
+                startX = AMotionEvent_getX(event, 0);
+                startY = AMotionEvent_getY(event, 0);
+                return 1;
+            }
+        }
+    }
+    return 0;
+}
+#else
 void PotentialApp::mouseCallback(GLFWwindow* window, int button, int action, int mods) {
     switch(button) {
         case GLFW_MOUSE_BUTTON_LEFT:
@@ -239,6 +315,7 @@ void PotentialApp::keyboardCallback(GLFWwindow* window, int key, int scancode, i
     }
 
 }
+#endif
 
 
 PotentialApp::PotentialApp() {
@@ -250,14 +327,15 @@ PotentialApp::PotentialApp() {
 
 
 void PotentialApp::initModels() {
-    std::ifstream modelsConfig { CONFIG_PATH };
-    nlohmann::json cfg;
-    modelsConfig >> cfg;
-
+    auto fileManager = FileSystem::FileManager::getInstance();
     auto GLTFloader = GLTF::GLTFLoader::getInstance();
     auto jsonImporter = JsonUtil::JSONImpoter::getInstance();
     auto sceneManager = SceneResources::SceneManager::getInstance();
     auto resourceManager = Resources::ResourceManager::getInstance();
+
+    std::ifstream modelsConfig { fileManager->getAbsolutePath(CONFIG_PATH) };
+    nlohmann::json cfg;
+    modelsConfig >> cfg;
 
     std::vector<JsonUtil::JSONImpoter::ModelImportInfo> modelsInfo;
     jsonImporter->loadModelsInfo(cfg, modelsInfo);
@@ -354,31 +432,32 @@ void PotentialApp::initLights() {
 void PotentialApp::initRender() {
     auto sceneManager = SceneResources::SceneManager::getInstance();
     auto resourceManager = Resources::ResourceManager::getInstance();
+    auto fileManager = FileSystem::FileManager::getInstance();
 
     Resources::ShaderDesc shaderDesc;
     shaderDesc.name = MODEL_SHADER_NAME;
     shaderDesc.uri = "";
-    shaderDesc.vertFilename = "../shaders/Model.vert";
-    shaderDesc.fragFilename = "../shaders/Model.frag";
+    shaderDesc.vertFilename = fileManager->getAbsolutePath("shaders://Model.vert");
+    shaderDesc.fragFilename = fileManager->getAbsolutePath("shaders://Model.frag");
 
     auto& modelShader = resourceManager->createShader(shaderDesc);
     modelShaderHandle_ = modelShader.handle;
 
     const std::vector<std::string> background2DTexturesNames = {
-        "../textures/city.jpg"
+        fileManager->getAbsolutePath("textures://city.jpg")
     };
 
     const std::vector<std::string> skyboxTexturesNames = {
-    "../textures/posx.jpg",
-    "../textures/negx.jpg",
-    "../textures/posy.jpg",
-    "../textures/negy.jpg",
-    "../textures/posz.jpg",
-    "../textures/negz.jpg"
+        fileManager->getAbsolutePath("textures://posx.jpg"),
+        fileManager->getAbsolutePath("textures://negx.jpg"),
+        fileManager->getAbsolutePath("textures://posy.jpg"),
+        fileManager->getAbsolutePath("textures://negy.jpg"),
+        fileManager->getAbsolutePath("textures://posz.jpg"),
+        fileManager->getAbsolutePath("textures://negz.jpg")
     };
 
     const std::vector<std::string> equirectTexturesNames = {
-        "../textures/bethnal_green_entrance_4k.hdr"
+        fileManager->getAbsolutePath("textures://bethnal_green_entrance_4k.hdr")
     };
 
     sceneManager->createEnvironment(SceneResources::SceneManager::EnvironmentType::BACKGROUND_IMAGE_2D, background2DTexturesNames);
@@ -425,7 +504,7 @@ void PotentialApp::initRender() {
 
     fbTextureDesc.name = MODEL_FRAMEBUFFER_TEXTURE_NAME + std::string("_DEPTH");
     fbTextureDesc.uri = "";
-    fbTextureDesc.format = GL_DEPTH_COMPONENT24;
+    fbTextureDesc.format = GL_DEPTH_COMPONENT32F;
     fbTextureDesc.p_images[0] = &fbImage;
     Resources::Texture& fbTextureDepth = resourceManager->createTexture(fbTextureDesc);
 
@@ -443,12 +522,12 @@ void PotentialApp::initRender() {
 
     SceneResources::SceneManager::PostProcessInfo ppi;
     ppi.enableBlur = false;
-    ppi.enableBloom = true;
+    ppi.enableBloom = false;
     ppi.windowWidth = windowWidth_;
     ppi.windowHeight = windowHeight_;
     sceneManager->createPostProcess(ppi);
 
-    sceneManager->initializeFreeType("../fonts/arial.ttf");
+    sceneManager->initializeFreeType(fileManager->getAbsolutePath("fonts://arial.ttf"));
     sceneManager->setTextProjectionMatrix(glm::ortho(0.0f, (float)windowWidth_, 0.0f, (float)windowHeight_));
 }
 
@@ -461,6 +540,11 @@ void PotentialApp::initCamera() {
 
 
 void PotentialApp::processMovement() {
+#ifndef __ANDROID__
+    if (!MouseHidden_) {
+        return;
+    }
+
     if (keyPressedA_) {
         Camera_.moveRight(-2 * deltaTime_);
     }
@@ -473,4 +557,5 @@ void PotentialApp::processMovement() {
     if (keyPressedD_) {
         Camera_.moveRight(2 * deltaTime_);
     }
+#endif
 }

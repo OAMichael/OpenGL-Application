@@ -1,4 +1,4 @@
-#version 460 core
+#include "GLSLversion.h"
 
 #include "Constants.h"
 
@@ -33,6 +33,6 @@ void main()
     if (!uIsHdr) {
         // Yes, it is expensive but I don't care
         const float exposure = 0.8f;
-        outColor.rgb = -1.0 / exposure * log(1 -  pow(outColor.rgb, vec3(2.2f)));
+        outColor.rgb = -1.0 / exposure * log(1.0 -  pow(outColor.rgb, vec3(2.2f)));
     }
 }
