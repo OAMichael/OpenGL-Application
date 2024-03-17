@@ -9,12 +9,17 @@ set(APPLICATION_SOURCES
 
 add_library(application STATIC ${APPLICATION_SOURCES})
 
+# Temporary fix
+if(NOT ANDROID)
+    target_link_libraries(application PUBLIC glfw3)
+endif()
+
 
 if(NOT ANDROID)
     if(WIN32)
-        set(LINK_OPT opengl32.lib glfw3.lib freetype.lib)
+        set(LINK_LIBS opengl32.lib glfw3.lib freetype.lib)
     else()
-        set(LINK_OPT -lglfw -lGL -ldl -lpthread -lX11 -lXxf86vm -lXrandr -lXi -lfreetype)
+        set(LINK_LIBS glfw3 GL dl pthread X11 Xxf86vm Xrandr Xi freetype)
     endif()
 
     if (NOT MSVC OR (CMAKE_BUILD_TYPE EQUAL Release))
@@ -25,7 +30,7 @@ if(NOT ANDROID)
     target_include_directories(App PUBLIC ${INCLUDE_DIR} ${SRC_DIR} ${GLAD_DIR})
     target_link_directories(App PUBLIC ${LIB_DIR})
     target_compile_options(App PUBLIC ${COMPILE_OPT})
-    target_link_libraries(App PUBLIC ${LINK_OPT})
+    target_link_libraries(App PUBLIC ${LINK_LIBS})
 
     target_link_libraries(App PUBLIC
             application

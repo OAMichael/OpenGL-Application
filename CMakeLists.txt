@@ -29,6 +29,9 @@ include_directories(
 		${CMAKE_SOURCE_DIR}/3rdparty/freetype
 )
 
+link_directories(${LIB_DIR})
+
+
 set(GLSL_VERSION "460 core")
 
 if(ANDROID)

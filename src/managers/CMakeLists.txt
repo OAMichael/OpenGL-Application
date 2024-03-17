@@ -16,3 +16,8 @@ set(MANAGERS_SOURCES
 add_library(managers STATIC ${MANAGERS_SOURCES})
 
 target_link_libraries(managers PUBLIC render-resources)
+
+# Temporary fix
+if(NOT ANDROID)
+    target_link_libraries(managers PUBLIC freetype)
+endif()
