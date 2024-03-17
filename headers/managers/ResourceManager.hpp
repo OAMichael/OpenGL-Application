@@ -118,8 +118,8 @@ public:
 	Sampler& createSampler(const SamplerDesc& samplerDesc);
 	
 	Texture& createTexture(const TextureDesc& textureDesc);
-	Texture& createTexture(const char* filename, Sampler* sampler = nullptr);
-	Texture& createTexture(const std::string& filename, Sampler* sampler = nullptr);
+	Texture& createTexture(const char* filename, bool isHdr = false, Sampler* sampler = nullptr);
+	Texture& createTexture(const std::string& filename, bool isHdr = false, Sampler* sampler = nullptr);
 	void bindTexture(const std::string& name, const unsigned texUnit = 0);
 	void bindTexture(const ResourceHandle handle, const unsigned texUnit = 0);
 	void unbindTexture(const GLenum target = GL_TEXTURE_2D, const unsigned texUnit = 0);

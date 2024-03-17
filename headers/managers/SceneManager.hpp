@@ -21,6 +21,7 @@ inline constexpr const char* TEXT_RENDERING_SHADER_NAME		= "Render_Text";
 inline constexpr const char* IRRADIANCE_MAP_SHADER_NAME		= "Irradiance_Map";
 inline constexpr const char* PREFILTER_HDR_SHADER_NAME		= "Prefilter_HDR";
 inline constexpr const char* BRDF_LUT_SHADER_NAME			= "BRDF_LUT";
+inline constexpr const char* PREVIEW_SCREEN_SHADER_NAME		= "Preview_Screen";
 inline constexpr const char* BACKGROUND_2D_TEXTURE_NAME		= "BACKGROUND_2D_TEXTURE";
 inline constexpr const char* SKYBOX_TEXTURE_NAME			= "SKYBOX_TEXTURE";
 inline constexpr const char* EQUIRECTANGULAR_TEXTURE_NAME	= "EQUIRECTANGULAR_TEXTURE";
@@ -128,6 +129,9 @@ public:
 	void setTextProjectionMatrix(const glm::mat4 proj);
 	void drawText(const std::string& text, float x, float y, float scale, glm::vec3 color);
 
+	void createPreviewScreen();
+	void drawPreviewScreen(const Resources::ResourceHandle textureHandle, const float alpha = 1.0f);
+
 	void cleanUp();
 
 	~SceneManager() { cleanUp(); }
@@ -195,6 +199,7 @@ private:
 	Resources::ResourceHandle bloomShaderHandle_;
 	Resources::ResourceHandle bloomFinalShaderHandle_;
 	Resources::ResourceHandle textRenderingShaderHandle_;
+	Resources::ResourceHandle previewScreenShaderHandle_;
 
 	void initializeDefaultCube();
 	void drawDefaultCube();

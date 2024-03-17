@@ -34,12 +34,14 @@ void PotentialApp::OnWindowCreate() {
 
 void PotentialApp::OnRenderingStart() {
     auto resourceManager = Resources::ResourceManager::getInstance();
-    resourceManager->Init();
+    auto sceneManager = SceneResources::SceneManager::getInstance();
+    auto fileManager = FileSystem::FileManager::getInstance();
 
-    this->initModels();
-    this->initLights();
-    this->initRender();
-    this->initCamera();
+    resourceManager->Init();
+    auto& previewTexture = resourceManager->createTexture(fileManager->getAbsolutePath("textures://PreviewScreen.jpg"));
+    previewTextureHandle_ = previewTexture.handle;
+
+    sceneManager->createPreviewScreen();
 }
 
 void PotentialApp::OnRenderFrame() {
@@ -48,46 +50,66 @@ void PotentialApp::OnRenderFrame() {
     auto resourceManager = Resources::ResourceManager::getInstance();
     auto sceneManager = SceneResources::SceneManager::getInstance();
 
-    auto& modelShader = resourceManager->getShader(modelShaderHandle_);
+    if (ReadyForRender_) {
+        ++frameAfterInit_;
+        auto& modelShader = resourceManager->getShader(modelShaderHandle_);
 
-    resourceManager->bindFramebuffer(modelFramebufferHandle_);
+        resourceManager->bindFramebuffer(modelFramebufferHandle_);
 
-    this->showFPS();
+        this->showFPS();
 
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-    glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
 #ifdef __ANDROID__
-    glClearDepthf(1.0);
+        glClearDepthf(1.0);
 #else
-    glClearDepth(1.0);
+        glClearDepth(1.0);
 #endif
 
-    Camera_.updateMatrices();
+        Camera_.updateMatrices();
 
-    Matrices ubo;
-    ubo.view = Camera_.getView();
-    ubo.proj = Camera_.getProj();
-    ubo.model = glm::mat4(1.0f);
+        Matrices ubo;
+        ubo.view = Camera_.getView();
+        ubo.proj = Camera_.getProj();
+        ubo.model = glm::mat4(1.0f);
 
-    resourceManager->updateBuffer("Matrices", (const unsigned char*)&ubo, sizeof(ubo));
+        resourceManager->updateBuffer("Matrices", (const unsigned char*)&ubo, sizeof(ubo));
 
-    modelShader.use();
-    modelShader.setVec3("uCameraWorldPos", Camera_.getPosition());
+        modelShader.use();
+        modelShader.setVec3("uCameraWorldPos", Camera_.getPosition());
 
 #ifndef __ANDROID__
-    glPolygonMode(GL_FRONT_AND_BACK, IsWireframe_ ? GL_LINE : GL_FILL);
+        glPolygonMode(GL_FRONT_AND_BACK, IsWireframe_ ? GL_LINE : GL_FILL);
 #endif
-    for (auto& model : Models_) {
-        model.draw(modelShader);
+        for (auto& model : Models_) {
+            model.draw(modelShader);
+        }
+#ifndef __ANDROID__
+        glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+#endif
+
+        sceneManager->drawEnvironment();
+        sceneManager->performPostProcess(modelFramebufferTextureHandle_);
+        sceneManager->drawToDefaultFramebuffer(sceneManager->getPostProcessTextureHandle());
+        sceneManager->drawText("Damaged Helmet", 10.0f, windowHeight_ - 30.0f, 0.7f, glm::vec3(1.0f, 0.0f, 0.0f));
+
+        if (frameAfterInit_ < 100) {
+            glEnable(GL_BLEND);
+            glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+            sceneManager->drawPreviewScreen(previewTextureHandle_, 1.0f - frameAfterInit_ / 100.0f);
+        }
     }
-#ifndef __ANDROID__
-    glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-#endif
-
-    sceneManager->drawEnvironment();
-    sceneManager->performPostProcess(modelFramebufferTextureHandle_);
-    sceneManager->drawToDefaultFramebuffer(sceneManager->getPostProcessTextureHandle());
-    sceneManager->drawText("Damaged Helmet", 10.0f, windowHeight_ - 30.0f, 0.7f, glm::vec3(1.0f, 0.0f, 0.0f));
+    else {
+        sceneManager->drawPreviewScreen(previewTextureHandle_);
+        if (NeedInit_) {
+            this->initModels();
+            this->initLights();
+            this->initRender();
+            this->initCamera();
+            ReadyForRender_ = true;
+        }
+        NeedInit_ = true;
+    }
 }
 
 void PotentialApp::OnRenderingEnd() {

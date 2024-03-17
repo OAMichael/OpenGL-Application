@@ -67,6 +67,7 @@ void Model::init() {
 void Model::draw(Resources::Shader& shader) {
 	glEnable(GL_DEPTH_TEST);
 	glEnable(GL_CULL_FACE);
+	glDisable(GL_BLEND);
 	glCullFace(GL_BACK);
 	glFrontFace(GL_CCW);
 	rootNode_->draw(shader);

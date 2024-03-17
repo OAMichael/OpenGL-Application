@@ -1098,4 +1098,37 @@ void SceneManager::drawDefaultQuad() {
     glBindVertexArray(0);
 }
 
+
+void SceneManager::createPreviewScreen() {
+    initializeDefaultQuad();
+
+    auto resourceManager = Resources::ResourceManager::getInstance();
+    auto fileManager = FileSystem::FileManager::getInstance();
+
+    Resources::ShaderDesc shaderDesc;
+    shaderDesc.name = PREVIEW_SCREEN_SHADER_NAME;
+    shaderDesc.uri = "";
+    shaderDesc.vertFilename = fileManager->getAbsolutePath("shaders://PostProcess/FullscreenQuad.vert");
+    shaderDesc.fragFilename = fileManager->getAbsolutePath("shaders://PreviewScreen.frag");
+
+    auto& previewShader = resourceManager->createShader(shaderDesc);
+    previewScreenShaderHandle_  = previewShader.handle;
+    previewShader.use();
+    previewShader.setInt("uScreenTexture", 0);
+    previewShader.setFloat("uAlpha", 1.0f);
+}
+
+void SceneManager::drawPreviewScreen(const Resources::ResourceHandle textureHandle, const float alpha) {
+    auto resourceManager = Resources::ResourceManager::getInstance();
+
+    auto& previewShader = resourceManager->getShader(previewScreenShaderHandle_);
+    auto& texture = resourceManager->getTexture(textureHandle);
+
+    previewShader.use();
+    previewShader.setFloat("uAlpha", alpha);
+    resourceManager->bindTexture(textureHandle);
+
+    drawDefaultQuad();
+}
+
 }

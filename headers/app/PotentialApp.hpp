@@ -43,6 +43,11 @@ private:
     bool IsFullscreen_ = false;
     bool IsWireframe_ = false;
     bool MouseHidden_ = true;
+    bool ReadyForRender_ = false;
+    bool NeedInit_ = false;
+    Resources::ResourceHandle previewTextureHandle_;
+    uint64_t frameAfterInit_ = 0;
+
 
     std::vector<Geometry::Model> Models_;
 

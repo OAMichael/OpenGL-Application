@@ -295,7 +295,7 @@ Texture& ResourceManager::createTexture(const TextureDesc& textureDesc) {
     return *newTexture;
 }
 
-Texture& ResourceManager::createTexture(const char* filename, Sampler* sampler) {
+Texture& ResourceManager::createTexture(const char* filename, bool isHdr, Sampler* sampler) {
     if (hasTexture(filename))
         return getTexture(filename);
 
@@ -306,13 +306,14 @@ Texture& ResourceManager::createTexture(const char* filename, Sampler* sampler) 
     texDesc.name = image.name;
     texDesc.uri = filename;
     texDesc.p_images[0] = &image;
+    texDesc.format = chooseDefaultInternalFormat(image.components, isHdr);
     texDesc.p_sampler = sampler;
 
     return createTexture(texDesc);
 }
 
-Texture& ResourceManager::createTexture(const std::string& filename, Sampler* sampler) {
-    return createTexture(filename.c_str(), sampler);
+Texture& ResourceManager::createTexture(const std::string& filename, bool isHdr, Sampler* sampler) {
+    return createTexture(filename.c_str(), isHdr, sampler);
 }
 
 
