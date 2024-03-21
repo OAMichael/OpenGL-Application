@@ -68,6 +68,7 @@ protected:
     EGLDisplay display_;
     EGLSurface surface_;
     EGLContext context_;
+    EGLConfig config_;
     virtual void handleCmdCallback(android_app* app, int32_t cmd);
     virtual int32_t handleInputCallback(android_app* app, AInputEvent* event) = 0;
 #else

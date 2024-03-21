@@ -29,7 +29,15 @@ void PotentialApp::OnInit() {
 }
 
 void PotentialApp::OnWindowCreate() {
+    glViewport(0, 0, windowWidth_, windowHeight_);
+    Camera_.setAspect((float) windowWidth_ / windowHeight_);
 
+    needToRender_ = windowWidth_ > 1 && windowHeight_ > 1;
+
+    auto resourceManager = Resources::ResourceManager::getInstance();
+    if (resourceManager->hasFramebuffer(Resources::defaultFramebufferNames[Resources::Framebuffer::DefaultFramebuffers::DEFAULT_FRAMEBUFFER])) {
+        resourceManager->resizeFramebuffer(Resources::defaultFramebufferNames[Resources::Framebuffer::DefaultFramebuffers::DEFAULT_FRAMEBUFFER], windowWidth_, windowHeight_);
+    }
 }
 
 void PotentialApp::OnRenderingStart() {

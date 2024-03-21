@@ -147,16 +147,11 @@ void IApplication::terminateWindow() {
 #ifdef __ANDROID__
         if (display_ != EGL_NO_DISPLAY) {
             eglMakeCurrent(display_, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
-            if (context_ != EGL_NO_CONTEXT) {
-                eglDestroyContext(display_, context_);
-            }
+
             if (surface_ != EGL_NO_SURFACE) {
                 eglDestroySurface(display_, surface_);
             }
-            eglTerminate(display_);
         }
-        display_ = EGL_NO_DISPLAY;
-        context_ = EGL_NO_CONTEXT;
         surface_ = EGL_NO_SURFACE;
 #else
         glfwTerminate();
@@ -172,60 +167,76 @@ void IApplication::handleCmdCallback(android_app* app, int32_t cmd) {
         case APP_CMD_INIT_WINDOW:
             LOG_I("APP_CMD_INIT_WINDOW()");
             if (app->window != nullptr) {
-                const EGLint attribs[] = {  EGL_SURFACE_TYPE,           EGL_WINDOW_BIT,
-                                            EGL_BLUE_SIZE,              8,
-                                            EGL_GREEN_SIZE,             8,
-                                            EGL_RED_SIZE,               8,
-                                            EGL_NONE                                    };
+                android_app_->window = app->window;
 
-                EGLint numConfigs;
-                EGLConfig config = nullptr;
-
-                display_ = eglGetDisplay(EGL_DEFAULT_DISPLAY);
-                eglInitialize(display_, nullptr, nullptr);
-
-                eglChooseConfig(display_, attribs, nullptr, 0, &numConfigs);
-                std::unique_ptr<EGLConfig[]> supportedConfigs(new EGLConfig[numConfigs]);
-                eglChooseConfig(display_, attribs, supportedConfigs.get(), numConfigs, &numConfigs);
-
-                EGLint i = 0;
-                for (; i < numConfigs; ++i) {
-                    auto& cfg = supportedConfigs[i];
-                    EGLint r, g, b, d;
-                    if (eglGetConfigAttrib(display_, cfg, EGL_RED_SIZE, &r) &&
-                        eglGetConfigAttrib(display_, cfg, EGL_GREEN_SIZE, &g) &&
-                        eglGetConfigAttrib(display_, cfg, EGL_BLUE_SIZE, &b) &&
-                        eglGetConfigAttrib(display_, cfg, EGL_DEPTH_SIZE, &d) &&
-                        r == 8 && g == 8 && b == 8 && d == 0)
-                    {
-                        config = supportedConfigs[i];
+                if (isTerminated_) {
+                    // If the windows was terminated and we get back to the app create new window and surface
+                    surface_ = eglCreateWindowSurface(display_, config_, android_app_->window, nullptr);
+                    if (!surface_) {
+                        LOG_E("Failed to create render surface");
                         break;
                     }
+                    isTerminated_ = false;
                 }
-                if (i == numConfigs) {
-                    config = supportedConfigs[0];
-                }
+                else {
+                    // If it is our first window and surface just create them and OpenGLES context as well
+                    const EGLint attribs[] = {EGL_SURFACE_TYPE, EGL_WINDOW_BIT,
+                                              EGL_BLUE_SIZE, 8,
+                                              EGL_GREEN_SIZE, 8,
+                                              EGL_RED_SIZE, 8,
+                                              EGL_NONE};
 
-                if (config == nullptr) {
-                    LOG_E("Failed to initialize EGLConfig");
-                    break;
-                }
+                    EGLint numConfigs;
 
-                eglBindAPI(EGL_OPENGL_ES_API);
-                const EGLint ctx_attribs[] = {
-                    EGL_CONTEXT_CLIENT_VERSION, 3, EGL_NONE
-                };
+                    display_ = eglGetDisplay(EGL_DEFAULT_DISPLAY);
+                    eglInitialize(display_, nullptr, nullptr);
 
-                surface_ = eglCreateWindowSurface(display_, config, android_app_->window, nullptr);
-                if (!surface_) {
-                    LOG_E("Failed to create render surface");
-                    break;
-                }
+                    eglChooseConfig(display_, attribs, nullptr, 0, &numConfigs);
+                    std::unique_ptr<EGLConfig[]> supportedConfigs(new EGLConfig[numConfigs]);
+                    eglChooseConfig(display_, attribs, supportedConfigs.get(), numConfigs,
+                                    &numConfigs);
 
-                context_ = eglCreateContext(display_, config, nullptr, ctx_attribs);
-                if (!context_) {
-                    LOG_E("Failed to create OpenGL ES context");
-                    break;
+                    EGLint i = 0;
+                    for (; i < numConfigs; ++i) {
+                        auto &cfg = supportedConfigs[i];
+                        EGLint r, g, b, d;
+                        if (eglGetConfigAttrib(display_, cfg, EGL_RED_SIZE, &r) &&
+                            eglGetConfigAttrib(display_, cfg, EGL_GREEN_SIZE, &g) &&
+                            eglGetConfigAttrib(display_, cfg, EGL_BLUE_SIZE, &b) &&
+                            eglGetConfigAttrib(display_, cfg, EGL_DEPTH_SIZE, &d) &&
+                            r == 8 && g == 8 && b == 8 && d == 0) {
+                            config_ = supportedConfigs[i];
+                            break;
+                        }
+                    }
+                    if (i == numConfigs) {
+                        config_ = supportedConfigs[0];
+                    }
+
+                    if (config_ == nullptr) {
+                        LOG_E("Failed to initialize EGLConfig");
+                        break;
+                    }
+
+                    eglBindAPI(EGL_OPENGL_ES_API);
+                    const EGLint ctx_attribs[] = {
+                            EGL_CONTEXT_CLIENT_VERSION, 3, EGL_NONE
+                    };
+
+                    surface_ = eglCreateWindowSurface(display_, config_, android_app_->window,
+                                                      nullptr);
+                    if (!surface_) {
+                        LOG_E("Failed to create render surface");
+                        break;
+                    }
+
+                    context_ = eglCreateContext(display_, config_, nullptr, ctx_attribs);
+                    if (!context_) {
+                        LOG_E("Failed to create OpenGL ES context");
+                        break;
+                    }
+
+                    LOG_I("Created OpenGL ES context %p", context_);
                 }
 
                 if (eglMakeCurrent(display_, surface_, surface_, context_) == EGL_FALSE) {
@@ -236,12 +247,24 @@ void IApplication::handleCmdCallback(android_app* app, int32_t cmd) {
                 windowWidth_ = ANativeWindow_getWidth(android_app_->window);
                 windowHeight_ = ANativeWindow_getHeight(android_app_->window);
 
-                LOG_I("Created OpenGL ES context %p", context_);
+                OnWindowCreate();
             }
             break;
         case APP_CMD_TERM_WINDOW:
             LOG_I("APP_CMD_TERM_WINDOW()");
             terminateWindow();
+            break;
+        case APP_CMD_DESTROY:
+            LOG_I("APP_CMD_DESTROY()");
+            terminateWindow();
+
+            // Manually destroy OpenGLES context and display
+            if (display_ != EGL_NO_DISPLAY && context_ != EGL_NO_CONTEXT) {
+                eglDestroyContext(display_, context_);
+            }
+            eglTerminate(display_);
+            context_ = EGL_NO_CONTEXT;
+            display_ = EGL_NO_DISPLAY;
             break;
         default:
             break;
