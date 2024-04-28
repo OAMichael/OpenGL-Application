@@ -55,7 +55,8 @@ void IApplication::createWindow(const WindowCreateInfo& winInfo) {
         return;
     }
     glfwMakeContextCurrent(window_);
-    
+    glfwSwapInterval(0);
+
     glfwSetFramebufferSizeCallback(window_, framebufferSizeCallbackStatic);
     glfwSetMouseButtonCallback(window_, mouseCallbackStatic);
     glfwSetCursorPosCallback(window_, cursorCallbackStatic);

@@ -62,17 +62,11 @@ void PotentialApp::OnRenderFrame() {
         ++frameAfterInit_;
         auto& modelShader = resourceManager->getShader(modelShaderHandle_);
 
-        resourceManager->bindFramebuffer(modelFramebufferHandle_);
-
         this->showFPS();
 
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
-#ifdef __ANDROID__
-        glClearDepthf(1.0);
-#else
         glClearDepth(1.0);
-#endif
 
         Camera_.updateMatrices();
 
@@ -81,25 +75,10 @@ void PotentialApp::OnRenderFrame() {
         ubo.proj = Camera_.getProj();
         ubo.model = glm::mat4(1.0f);
 
-        resourceManager->updateBuffer("Matrices", (const unsigned char*)&ubo, sizeof(ubo));
+        //resourceManager->updateBuffer("Matrices", (const unsigned char*)&ubo, sizeof(ubo));
 
-        modelShader.use();
-        modelShader.setVec3("uCameraWorldPos", Camera_.getPosition());
-
-#ifndef __ANDROID__
-        glPolygonMode(GL_FRONT_AND_BACK, IsWireframe_ ? GL_LINE : GL_FILL);
-#endif
-        for (auto& model : Models_) {
-            model.draw(modelShader);
-        }
-#ifndef __ANDROID__
-        glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-#endif
-
-        sceneManager->drawEnvironment();
-        sceneManager->performPostProcess(modelFramebufferTextureHandle_);
-        sceneManager->drawToDefaultFramebuffer(sceneManager->getPostProcessTextureHandle());
-        sceneManager->drawText("Damaged Helmet", 10.0f, windowHeight_ - 30.0f, 0.7f, glm::vec3(1.0f, 0.0f, 0.0f));
+        //sceneManager->drawEnvironment();
+        sceneManager->drawSDFScene(glm::inverse(Camera_.getView()), windowWidth_, windowHeight_, frameAfterInit_);
 
         if (frameAfterInit_ < 100) {
             glEnable(GL_BLEND);
@@ -110,7 +89,7 @@ void PotentialApp::OnRenderFrame() {
     else {
         sceneManager->drawPreviewScreen(previewTextureHandle_);
         if (NeedInit_) {
-            this->initModels();
+            //this->initModels();
             this->initLights();
             this->initRender();
             this->initCamera();
@@ -559,6 +538,8 @@ void PotentialApp::initRender() {
 
     sceneManager->initializeFreeType(fileManager->getAbsolutePath("fonts://arial.ttf"));
     sceneManager->setTextProjectionMatrix(glm::ortho(0.0f, (float)windowWidth_, 0.0f, (float)windowHeight_));
+
+    sceneManager->initializeSDFScene();
 }
 
 

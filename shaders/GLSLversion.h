@@ -1,4 +1,4 @@
-#version 320 es
+#version 460 core
 
 #ifdef GL_ES
 #if (GL_ES == 1)

@@ -22,6 +22,7 @@ inline constexpr const char* IRRADIANCE_MAP_SHADER_NAME		= "Irradiance_Map";
 inline constexpr const char* PREFILTER_HDR_SHADER_NAME		= "Prefilter_HDR";
 inline constexpr const char* BRDF_LUT_SHADER_NAME			= "BRDF_LUT";
 inline constexpr const char* PREVIEW_SCREEN_SHADER_NAME		= "Preview_Screen";
+inline constexpr const char* SDF_SCENE_SHADER_NAME			= "SDF_Scene_Shader";
 inline constexpr const char* BACKGROUND_2D_TEXTURE_NAME		= "BACKGROUND_2D_TEXTURE";
 inline constexpr const char* SKYBOX_TEXTURE_NAME			= "SKYBOX_TEXTURE";
 inline constexpr const char* EQUIRECTANGULAR_TEXTURE_NAME	= "EQUIRECTANGULAR_TEXTURE";
@@ -108,8 +109,8 @@ public:
 	inline void setEnableBlur(bool enabled = true) { postProcessInfo_.enableBlur = enabled; }
 	inline void setEnableBloom(bool enabled = true) { postProcessInfo_.enableBloom = enabled; }
 
-	inline bool getEnableBlur() { return postProcessInfo_.enableBlur; };
-	inline bool getEnableBloom() { return postProcessInfo_.enableBloom; };
+	inline bool getEnableBlur() const { return postProcessInfo_.enableBlur; };
+	inline bool getEnableBloom() const { return postProcessInfo_.enableBloom; };
 
 	void createPostProcess(const PostProcessInfo& ppi);
 	void performPostProcess(const Resources::ResourceHandle inputTextureHandle);
@@ -131,6 +132,9 @@ public:
 
 	void createPreviewScreen();
 	void drawPreviewScreen(const Resources::ResourceHandle textureHandle, const float alpha = 1.0f);
+
+	void initializeSDFScene();
+	void drawSDFScene(const glm::mat4& invCameraMatrix, const float winWidth, const float winHeight, const float time);
 
 	void cleanUp();
 
@@ -200,6 +204,7 @@ private:
 	Resources::ResourceHandle bloomFinalShaderHandle_;
 	Resources::ResourceHandle textRenderingShaderHandle_;
 	Resources::ResourceHandle previewScreenShaderHandle_;
+	Resources::ResourceHandle SDFSceneShaderHandle_;
 
 	void initializeDefaultCube();
 	void drawDefaultCube();

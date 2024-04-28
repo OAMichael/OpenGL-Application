@@ -1131,4 +1131,35 @@ void SceneManager::drawPreviewScreen(const Resources::ResourceHandle textureHand
     drawDefaultQuad();
 }
 
+
+void SceneManager::initializeSDFScene() {
+    initializeDefaultQuad();
+
+    auto resourceManager = Resources::ResourceManager::getInstance();
+    auto fileManager = FileSystem::FileManager::getInstance();
+
+    Resources::ShaderDesc shaderDesc;
+    shaderDesc.name = SDF_SCENE_SHADER_NAME;
+    shaderDesc.uri = "";
+    shaderDesc.vertFilename = fileManager->getAbsolutePath("shaders://PostProcess/FullscreenQuad.vert");
+    shaderDesc.fragFilename = fileManager->getAbsolutePath("shaders://SDF/SDFScene.frag");
+
+    auto& SDFShader = resourceManager->createShader(shaderDesc);
+    SDFSceneShaderHandle_ = SDFShader.handle;
+    SDFShader.use();
+}
+
+void SceneManager::drawSDFScene(const glm::mat4& invCameraMatrix, const float winWidth, const float winHeight, const float time) {
+    auto resourceManager = Resources::ResourceManager::getInstance();
+
+    auto& SDFShader = resourceManager->getShader(SDFSceneShaderHandle_);
+    SDFShader.use();
+    SDFShader.setMat4("invCameraMatrix", invCameraMatrix);
+    SDFShader.setFloat("windowWidth", winWidth);
+    SDFShader.setFloat("windowHeight", winHeight);
+    SDFShader.setFloat("time", time);
+
+    drawDefaultQuad();
+}
+
 }
