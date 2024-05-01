@@ -63,6 +63,34 @@ float sdfOpCompl(float d) {
 }
 
 
+/*
+ *  Infinite repetition of a shape
+ *  Produces position vector corresponding to infinite repetition
+ *  Parameters:
+ *      p - input position
+ *      s - stride along each axis
+ */
+vec3 sdfOpInfRepeatPos(vec3 p, vec3 s) {
+    vec3 q = p - s * round(p / s);
+    return q;
+}
+
+
+/*
+ *  Limited repetition of a shape
+ *  Produces position vector corresponding to limited repetition
+ *  Parameters:
+ *      p - input position
+ *      s - stride along each axis
+ *      l - repetition count in negative axis directions
+ *      h - repetition count in positive axis directions
+ */
+vec3 sdfOpLimRepeatPos(vec3 p, vec3 s, ivec3 l, ivec3 h) {
+    vec3 q = p - s * clamp(round(p / s), min(-l + 1, ivec3(0)), max(ivec3(0), h - 1));
+    return q;
+}
+
+
 /// ==================== Signed distance functions operations with materials ===================== ///
 
 

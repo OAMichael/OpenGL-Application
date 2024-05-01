@@ -1144,6 +1144,21 @@ void SceneManager::initializeSDFScene() {
     shaderDesc.vertFilename = fileManager->getAbsolutePath("shaders://PostProcess/FullscreenQuad.vert");
     shaderDesc.fragFilename = fileManager->getAbsolutePath("shaders://SDF/SDFScene.frag");
 
+    Resources::SamplerDesc samplerDesc;
+    samplerDesc.name = "RGBA_Noise_Sampler";
+    samplerDesc.uri = "";
+    samplerDesc.wrapR = Resources::Sampler::WrapMode::REPEAT;
+    samplerDesc.wrapS = Resources::Sampler::WrapMode::REPEAT;
+    samplerDesc.wrapT = Resources::Sampler::WrapMode::REPEAT;
+    samplerDesc.minFilter = Resources::Sampler::Filter::NEAREST_MIPMAP_LINEAR;
+    samplerDesc.magFilter = Resources::Sampler::Filter::LINEAR;
+
+    auto& noiseSampler = resourceManager->createSampler(samplerDesc);
+
+    auto& noiseTexture = resourceManager->createTexture(fileManager->getAbsolutePath("textures://rgbanoise.png"), false, &noiseSampler);
+    rgbaNoiseTextureHandle_ = noiseTexture.handle;
+    resourceManager->generateMipMaps(rgbaNoiseTextureHandle_);
+
     auto& SDFShader = resourceManager->createShader(shaderDesc);
     SDFSceneShaderHandle_ = SDFShader.handle;
     SDFShader.use();
@@ -1154,10 +1169,13 @@ void SceneManager::drawSDFScene(const glm::mat4& invCameraMatrix, const float wi
 
     auto& SDFShader = resourceManager->getShader(SDFSceneShaderHandle_);
     SDFShader.use();
+    SDFShader.setInt("uRGBANoiseSampler", 0);
     SDFShader.setMat4("invCameraMatrix", invCameraMatrix);
     SDFShader.setFloat("windowWidth", winWidth);
     SDFShader.setFloat("windowHeight", winHeight);
     SDFShader.setFloat("time", time);
+
+    resourceManager->bindTexture(rgbaNoiseTextureHandle_);
 
     drawDefaultQuad();
 }

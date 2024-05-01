@@ -7,6 +7,8 @@
 
 //#define ANTIALIASING 2
 
+uniform sampler2D uRGBANoiseSampler;
+
 uniform mat4 invCameraMatrix;
 uniform float windowWidth;
 uniform float windowHeight;
@@ -14,17 +16,15 @@ uniform float time;
 
 out vec4 outColor;
 
-const uint DIRECTIONAL_LIGHTS_COUNT = 3;
+const uint DIRECTIONAL_LIGHTS_COUNT = 1;
 const uint POINT_LIGHS_COUNT = 1;
 
 vec3 directionalLigthDirs[DIRECTIONAL_LIGHTS_COUNT] = {
-    vec3(0.5f, 0.7f, 0.5f),
-    vec3(-0.5f, 0.4f, 0.5f),
-    vec3(-0.5f, 0.3f, -0.5f)
+    vec3(0.5f, 0.7f, 0.5f)
 };
 
 vec3 pointLightPositions[POINT_LIGHS_COUNT] = {
-    vec3(-5.0f, 5.0f, 0.0f)
+    vec3(1.0f, 5.0f, 25.0f)
 };
 
 
@@ -32,106 +32,370 @@ const uint INVALID_MAT_ID = 0;
 const uint PLANE_MAT_ID = 1;
 const uint HOUSE_CASING_MAT_ID = 2;
 const uint HOUSE_ROOF_MAT_ID = 3;
+const uint HOUSE_WINDOW_MAT_ID = 4;
+const uint TEMPLE_MAT_ID = 5;
 
 struct Material {
-    vec3 basecolor;
+    vec4 basecolor;
+    bool opaque;
+    float Kd;
+    float Ks;
 };
 
 Material materialPool[] = {
-    { vec3(0.0f) },     // Invalid
-    { vec3(0.0f) },     // Special case
-    { vec3(1.2f, 0.5f, 0.3f) },
-    { vec3(0.2f, 0.6f, 0.3f) }
+    { vec4(0.0f), true, 1.0f, 0.0f },                           // Invalid
+    { vec4(0.0f), true, 0.8f, 0.2f },                           // Special case
+    { vec4(1.2f, 0.5f, 0.3f, 1.0f), true, 0.8f, 0.2f },         // House casing
+    { vec4(0.2f, 0.1f, 0.1f, 1.0f), true, 0.95f, 0.05f },       // House roof
+    { vec4(0.1f, 0.2f, 0.8f, 0.3f), false, 0.6f, 0.9f },        // Windows
+    { vec4(0.76f, 0.7f, 0.5f, 1.0f), true, 1.0f, 0.0f }         // Temple
 };
 
-// Temporary define two functions for better performance
-float getSceneSDF(vec3 pos) {
-    float plane = sdfPlane(pos, vec3(0.0f, 1.0f, 0.0f), 0.0f);
 
-    float outerRoundBox = sdfBox(pos, vec3(0.0f, 3.0f, 0.0f), vec3(1.0f, 6.0f, 5.0f));
-    float innerBox = sdfBox(pos, vec3(0.0f, 1.9f, 0.0f), vec3(100000.0f, 4.2f, 3.2f));
+vec4 rgbaNoise(vec2 uv) {
+    return textureLod(uRGBANoiseSampler, uv, 0.0);
+}
+
+float fullNoise(vec3 x) {
+    vec3 p = floor(x);
+    vec3 f = fract(x);
+	f = f * f * (3.0 - 2.0 * f);
+	vec2 uv = ((p.xy + vec2(37.0, 17.0) * p.z) + f.xy + 0.5f) / 256.0f;
+	vec2 rg = rgbaNoise(uv).xy;
+	return mix(rg.x, rg.y, f.z);
+}
+
+float bumpMap4(vec3 pos) {
+    float n = 0.0;
+    n += 1.000 * fullNoise(pos * 1.0);
+    n += 0.500 * fullNoise(pos * 2.0);
+    n += 0.250 * fullNoise(pos * 4.0);
+    n += 0.125 * fullNoise(pos * 8.0);
+    return n;
+}
+
+float bumpMap6(vec3 pos) {
+    float n = 0.0;
+    n += 1.00000 * fullNoise(pos * 1.0);
+    n += 0.50000 * fullNoise(pos * 2.0);
+    n += 0.25000 * fullNoise(pos * 4.0);
+    n += 0.12500 * fullNoise(pos * 8.0);
+    n += 0.06250 * fullNoise(pos * 16.0);
+    n += 0.03125 * fullNoise(pos * 32.0);
+    return n;
+}
+
+vec3 performBumpMap(vec3 position, vec3 normal, float e, float b, float r) {
+    float ref = bumpMap6(r * position);
+    vec3 gradient = b * (ref - vec3(bumpMap6(r * vec3(position.x + e, position.y, position.z)),
+                                    bumpMap6(r * vec3(position.x, position.y + e, position.z)),
+                                    bumpMap6(r * vec3(position.x, position.y, position.z + e)))) / e;
+
+    vec3 tgrad = gradient - normal * dot(normal, gradient);
+    return normalize(normal - tgrad);
+}
+
+
+// Temporary define three functions for better performance
+
+float SDF_house(vec3 pos) {
+    float outerRoundBox = sdfBox(pos, vec3(5.0f, 3.0f, 0.0f), vec3(1.0f, 6.0f, 5.0f));
+    float innerBox = sdfBox(pos, vec3(5.0f, 1.9f, 0.0f), vec3(100000.0f, 4.2f, 3.2f));
 
     float arc = sdfOpDiff(outerRoundBox, innerBox);
-    float cylinder = sdfCylinder(pos, vec3(0.0f, 3.4f, 0.0f), vec3(1.0f, 0.0f, 0.0f), 1.6f);
+    float cylinder = sdfCylinder(pos, vec3(5.0f, 3.4f, 0.0f), vec3(1.0f, 0.0f, 0.0f), 1.6f);
     arc = sdfOpDiff(arc, cylinder);
 
-    float wall1 = sdfBox(pos, vec3(0.0f, 3.0f, 6.5f), vec3(1.0f, 6.0f, 8.0f));
-    wall1 = sdfOpDiff(wall1, sdfBox(pos, vec3(0.0f, 3.4f, 7.0f), vec3(100000.0f, 3.0f, 3.0f)));
+    float wall1 = sdfBox(pos, vec3(5.0f, 3.0f, 6.5f), vec3(1.0f, 6.0f, 8.0f));
+    wall1 = sdfOpDiff(wall1, sdfBox(pos, vec3(5.0f, 3.4f, 7.0f), vec3(100000.0f, 3.0f, 3.0f)));
 
-    float wall2 = sdfBox(pos, vec3(0.0f, 3.0f, -6.5f), vec3(1.0f, 6.0f, 8.0f));
-    wall2 = sdfOpDiff(wall2, sdfBox(pos, vec3(0.0f, 3.4f, -7.0f), vec3(100000.0f, 3.0f, 3.0f)));
+    float glass1 = sdfBox(pos, vec3(5.0f, 3.4f, 7.0f), vec3(0.5f, 3.0f, 3.0f));
+    wall1 = sdfOpUnion(wall1, glass1);
 
-    float wall3 = sdfBox(pos, vec3(-5.0f, 3.0f, 10.0f), vec3(10.0f, 6.0f, 1.0f));
-    float wall4 = sdfBox(pos, vec3(-5.0f, 3.0f, -10.0f), vec3(10.0f, 6.0f, 1.0f));
-    float wall5 = sdfBox(pos, vec3(-10.5f, 3.0f, 0.0f), vec3(1.0f, 6.0f, 21.0f));
+    float wall2 = sdfBox(pos, vec3(5.0f, 3.0f, -6.5f), vec3(1.0f, 6.0f, 8.0f));
+    wall2 = sdfOpDiff(wall2, sdfBox(pos, vec3(5.0f, 3.4f, -7.0f), vec3(100000.0f, 3.0f, 3.0f)));
+
+    float glass2 = sdfBox(pos, vec3(5.0f, 3.4f, -7.0f), vec3(0.5f, 3.0f, 3.0f));
+    wall2 = sdfOpUnion(wall2, glass2);
+
+    float wall3 = sdfBox(pos, vec3(0.0f, 3.0f, 10.0f), vec3(10.0f, 6.0f, 1.0f));
+    float wall4 = sdfBox(pos, vec3(0.0f, 3.0f, -10.0f), vec3(10.0f, 6.0f, 1.0f));
+    float wall5 = sdfBox(pos, vec3(-5.0f, 3.0f, 0.0f), vec3(1.0f, 6.0f, 21.0f));
     
-    float roof = sdfTriPrism(pos, vec3(-5.25f, 10.0f, 0.0f), vec2(8.0f, 12.0f));
+    vec3 scale = vec3(3.7f, 1.0f, 1.0f);
+    mat3 rotation = mat3(vec3(0, 0, 1), vec3(0, 1, 0), vec3(-1, 0, 0));
+    float roof = sdfTriPrism(rotation * (pos / scale), vec3(0.0f, 7.0f, 0.0f), vec2(4.0f, 23.0f)) + 0.02 * sin(10 * pos.z);
 
-    float house = sdfOpUnion(arc,
+    float house =   sdfOpUnion(arc,
                     sdfOpUnion(wall1,
-                        sdfOpUnion(wall2,
-                            sdfOpUnion(wall3,
-                                sdfOpUnion(wall4,
-                                    sdfOpUnion(wall5, roof))))));
+                    sdfOpUnion(wall2,
+                    sdfOpUnion(wall3,
+                    sdfOpUnion(wall4,
+                    sdfOpUnion(wall5, roof))))));
 
-    float wholeSolidScene = sdfOpUnion(plane, house);
+    return house;
+}
+
+ObjectDesc SDF_houseMatOpaque(vec3 pos) {
+    float outerRoundBoxDist = sdfBox(pos, vec3(5.0f, 3.0f, 0.0f), vec3(1.0f, 6.0f, 5.0f));
+    ObjectDesc outerRoundBox = ObjectDesc(outerRoundBoxDist, HOUSE_CASING_MAT_ID);
+
+    float innerBoxDist = sdfBox(pos, vec3(5.0f, 1.9f, 0.0f), vec3(100000.0f, 4.2f, 3.2f));
+    ObjectDesc innerBox = ObjectDesc(innerBoxDist, HOUSE_CASING_MAT_ID);
+
+    ObjectDesc arc = sdfOpDiffMat(outerRoundBox, innerBox);
+
+    float cylinderDist = sdfCylinder(pos, vec3(5.0f, 3.4f, 0.0f), vec3(1.0f, 0.0f, 0.0f), 1.6f);
+    ObjectDesc cylinder = ObjectDesc(cylinderDist, HOUSE_CASING_MAT_ID);
+
+    arc = sdfOpDiffMat(arc, cylinder);
+
+    float wall1Dist = sdfBox(pos, vec3(5.0f, 3.0f, 6.5f), vec3(1.0f, 6.0f, 8.0f));
+    ObjectDesc wall1 = ObjectDesc(wall1Dist, HOUSE_CASING_MAT_ID);
+
+    float win1Dist = sdfBox(pos, vec3(5.0f, 3.4f, 7.0f), vec3(100000.0f, 3.0f, 3.0f));
+    ObjectDesc win1 = ObjectDesc(win1Dist, HOUSE_CASING_MAT_ID);
+
+    wall1 = sdfOpDiffMat(wall1, win1);
+
+    float wall2Dist = sdfBox(pos, vec3(5.0f, 3.0f, -6.5f), vec3(1.0f, 6.0f, 8.0f));
+    ObjectDesc wall2 = ObjectDesc(wall2Dist, HOUSE_CASING_MAT_ID);
+
+    float win2Dist = sdfBox(pos, vec3(5.0f, 3.4f, -7.0f), vec3(100000.0f, 3.0f, 3.0f));
+    ObjectDesc win2 = ObjectDesc(win2Dist, HOUSE_CASING_MAT_ID);
+
+    wall2 = sdfOpDiffMat(wall2, win2);
+
+    float wall3Dist = sdfBox(pos, vec3(0.0f, 3.0f, 10.0f), vec3(10.0f, 6.0f, 1.0f));
+    ObjectDesc wall3 = ObjectDesc(wall3Dist, HOUSE_CASING_MAT_ID);
+
+    float wall4Dist = sdfBox(pos, vec3(0.0f, 3.0f, -10.0f), vec3(10.0f, 6.0f, 1.0f));
+    ObjectDesc wall4 = ObjectDesc(wall4Dist, HOUSE_CASING_MAT_ID);
+
+    float wall5Dist = sdfBox(pos, vec3(-5.0f, 3.0f, 0.0f), vec3(1.0f, 6.0f, 21.0f));
+    ObjectDesc wall5 = ObjectDesc(wall5Dist, HOUSE_CASING_MAT_ID);
+
+    vec3 scale = vec3(3.7f, 1.0f, 1.0f);
+    mat3 rotation = mat3(vec3(0, 0, 1), vec3(0, 1, 0), vec3(-1, 0, 0));
+    float roofDist = sdfTriPrism(rotation * (pos / scale), vec3(0.0f, 7.0f, 0.0f), vec2(4.0f, 23.0f)) + 0.02 * sin(10 * pos.z);
+    ObjectDesc roof = ObjectDesc(roofDist, HOUSE_ROOF_MAT_ID);
+
+    ObjectDesc house =  sdfOpUnionMat(arc,
+                        sdfOpUnionMat(wall1,
+                        sdfOpUnionMat(wall2,
+                        sdfOpUnionMat(wall3,
+                        sdfOpUnionMat(wall4,
+                        sdfOpUnionMat(wall5, roof))))));
+
+    return house;
+}
+
+ObjectDesc SDF_houseMat(vec3 pos) {
+    float outerRoundBoxDist = sdfBox(pos, vec3(5.0f, 3.0f, 0.0f), vec3(1.0f, 6.0f, 5.0f));
+    ObjectDesc outerRoundBox = ObjectDesc(outerRoundBoxDist, HOUSE_CASING_MAT_ID);
+
+    float innerBoxDist = sdfBox(pos, vec3(5.0f, 1.9f, 0.0f), vec3(100000.0f, 4.2f, 3.2f));
+    ObjectDesc innerBox = ObjectDesc(innerBoxDist, HOUSE_CASING_MAT_ID);
+
+    ObjectDesc arc = sdfOpDiffMat(outerRoundBox, innerBox);
+    
+    float cylinderDist = sdfCylinder(pos, vec3(5.0f, 3.4f, 0.0f), vec3(1.0f, 0.0f, 0.0f), 1.6f);
+    ObjectDesc cylinder = ObjectDesc(cylinderDist, HOUSE_CASING_MAT_ID);
+
+    arc = sdfOpDiffMat(arc, cylinder);
+
+    float wall1Dist = sdfBox(pos, vec3(5.0f, 3.0f, 6.5f), vec3(1.0f, 6.0f, 8.0f));
+    ObjectDesc wall1 = ObjectDesc(wall1Dist, HOUSE_CASING_MAT_ID);
+
+    float win1Dist = sdfBox(pos, vec3(5.0f, 3.4f, 7.0f), vec3(100000.0f, 3.0f, 3.0f));
+    ObjectDesc win1 = ObjectDesc(win1Dist, HOUSE_CASING_MAT_ID);
+
+    wall1 = sdfOpDiffMat(wall1, win1);
+
+    float glass1Dist = sdfBox(pos, vec3(5.0f, 3.4f, 7.0f), vec3(0.5f, 3.0f, 3.0f));
+    ObjectDesc glass1 = ObjectDesc(glass1Dist, HOUSE_WINDOW_MAT_ID);
+
+    wall1 = sdfOpUnionMat(wall1, glass1);
+
+    float wall2Dist = sdfBox(pos, vec3(5.0f, 3.0f, -6.5f), vec3(1.0f, 6.0f, 8.0f));
+    ObjectDesc wall2 = ObjectDesc(wall2Dist, HOUSE_CASING_MAT_ID);
+
+    float win2Dist = sdfBox(pos, vec3(5.0f, 3.4f, -7.0f), vec3(100000.0f, 3.0f, 3.0f));
+    ObjectDesc win2 = ObjectDesc(win2Dist, HOUSE_CASING_MAT_ID);
+
+    wall2 = sdfOpDiffMat(wall2, win2);
+
+    float glass2Dist = sdfBox(pos, vec3(5.0f, 3.4f, -7.0f), vec3(0.5f, 3.0f, 3.0f));
+    ObjectDesc glass2 = ObjectDesc(glass2Dist, HOUSE_WINDOW_MAT_ID);
+
+    wall2 = sdfOpUnionMat(wall2, glass2);
+
+    float wall3Dist = sdfBox(pos, vec3(0.0f, 3.0f, 10.0f), vec3(10.0f, 6.0f, 1.0f));
+    ObjectDesc wall3 = ObjectDesc(wall3Dist, HOUSE_CASING_MAT_ID);
+
+    float wall4Dist = sdfBox(pos, vec3(0.0f, 3.0f, -10.0f), vec3(10.0f, 6.0f, 1.0f));
+    ObjectDesc wall4 = ObjectDesc(wall4Dist, HOUSE_CASING_MAT_ID);
+
+    float wall5Dist = sdfBox(pos, vec3(-5.0f, 3.0f, 0.0f), vec3(1.0f, 6.0f, 21.0f));
+    ObjectDesc wall5 = ObjectDesc(wall5Dist, HOUSE_CASING_MAT_ID);
+    
+    vec3 scale = vec3(3.7f, 1.0f, 1.0f);
+    mat3 rotation = mat3(vec3(0, 0, 1), vec3(0, 1, 0), vec3(-1, 0, 0));
+    float roofDist = sdfTriPrism(rotation * (pos / scale), vec3(0.0f, 7.0f, 0.0f), vec2(4.0f, 23.0f)) + 0.02 * sin(10 * pos.z);
+    ObjectDesc roof = ObjectDesc(roofDist, HOUSE_ROOF_MAT_ID);
+
+    ObjectDesc house =  sdfOpUnionMat(arc,
+                        sdfOpUnionMat(wall1,
+                        sdfOpUnionMat(wall2,
+                        sdfOpUnionMat(wall3,
+                        sdfOpUnionMat(wall4,
+                        sdfOpUnionMat(wall5, roof))))));
+
+    return house;
+}
+
+
+float SDF_column(vec3 pos) {
+    float base = sdfRoundBox(pos, vec3(0.0f, 0.05f, 0.0f), vec3(1.0f, 0.1f, 1.0f), 0.02f);
+    float cyl1 = sdfCappedCone(pos, vec3(0.0f, 0.25f, 0.0f), 0.3f, 0.4f, 0.4f);
+    float cone1 = sdfCappedCone(pos, vec3(0.0f, 0.5f, 0.0f), 0.2f, 0.4f, 0.3f);
+    float cyl2 = sdfCappedCone(pos, vec3(0.0f, 2.6f, 0.0f), 4.0f, 0.27f, 0.27f);
+    float cone2 = sdfCappedCone(pos, vec3(0.0f, 4.7f, 0.0f), 0.2f, 0.3f, 0.4f);
+
+    cyl2 -= 0.05 * pow(0.2 + 0.2 * sin(atan(pos.x, pos.z) * 16.0), 2.0);
+
+    float column =  sdfOpUnion(base,
+                    sdfOpUnion(cyl1,
+                    sdfOpUnion(cone1,
+                    sdfOpUnion(cyl2, cone2))));
+
+    return column;
+}
+
+float SDF_temple(vec3 pos) {
+    float stair1 = sdfBox(pos, vec3(0.0f, 0.35f, 0.0f), vec3(14.0f, 0.7f, 9.5f));
+    float stair2 = sdfBox(pos, vec3(0.0f, 1.05f, 0.0f), vec3(13.0f, 0.7f, 8.5f));
+    float stair3 = sdfBox(pos, vec3(0.0f, 1.75f, 0.0f), vec3(12.0f, 0.7f, 7.5f));
+
+    if (stair1 < 0.1) {
+        stair1 -= 0.02 * smoothstep(0.5, 1.0, bumpMap4(pos.zxy));
+        stair1 -= 0.01 * smoothstep(0.4, 0.8, bumpMap4(pos * 3.0));
+        stair1 += 0.005;
+    }
+
+    if (stair2 < 0.1) {
+        stair2 -= 0.02 * smoothstep(0.5, 1.0, bumpMap4(pos.zxy));
+        stair2 -= 0.01 * smoothstep(0.4, 0.8, bumpMap4(pos * 3.0));
+        stair2 += 0.005;
+    }
+
+    if (stair3 < 0.1) {
+        stair3 -= 0.02 * smoothstep(0.5, 1.0, bumpMap4(pos.zxy));
+        stair3 -= 0.01 * smoothstep(0.4, 0.8, bumpMap4(pos * 3.0));
+        stair3 += 0.005;
+    }
+
+    vec3 leftBottomColumn = vec3(5.25f, 2.1f, 3.0f);
+    vec3 rightUpperColumn = vec3(-5.25f, 2.1f, -3.0f);
+
+    vec3 rep1 = sdfOpLimRepeatPos(pos - leftBottomColumn, vec3(1.5f, 0.0f, 0.0f), ivec3(8, 0, 0), ivec3(0));
+    vec3 rep2 = sdfOpLimRepeatPos(pos - leftBottomColumn, vec3(0.0f, 0.0f, 1.5f), ivec3(0, 0, 5), ivec3(0));
+    vec3 rep3 = sdfOpLimRepeatPos(pos - rightUpperColumn, vec3(1.5f, 0.0f, 0.0f), ivec3(0), ivec3(7, 0, 0));
+    vec3 rep4 = sdfOpLimRepeatPos(pos - rightUpperColumn, vec3(0.0f, 0.0f, 1.5f), ivec3(0), ivec3(0, 0, 4));
+
+    float column1 = SDF_column(rep1);
+    float column2 = SDF_column(rep2);
+    float column3 = SDF_column(rep3);
+    float column4 = SDF_column(rep4);
+
+    float colcap1 = sdfBox(rep1, vec3(0.0f, 4.85f, 0.0f), vec3(1.0f, 0.1f, 1.0f));
+    float colcap2 = sdfBox(rep2, vec3(0.0f, 4.85f, 0.0f), vec3(1.0f, 0.1f, 1.0f));
+    float colcap3 = sdfBox(rep3, vec3(0.0f, 4.85f, 0.0f), vec3(1.0f, 0.1f, 1.0f));
+    float colcap4 = sdfBox(rep4, vec3(0.0f, 4.85f, 0.0f), vec3(1.0f, 0.1f, 1.0f));
+
+    column1 = sdfOpUnion(column1, colcap1);
+    column2 = sdfOpUnion(column2, colcap2);
+    column3 = sdfOpUnion(column3, colcap3);
+    column4 = sdfOpUnion(column4, colcap4);
+
+    float roofrect1 = sdfBoxFrame(pos, vec3(0.0f, 7.45f, 0.0f), vec3(11.3f, 0.9f, 6.8f), 0.9f);
+    float roofrect2 = sdfBoxFrame(pos, vec3(0.0f, 7.35f, 0.0f), vec3(11.4f, 0.1f, 6.9f), 0.1f);
+    vec3 scale1 = vec3(1.0f, 1.0f, 8.2f);
+    float roofprism1 = sdfTriPrism(pos / scale1, vec3(0.0f, 8.15f, 0.0f) / scale1, vec2(1.0f, 11.6f));
+
+    // Front and back
+    vec3 reporn1 = sdfOpLimRepeatPos(pos - vec3(5.58f, 7.65f, 3.375f), vec3(11.16f, 0.0f, 1.105f), ivec3(2, 0, 7), ivec3(0));
+    vec3 reporn2 = sdfOpLimRepeatPos(pos - vec3(5.58f, 7.65f, 3.315f), vec3(11.16f, 0.0f, 1.105f), ivec3(2, 0, 7), ivec3(0));
+    vec3 reporn3 = sdfOpLimRepeatPos(pos - vec3(5.58f, 7.65f, 3.255f), vec3(11.16f, 0.0f, 1.105f), ivec3(2, 0, 7), ivec3(0));
+
+    float rooforn1 = sdfBox(reporn1, vec3(0.0f, 0.0f, 0.0f), vec3(0.2f, 0.5f, 0.05f));
+    float rooforn2 = sdfBox(reporn2, vec3(0.0f, 0.0f, 0.0f), vec3(0.2f, 0.5f, 0.05f));
+    float rooforn3 = sdfBox(reporn3, vec3(0.0f, 0.0f, 0.0f), vec3(0.2f, 0.5f, 0.05f));
+
+    // Right and left
+    vec3 reporn4 = sdfOpLimRepeatPos(pos - vec3(5.625f, 7.65f, 3.33f), vec3(1.113f, 0.0f, 6.66f), ivec3(11, 0, 2), ivec3(0));
+    vec3 reporn5 = sdfOpLimRepeatPos(pos - vec3(5.565f, 7.65f, 3.33f), vec3(1.113f, 0.0f, 6.66f), ivec3(11, 0, 2), ivec3(0));
+    vec3 reporn6 = sdfOpLimRepeatPos(pos - vec3(5.505f, 7.65f, 3.33f), vec3(1.113f, 0.0f, 6.66f), ivec3(11, 0, 2), ivec3(0));
+
+    float rooforn4 = sdfBox(reporn4, vec3(0.0f, 0.0f, 0.0f), vec3(0.05f, 0.5f, 0.2f));
+    float rooforn5 = sdfBox(reporn5, vec3(0.0f, 0.0f, 0.0f), vec3(0.05f, 0.5f, 0.2f));
+    float rooforn6 = sdfBox(reporn6, vec3(0.0f, 0.0f, 0.0f), vec3(0.05f, 0.5f, 0.2f));
+
+    float roof =    sdfOpUnion(rooforn1,
+                    sdfOpUnion(rooforn2,
+                    sdfOpUnion(rooforn3,
+                    sdfOpUnion(rooforn4,
+                    sdfOpUnion(rooforn5,
+                    sdfOpUnion(rooforn6,
+                    sdfOpUnion(roofrect1,
+                    sdfOpUnion(roofrect2, roofprism1))))))));
+
+    float temple =  sdfOpUnion(roof,
+                    sdfOpUnion(stair1,
+                    sdfOpUnion(stair2,
+                    sdfOpUnion(stair3,
+                    sdfOpUnion(column1,
+                    sdfOpUnion(column2,
+                    sdfOpUnion(column3, column4)))))));
+
+    return temple;
+}
+
+
+float getSceneSDF(vec3 pos) {
+    float plane = sdfPlane(pos, vec3(0.0f, 1.0f, 0.0f), 0.0f);
+    float house = SDF_house(pos - vec3(1.0f, 0.0f, 25.0f));
+    float temple = SDF_temple(pos);
+
+    float wholeSolidScene = sdfOpUnion(plane,
+                            sdfOpUnion(house, temple));
+
+    return wholeSolidScene;
+}
+
+ObjectDesc getSceneSDFMatOpaque(vec3 pos) {
+    float planeDist = sdfPlane(pos, vec3(0.0f, 1.0f, 0.0f), 0.0f);
+    ObjectDesc plane = ObjectDesc(planeDist, PLANE_MAT_ID);
+    ObjectDesc house = SDF_houseMatOpaque(pos - vec3(1.0f, 0.0f, 25.0f));
+
+    float templeDist = SDF_temple(pos);
+    ObjectDesc temple = ObjectDesc(templeDist, TEMPLE_MAT_ID);
+
+    ObjectDesc wholeSolidScene =    sdfOpUnionMat(plane,
+                                    sdfOpUnionMat(house, temple));
     return wholeSolidScene;
 }
 
 ObjectDesc getSceneSDFMat(vec3 pos) {
     float planeDist = sdfPlane(pos, vec3(0.0f, 1.0f, 0.0f), 0.0f);
     ObjectDesc plane = ObjectDesc(planeDist, PLANE_MAT_ID);
+    ObjectDesc house = SDF_houseMat(pos - vec3(1.0f, 0.0f, 25.0f));
 
-    float outerRoundBoxDist = sdfBox(pos, vec3(0.0f, 3.0f, 0.0f), vec3(1.0f, 6.0f, 5.0f));
-    ObjectDesc outerRoundBox = ObjectDesc(outerRoundBoxDist, HOUSE_CASING_MAT_ID);
+    float templeDist = SDF_temple(pos);
+    ObjectDesc temple = ObjectDesc(templeDist, TEMPLE_MAT_ID);
 
-    float innerBoxDist = sdfBox(pos, vec3(0.0f, 1.9f, 0.0f), vec3(100000.0f, 4.2f, 3.2f));
-    ObjectDesc innerBox = ObjectDesc(innerBoxDist, HOUSE_CASING_MAT_ID);
-
-    ObjectDesc arc = sdfOpDiffMat(outerRoundBox, innerBox);
-    
-    float cylinderDist = sdfCylinder(pos, vec3(0.0f, 3.4f, 0.0f), vec3(1.0f, 0.0f, 0.0f), 1.6f);
-    ObjectDesc cylinder = ObjectDesc(cylinderDist, HOUSE_CASING_MAT_ID);
-
-    arc = sdfOpDiffMat(arc, cylinder);
-
-    float wall1Dist = sdfBox(pos, vec3(0.0f, 3.0f, 6.5f), vec3(1.0f, 6.0f, 8.0f));
-    ObjectDesc wall1 = ObjectDesc(wall1Dist, HOUSE_CASING_MAT_ID);
-
-    float win1Dist = sdfBox(pos, vec3(0.0f, 3.4f, 7.0f), vec3(100000.0f, 3.0f, 3.0f));
-    ObjectDesc win1 = ObjectDesc(win1Dist, HOUSE_CASING_MAT_ID);
-
-    wall1 = sdfOpDiffMat(wall1, win1);
-
-    float wall2Dist = sdfBox(pos, vec3(0.0f, 3.0f, -6.5f), vec3(1.0f, 6.0f, 8.0f));
-    ObjectDesc wall2 = ObjectDesc(wall2Dist, HOUSE_CASING_MAT_ID);
-
-    float win2Dist = sdfBox(pos, vec3(0.0f, 3.4f, -7.0f), vec3(100000.0f, 3.0f, 3.0f));
-    ObjectDesc win2 = ObjectDesc(win2Dist, HOUSE_CASING_MAT_ID);
-
-    wall2 = sdfOpDiffMat(wall2, win2);
-
-    float wall3Dist = sdfBox(pos, vec3(-5.0f, 3.0f, 10.0f), vec3(10.0f, 6.0f, 1.0f));
-    ObjectDesc wall3 = ObjectDesc(wall3Dist, HOUSE_CASING_MAT_ID);
-
-    float wall4Dist = sdfBox(pos, vec3(-5.0f, 3.0f, -10.0f), vec3(10.0f, 6.0f, 1.0f));
-    ObjectDesc wall4 = ObjectDesc(wall4Dist, HOUSE_CASING_MAT_ID);
-
-    float wall5Dist = sdfBox(pos, vec3(-10.5f, 3.0f, 0.0f), vec3(1.0f, 6.0f, 21.0f));
-    ObjectDesc wall5 = ObjectDesc(wall5Dist, HOUSE_CASING_MAT_ID);
-    
-    float roofDist = sdfTriPrism(pos, vec3(-5.25f, 10.0f, 0.0f), vec2(8.0f, 12.0f));
-    ObjectDesc roof = ObjectDesc(roofDist, HOUSE_ROOF_MAT_ID);
-
-
-    ObjectDesc house = sdfOpUnionMat(arc,
-                            sdfOpUnionMat(wall1,
-                                sdfOpUnionMat(wall2,
-                                    sdfOpUnionMat(wall3,
-                                        sdfOpUnionMat(wall4,
-                                            sdfOpUnionMat(wall5, roof))))));
-
-    ObjectDesc wholeSolidScene = sdfOpUnionMat(plane, house);
+    ObjectDesc wholeSolidScene =    sdfOpUnionMat(plane,
+                                    sdfOpUnionMat(house, temple));
     return wholeSolidScene;
 }
 
@@ -143,9 +407,29 @@ vec3 getPixelDirection(vec2 screenUV) {
     return normalize(rayDir);
 }
 
+vec3 getSkyColor(vec3 rd) {
+    vec3 col = vec3(0.5f, 0.8f, 0.9f) - max(rd.y, 0.0f) * 0.5f;
+    vec2 uv = 1.5f * rd.xz / rd.y;
+    float cl = sin(uv.x) + sin(uv.y);
+    uv *= mat2(0.8f, 0.6f, -0.6f, 0.8f) * 2.1f;
+    cl += 0.5f * (sin(uv.x) + sin(uv.y));
+    col += 0.1f * (-1.0f + 2.0f * smoothstep(-0.1f, 0.1f, cl - 0.4f));
+    col = mix(col, vec3(0.5f, 0.7f, 0.9f), exp(-10.0f * max(rd.y, 0.0f)));
+
+    return col;
+}
+
+vec3 getPlaneColor(vec3 pos) {
+    if ((int(floor(pos.x)) + int(floor(pos.z))) % 2 == 0) {
+        return vec3(0.0f);
+    }
+    return vec3(2.5f);
+}
+
 
 void main() {
     vec3 totalColor = vec3(0.0f);
+
 
 #ifdef ANTIALIASING
     for (uint AAx = 0; AAx < ANTIALIASING; AAx++) {
@@ -160,13 +444,7 @@ void main() {
     ObjectDesc hitObj = rayMarchingMat(ro, rd, 100.0f);
     float dist = hitObj.dist;
     if (dist > 100.0f) {
-        vec3 col = vec3(0.5f, 0.8f, 0.9f) - max(rd.y, 0.0f) * 0.5f;
-        vec2 uv = 1.5f * rd.xz / rd.y;
-        float cl = sin(uv.x) + sin(uv.y);
-        uv *= mat2(0.8f, 0.6f, -0.6f, 0.8f) * 2.1f;
-        cl += 0.5f * (sin(uv.x) + sin(uv.y));
-        col += 0.1f * (-1.0f + 2.0f * smoothstep(-0.1f, 0.1f, cl - 0.4f));
-	    col = mix(col, vec3(0.5f, 0.7f, 0.9f), exp(-10.0f * max(rd.y, 0.0f)));
+        vec3 col = getSkyColor(rd);
 #ifdef ANTIALIASING
         totalColor += col;
         continue;
@@ -180,15 +458,38 @@ void main() {
     vec3 position = ro + rd * dist;
     vec3 normal = getSceneNormal(position);
 
+    if (hitObj.matID == TEMPLE_MAT_ID) {
+        normal = performBumpMap(position, normal, 0.002f, 0.015f, 4.0f);
+    }
+    if (hitObj.matID == HOUSE_CASING_MAT_ID) {
+        normal = performBumpMap(position, normal, 0.025f, 0.025f, 8.0f);
+    }
+    if (hitObj.matID == HOUSE_ROOF_MAT_ID) {
+        normal = performBumpMap(position, normal, 0.002f, 0.015f, 4.0f);
+    }
+
     Material objMaterial = materialPool[hitObj.matID];
 
-    vec3 basecolor = objMaterial.basecolor;
+    vec4 basecolor = objMaterial.basecolor;
     if (hitObj.matID == PLANE_MAT_ID) {
-        if ((int(floor(position.x)) + int(floor(position.z))) % 2 == 0) {
-            basecolor = vec3(0.0f);
+        basecolor.xyz = getPlaneColor(position);
+    }
+
+    if (!objMaterial.opaque) {
+        float maxOpaqueDist = 100.0f - dist;
+        ObjectDesc opaqueObj = rayMarchingMatOpaque(position, rd, maxOpaqueDist);
+        if (opaqueObj.dist > maxOpaqueDist) {
+            vec3 skyColor = getSkyColor(rd);
+            basecolor = mix(basecolor, vec4(skyColor, 1.0f), basecolor.a);
         }
         else {
-            basecolor = vec3(2.5f);
+            vec3 opaquePosition = position + rd * opaqueObj.dist;
+            Material opaqueMat = materialPool[opaqueObj.matID];
+            vec4 opaqueBasecolor = opaqueMat.basecolor;
+            if (opaqueObj.matID == PLANE_MAT_ID) {
+                opaqueBasecolor.xyz = getPlaneColor(opaquePosition);
+            }
+            basecolor = mix(basecolor, opaqueBasecolor, basecolor.a);
         }
     }
 
@@ -197,7 +498,7 @@ void main() {
     for (uint i = 0; i < DIRECTIONAL_LIGHTS_COUNT; i++) {
         // Phong model
         vec3 lightDir = normalize(directionalLigthDirs[i]);
-        vec3 diffuse = basecolor * max(0.0f, dot(lightDir, normal));
+        vec3 diffuse = basecolor.xyz * max(0.0f, dot(lightDir, normal));
 
         float specularStrength = 0.5;
         vec3 reflectDir = reflect(-lightDir, normal);
@@ -209,15 +510,15 @@ void main() {
         vec3 lightrd = lightDir;
         float lightStartDist = 0.01f;
         float lightDist = 100.0f;
-        float shadow = sceneShadow(lightro, lightrd, lightStartDist, lightDist);
+        float shadow = sceneShadow(lightro, lightrd, lightStartDist, lightDist) + 0.15f;
 
-        color += 0.8f * diffuse * shadow + 0.2f * specular;
+        color += objMaterial.Kd * diffuse * shadow + objMaterial.Ks * specular;
     }
 
     for (uint i = 0; i < POINT_LIGHS_COUNT; i++) {
         // Phong model
         vec3 lightDir = normalize(pointLightPositions[i] - position);
-        vec3 diffuse = basecolor * max(0.0f, dot(lightDir, normal));
+        vec3 diffuse = basecolor.xyz * max(0.0f, dot(lightDir, normal));
 
         float specularStrength = 0.5;
         vec3 reflectDir = reflect(-lightDir, normal);
@@ -229,11 +530,11 @@ void main() {
         vec3 lightrd = lightDir;
         float lightStartDist = 0.01f;
         float lightDist = length(pointLightPositions[i] - position);
-        float shadow = sceneShadow(lightro, lightrd, lightStartDist, lightDist);
+        float shadow = sceneShadow(lightro, lightrd, lightStartDist, lightDist) + 0.15f;
 
         diffuse /= lightDist + 0.01f;
         specular /= lightDist + 0.01f;
-        color += 0.8f * diffuse * shadow + 0.2f * specular;
+        color += objMaterial.Kd * diffuse * shadow + objMaterial.Ks * specular;
     }
 
     vec3 ambient = vec3(0.05f);

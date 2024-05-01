@@ -96,7 +96,7 @@ float rayMarching(vec3 ro, vec3 rd, float maxDist) {
 
 
 /*
- *  Main function which performs Ray Marching
+ *  Main function which performs Ray Marching for objects with material
  *  Parameters:
  *      ro - ray origin
  *      rd - ray direction
@@ -108,6 +108,29 @@ ObjectDesc rayMarchingMat(vec3 ro, vec3 rd, float maxDist) {
     for (uint i = 0; i < MAX_STEPS; i++) {
         vec3 pos = ro + rd * objDesc.dist;
         dS = getSceneSDFMat(pos);
+        objDesc.dist += dS.dist;
+        if (objDesc.dist > maxDist || dS.dist < INTERSECT_DIST) {
+            break;
+        }
+    }
+    objDesc.matID = dS.matID;
+    return objDesc;
+}
+
+
+/*
+ *  Main function which performs Ray Marching for opaque objects
+ *  Parameters:
+ *      ro - ray origin
+ *      rd - ray direction
+ *      maxDist - maximum distance which ray can travel
+ */
+ObjectDesc rayMarchingMatOpaque(vec3 ro, vec3 rd, float maxDist) {
+    ObjectDesc objDesc = ObjectDesc(0.0f, 0);
+    ObjectDesc dS;
+    for (uint i = 0; i < MAX_STEPS; i++) {
+        vec3 pos = ro + rd * objDesc.dist;
+        dS = getSceneSDFMatOpaque(pos);
         objDesc.dist += dS.dist;
         if (objDesc.dist > maxDist || dS.dist < INTERSECT_DIST) {
             break;
