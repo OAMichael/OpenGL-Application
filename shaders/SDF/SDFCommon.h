@@ -16,7 +16,7 @@ struct ObjectDesc {
 float getSceneSDF(vec3 pos);
 ObjectDesc getSceneSDFMat(vec3 pos);
 ObjectDesc getSceneSDFMatOpaque(vec3 pos);
-
+float getSceneSDFAO(vec3 pos);
 
 float dot2(vec2 v) {
     return dot(v, v);

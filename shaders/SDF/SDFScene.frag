@@ -6,6 +6,7 @@
 #include "SDFUtils.h"
 
 //#define ANTIALIASING 2
+#define USE_AABB
 
 uniform sampler2D uRGBANoiseSampler;
 
@@ -254,6 +255,10 @@ ObjectDesc SDF_houseMat(vec3 pos) {
     return house;
 }
 
+float SDF_houseAABB(vec3 pos) {
+    return sdfBox(pos, vec3(0.0f, 5.1f, 0.0f), vec3(13.2f, 10.2f, 23.02f) + 2 * INTERSECT_DIST);
+}
+
 
 float SDF_column(vec3 pos) {
     float base = sdfRoundBox(pos, vec3(0.0f, 0.05f, 0.0f), vec3(1.0f, 0.1f, 1.0f), 0.02f);
@@ -361,11 +366,59 @@ float SDF_temple(vec3 pos) {
     return temple;
 }
 
+float SDF_templeAABB(vec3 pos) {
+    return sdfBox(pos, vec3(0.0f, 4.5f, 0.0f), vec3(14.1f, 9.0f, 9.6f) + 2 * INTERSECT_DIST);
+}
+
+
+float getSceneSDFAO(vec3 pos) {
+    float plane = sdfPlane(pos, vec3(0.0f, 1.0f, 0.0f), 0.0f);
+
+    float house = 0.0f;
+    float temple = 0.0f;
+
+#ifdef USE_AABB
+    house = SDF_houseAABB(pos - vec3(1.0f, 0.0f, 25.0f));
+    if (house < 0.42f) {
+        house = SDF_house(pos - vec3(1.0f, 0.0f, 25.0f));
+    }
+
+    temple = SDF_templeAABB(pos);
+    if (temple < 0.42f) {
+        temple = SDF_temple(pos);
+    }
+#else
+    house = SDF_house(pos - vec3(1.0f, 0.0f, 25.0f));
+    temple = SDF_temple(pos);
+#endif
+
+    float wholeSolidScene = sdfOpUnion(plane,
+                            sdfOpUnion(house, temple));
+
+    return wholeSolidScene;
+}
+
 
 float getSceneSDF(vec3 pos) {
     float plane = sdfPlane(pos, vec3(0.0f, 1.0f, 0.0f), 0.0f);
-    float house = SDF_house(pos - vec3(1.0f, 0.0f, 25.0f));
-    float temple = SDF_temple(pos);
+
+    float house = 0.0f;
+    float temple = 0.0f;
+
+#ifdef USE_AABB
+    house = SDF_houseAABB(pos - vec3(1.0f, 0.0f, 25.0f));
+    if (house < INTERSECT_DIST) {
+        house = SDF_house(pos - vec3(1.0f, 0.0f, 25.0f));
+    }
+
+    temple = SDF_templeAABB(pos);
+    if (temple < INTERSECT_DIST) {
+        temple = SDF_temple(pos);
+    }
+#else
+    house = SDF_house(pos - vec3(1.0f, 0.0f, 25.0f));
+    temple = SDF_temple(pos);
+#endif
 
     float wholeSolidScene = sdfOpUnion(plane,
                             sdfOpUnion(house, temple));
@@ -376,10 +429,29 @@ float getSceneSDF(vec3 pos) {
 ObjectDesc getSceneSDFMatOpaque(vec3 pos) {
     float planeDist = sdfPlane(pos, vec3(0.0f, 1.0f, 0.0f), 0.0f);
     ObjectDesc plane = ObjectDesc(planeDist, PLANE_MAT_ID);
-    ObjectDesc house = SDF_houseMatOpaque(pos - vec3(1.0f, 0.0f, 25.0f));
+
+    ObjectDesc house;
+    ObjectDesc temple;
+
+#ifdef USE_AABB
+    float houseAABB = SDF_houseAABB(pos - vec3(1.0f, 0.0f, 25.0f));
+    house = ObjectDesc(houseAABB, AABB_MATERIAL_ID);
+    if (house.dist < 0) {
+        house = SDF_houseMatOpaque(pos - vec3(1.0f, 0.0f, 25.0f));
+    }
+
+    float templeAABB = SDF_templeAABB(pos);
+    temple = ObjectDesc(templeAABB, AABB_MATERIAL_ID);
+    if (temple.dist < 0) {
+        float templeDist = SDF_temple(pos);
+        temple = ObjectDesc(templeDist, TEMPLE_MAT_ID);
+    }
+#else
+    house = SDF_houseMatOpaque(pos - vec3(1.0f, 0.0f, 25.0f));
 
     float templeDist = SDF_temple(pos);
-    ObjectDesc temple = ObjectDesc(templeDist, TEMPLE_MAT_ID);
+    temple = ObjectDesc(templeDist, TEMPLE_MAT_ID);
+#endif
 
     ObjectDesc wholeSolidScene =    sdfOpUnionMat(plane,
                                     sdfOpUnionMat(house, temple));
@@ -389,11 +461,29 @@ ObjectDesc getSceneSDFMatOpaque(vec3 pos) {
 ObjectDesc getSceneSDFMat(vec3 pos) {
     float planeDist = sdfPlane(pos, vec3(0.0f, 1.0f, 0.0f), 0.0f);
     ObjectDesc plane = ObjectDesc(planeDist, PLANE_MAT_ID);
-    ObjectDesc house = SDF_houseMat(pos - vec3(1.0f, 0.0f, 25.0f));
+
+    ObjectDesc house;
+    ObjectDesc temple;
+
+#ifdef USE_AABB
+    float houseAABB = SDF_houseAABB(pos - vec3(1.0f, 0.0f, 25.0f));
+    house = ObjectDesc(houseAABB, AABB_MATERIAL_ID);
+    if (house.dist < 0) {
+        house = SDF_houseMat(pos - vec3(1.0f, 0.0f, 25.0f));
+    }
+
+    float templeAABB = SDF_templeAABB(pos);
+    temple = ObjectDesc(templeAABB, AABB_MATERIAL_ID);
+    if (temple.dist < 0) {
+        float templeDist = SDF_temple(pos);
+        temple = ObjectDesc(templeDist, TEMPLE_MAT_ID);
+    }
+#else
+    house = SDF_houseMat(pos - vec3(1.0f, 0.0f, 25.0f));
 
     float templeDist = SDF_temple(pos);
-    ObjectDesc temple = ObjectDesc(templeDist, TEMPLE_MAT_ID);
-
+    temple = ObjectDesc(templeDist, TEMPLE_MAT_ID);
+#endif
     ObjectDesc wholeSolidScene =    sdfOpUnionMat(plane,
                                     sdfOpUnionMat(house, temple));
     return wholeSolidScene;
@@ -540,7 +630,7 @@ void main() {
     vec3 ambient = vec3(0.05f);
     float ao = getSceneAO(position, normal);
     color += ambient * ao;
-                
+
     color = pow(color, vec3(1.0/2.2));
     totalColor += color;
 #ifdef ANTIALIASING

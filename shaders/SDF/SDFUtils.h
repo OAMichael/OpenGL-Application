@@ -74,6 +74,9 @@ const uint MAX_STEPS = 10000;
 const float INTERSECT_DIST = 0.001f;
 
 
+const uint AABB_MATERIAL_ID = 65535u;
+
+
 /*
  *  Main function which performs Ray Marching
  *  Parameters:
@@ -109,7 +112,14 @@ ObjectDesc rayMarchingMat(vec3 ro, vec3 rd, float maxDist) {
         vec3 pos = ro + rd * objDesc.dist;
         dS = getSceneSDFMat(pos);
         objDesc.dist += dS.dist;
-        if (objDesc.dist > maxDist || dS.dist < INTERSECT_DIST) {
+        if (objDesc.dist > maxDist) {
+            break;
+        }
+        if (dS.dist < INTERSECT_DIST) {
+            if (dS.matID == AABB_MATERIAL_ID) {
+                objDesc.dist += INTERSECT_DIST;
+                continue;
+            }
             break;
         }
     }
@@ -132,7 +142,14 @@ ObjectDesc rayMarchingMatOpaque(vec3 ro, vec3 rd, float maxDist) {
         vec3 pos = ro + rd * objDesc.dist;
         dS = getSceneSDFMatOpaque(pos);
         objDesc.dist += dS.dist;
-        if (objDesc.dist > maxDist || dS.dist < INTERSECT_DIST) {
+        if (objDesc.dist > maxDist) {
+            break;
+        }
+        if (dS.dist < INTERSECT_DIST) {
+            if (dS.matID == AABB_MATERIAL_ID) {
+                objDesc.dist += INTERSECT_DIST;
+                continue;
+            }
             break;
         }
     }
@@ -198,7 +215,7 @@ float getSceneAO(vec3 pos, vec3 normal) {
     for (int i = 0; i < 8; i++) {
         float h = 0.01 + 0.4 * float(i) / 7.0;
         vec3  w = normalize(normal + normalize(sin(float(i) + vec3(0, 2, 4))));
-        float d = getSceneSDF(pos + h * w).x;
+        float d = getSceneSDFAO(pos + h * w).x;
         occ += h - d;
     }
     return clamp(1.0 - 0.71 * occ, 0.0, 1.0);
