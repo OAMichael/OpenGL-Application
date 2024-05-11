@@ -130,3 +130,9 @@ float sdfBoxFrame(vec3 p, vec3 c, vec3 b, float e) {
 		length(max(vec3(q.x, p.y, q.z), 0.0)) + min(max(q.x, max(p.y, q.z)), 0.0)),
 		length(max(vec3(q.x, q.y, p.z), 0.0)) + min(max(q.x, max(q.y, p.z)), 0.0));
 }
+
+
+float sdfTorus(vec3 p, vec2 t) {
+	vec2 q = vec2(length(p.xz) - t.x, p.y);
+	return length(q) - t.y;
+}

@@ -91,6 +91,31 @@ vec3 sdfOpLimRepeatPos(vec3 p, vec3 s, ivec3 l, ivec3 h) {
 }
 
 
+/*
+ *  Twist an object
+ *  Produces position vector which performs twist of an object along Y axis
+ *  Parameters:
+ *      p - input position
+ *      t - twist amount
+ */
+vec3 sdfOpTwist(vec3 p, float t) {
+    float c = cos(t * p.y);
+    float s = sin(t * p.y);
+    vec2 q = mat2(c, -s, s, c) * p.xz;
+    return vec3(q.x, p.y, q.y);
+}
+
+
+
+vec3 sdfOpBend(vec3 p, float b) {
+    float c = cos(b * p.x);
+    float s = sin(b * p.x);
+    vec2 q = mat2(c, -s, s, c) * p.xy;
+    return vec3(q, p.z);
+}
+
+
+
 /// ==================== Signed distance functions operations with materials ===================== ///
 
 

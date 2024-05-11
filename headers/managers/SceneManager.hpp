@@ -197,6 +197,7 @@ private:
 	Resources::ResourceHandle brdfLUTSkyboxTextureHandle_;
 	Resources::ResourceHandle brdfLUTEquirectTextureHandle_;
 	Resources::ResourceHandle rgbaNoiseTextureHandle_;
+	Resources::ResourceHandle rockTextureHandle_;
 
 	Resources::ResourceHandle fullscreenShaderHandle_;
 	Resources::ResourceHandle environmentShaderHandle_;

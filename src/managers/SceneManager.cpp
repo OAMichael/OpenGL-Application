@@ -1159,6 +1159,10 @@ void SceneManager::initializeSDFScene() {
     rgbaNoiseTextureHandle_ = noiseTexture.handle;
     resourceManager->generateMipMaps(rgbaNoiseTextureHandle_);
 
+    auto& rockTexture = resourceManager->createTexture(fileManager->getAbsolutePath("textures://rock.jpg"), false, &noiseSampler);
+    rockTextureHandle_ = rockTexture.handle;
+    resourceManager->generateMipMaps(rockTextureHandle_);
+
     auto& SDFShader = resourceManager->createShader(shaderDesc);
     SDFSceneShaderHandle_ = SDFShader.handle;
     SDFShader.use();
@@ -1170,12 +1174,14 @@ void SceneManager::drawSDFScene(const glm::mat4& invCameraMatrix, const float wi
     auto& SDFShader = resourceManager->getShader(SDFSceneShaderHandle_);
     SDFShader.use();
     SDFShader.setInt("uRGBANoiseSampler", 0);
+    SDFShader.setInt("uRockSampler", 1);
     SDFShader.setMat4("invCameraMatrix", invCameraMatrix);
     SDFShader.setFloat("windowWidth", winWidth);
     SDFShader.setFloat("windowHeight", winHeight);
     SDFShader.setFloat("time", time);
 
-    resourceManager->bindTexture(rgbaNoiseTextureHandle_);
+    resourceManager->bindTexture(rgbaNoiseTextureHandle_, 0);
+    resourceManager->bindTexture(rockTextureHandle_, 1);
 
     drawDefaultQuad();
 }

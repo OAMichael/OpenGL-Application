@@ -7,9 +7,6 @@
 namespace Resources {
 
 Shader::Shader(const char* vertexPath, const char* fragmentPath) {
-    std::string vertexCode;
-    std::string fragmentCode;
-
     std::ifstream vShaderFile;
     std::ifstream fShaderFile;
     
@@ -27,18 +24,18 @@ Shader::Shader(const char* vertexPath, const char* fragmentPath) {
         vShaderFile.close();
         fShaderFile.close();
         
-        vertexCode = vShaderStream.str();
-        fragmentCode = fShaderStream.str();         
+        vertexCode_ = vShaderStream.str();
+        fragmentCode_ = fShaderStream.str();
     }
     catch (std::ifstream::failure& e) {
         LOG_E("File not successfully read: %s", e.what());
     }
 
-    vertexCode = PreprocessIncludes(vertexCode, vertexPath);
-    fragmentCode = PreprocessIncludes(fragmentCode, fragmentPath);
+    vertexCode_ = PreprocessIncludes(vertexCode_, vertexPath);
+    fragmentCode_ = PreprocessIncludes(fragmentCode_, fragmentPath);
 
-    const char* vShaderCode = vertexCode.c_str();
-    const char* fShaderCode = fragmentCode.c_str();
+    const char* vShaderCode = vertexCode_.c_str();
+    const char* fShaderCode = fragmentCode_.c_str();
     
     unsigned int vertex, fragment;
 
@@ -75,7 +72,54 @@ void Shader::checkCompileErrors(const GLuint& shader, const std::string& type) {
         glGetShaderiv(shader, GL_COMPILE_STATUS, &success);
         if (!success) {
             glGetShaderInfoLog(shader, 1024, NULL, infoLog);
-            LOG_E("Compiling shader: %s", infoLog);
+            bool vertexShader = type == "VERTEX";
+            const char* strType = vertexShader ? "vertex" : "fragment";
+
+            std::string lineNoStr = infoLog;
+            size_t par1 = lineNoStr.find_first_of("(", 0);
+            if (par1 < lineNoStr.length() - 1) {
+                lineNoStr = lineNoStr.substr(par1 + 1);
+            }
+            size_t par2 = lineNoStr.find_first_of(")", 0);
+            if (par2 < lineNoStr.length()) {
+                lineNoStr = lineNoStr.substr(0, par2);
+            }
+
+            int lineNo = std::stoi(lineNoStr);
+            std::string errorLines = vertexShader ? vertexCode_ : fragmentCode_;
+
+            for (int i = 0; i < lineNo - 7; ++i) {
+                errorLines = errorLines.substr(errorLines.find_first_of("\n") + 1);
+            }
+
+            std::string errorLinesBefore = errorLines;
+            size_t pos = 0;
+            for (int i = 0; i < 7; ++i) {
+                if (pos < errorLinesBefore.length() - 1) {
+                    pos = errorLinesBefore.find_first_of("\n", pos + 1);
+                }
+            }
+            if (pos < errorLinesBefore.length()) {
+                errorLinesBefore = errorLinesBefore.substr(0, pos);
+                if (pos < errorLines.length()) {
+                    errorLines = errorLines.substr(pos + 1);
+                }
+            }
+            errorLinesBefore = errorLinesBefore + "\n~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n";
+
+            pos = 0;
+            for (int i = 0; i < 7; ++i) {
+                if (pos < errorLines.length() - 1) {
+                    pos = errorLines.find_first_of("\n", pos + 1);
+                }
+            }
+            if (pos < errorLines.length()) {
+                errorLines = errorLines.substr(0, pos);
+            }
+
+            errorLinesBefore = errorLinesBefore + errorLines;
+
+            LOG_E("Compiling %s shader: %s\nShader line: %d\n%s\n", strType, infoLog, lineNo, errorLinesBefore.c_str());
         }
     }
     else {

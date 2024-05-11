@@ -14,6 +14,9 @@ namespace Resources {
 class Shader : public RenderResource {
 
 private:
+    std::string vertexCode_;
+    std::string fragmentCode_;
+
     void checkCompileErrors(const GLuint& shader, const std::string& type);
     std::string PreprocessIncludes(const std::string& source, const std::string& filename, int level = 0);
 

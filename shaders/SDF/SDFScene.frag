@@ -5,10 +5,24 @@
 #include "SDFOperations.h"
 #include "SDFUtils.h"
 
+
+// Settings and flags
+
 //#define ANTIALIASING 2
 #define USE_AABB
 
-uniform sampler2D uRGBANoiseSampler;
+
+// Different scenes
+
+#define TWIST_TORUS
+//#define BEND_BOX
+//#define SINGLE_CLOUD
+//#define REPEATED_CLOUDS
+//#define TEMPLE_AND_HOUSE
+//#define TEMPLE_AND_LARGE_TERRAIN
+
+
+uniform sampler2D uRockSampler;
 
 uniform mat4 invCameraMatrix;
 uniform float windowWidth;
@@ -17,16 +31,6 @@ uniform float time;
 
 out vec4 outColor;
 
-const uint DIRECTIONAL_LIGHTS_COUNT = 1;
-const uint POINT_LIGHS_COUNT = 1;
-
-vec3 directionalLigthDirs[DIRECTIONAL_LIGHTS_COUNT] = {
-    vec3(0.5f, 0.7f, 0.5f)
-};
-
-vec3 pointLightPositions[POINT_LIGHS_COUNT] = {
-    vec3(1.0f, 5.0f, 25.0f)
-};
 
 
 const uint INVALID_MAT_ID = 0;
@@ -35,6 +39,8 @@ const uint HOUSE_CASING_MAT_ID = 2;
 const uint HOUSE_ROOF_MAT_ID = 3;
 const uint HOUSE_WINDOW_MAT_ID = 4;
 const uint TEMPLE_MAT_ID = 5;
+const uint ROCK_MAT_ID = 6;
+const uint TORUS_MAT_ID = 7;
 
 struct Material {
     vec4 basecolor;
@@ -49,55 +55,18 @@ Material materialPool[] = {
     { vec4(1.2f, 0.5f, 0.3f, 1.0f), true, 0.8f, 0.2f },         // House casing
     { vec4(0.2f, 0.1f, 0.1f, 1.0f), true, 0.95f, 0.05f },       // House roof
     { vec4(0.1f, 0.2f, 0.8f, 0.3f), false, 0.6f, 0.9f },        // Windows
-    { vec4(0.76f, 0.7f, 0.5f, 1.0f), true, 1.0f, 0.0f }         // Temple
+    { vec4(0.76f, 0.7f, 0.5f, 1.0f), true, 1.0f, 0.0f },        // Temple
+    { vec4(1.0f, 1.0f, 1.0f, 1.0f), true, 1.0f, 0.0f },         // Rocks
+    { vec4(0.123f, 0.54f, 0.76f, 1.0f), true, 0.8f, 0.2f }      // Torus
 };
 
 
-vec4 rgbaNoise(vec2 uv) {
-    return textureLod(uRGBANoiseSampler, uv, 0.0);
-}
-
-float fullNoise(vec3 x) {
-    vec3 p = floor(x);
-    vec3 f = fract(x);
-	f = f * f * (3.0 - 2.0 * f);
-	vec2 uv = ((p.xy + vec2(37.0, 17.0) * p.z) + f.xy + 0.5f) / 256.0f;
-	vec2 rg = rgbaNoise(uv).xy;
-	return mix(rg.x, rg.y, f.z);
-}
-
-float bumpMap4(vec3 pos) {
-    float n = 0.0;
-    n += 1.000 * fullNoise(pos * 1.0);
-    n += 0.500 * fullNoise(pos * 2.0);
-    n += 0.250 * fullNoise(pos * 4.0);
-    n += 0.125 * fullNoise(pos * 8.0);
-    return n;
-}
-
-float bumpMap6(vec3 pos) {
-    float n = 0.0;
-    n += 1.00000 * fullNoise(pos * 1.0);
-    n += 0.50000 * fullNoise(pos * 2.0);
-    n += 0.25000 * fullNoise(pos * 4.0);
-    n += 0.12500 * fullNoise(pos * 8.0);
-    n += 0.06250 * fullNoise(pos * 16.0);
-    n += 0.03125 * fullNoise(pos * 32.0);
-    return n;
-}
-
-vec3 performBumpMap(vec3 position, vec3 normal, float e, float b, float r) {
-    float ref = bumpMap6(r * position);
-    vec3 gradient = b * (ref - vec3(bumpMap6(r * vec3(position.x + e, position.y, position.z)),
-                                    bumpMap6(r * vec3(position.x, position.y + e, position.z)),
-                                    bumpMap6(r * vec3(position.x, position.y, position.z + e)))) / e;
-
-    vec3 tgrad = gradient - normal * dot(normal, gradient);
-    return normalize(normal - tgrad);
+vec4 rockTexture(vec2 uv) {
+    return texture(uRockSampler, uv);
 }
 
 
-// Temporary define three functions for better performance
+// Temporary define four functions for better performance
 
 float SDF_house(vec3 pos) {
     float outerRoundBox = sdfBox(pos, vec3(5.0f, 3.0f, 0.0f), vec3(1.0f, 6.0f, 5.0f));
@@ -283,20 +252,20 @@ float SDF_temple(vec3 pos) {
     float stair3 = sdfBox(pos, vec3(0.0f, 1.75f, 0.0f), vec3(12.0f, 0.7f, 7.5f));
 
     if (stair1 < 0.1) {
-        stair1 -= 0.02 * smoothstep(0.5, 1.0, bumpMap4(pos.zxy));
-        stair1 -= 0.01 * smoothstep(0.4, 0.8, bumpMap4(pos * 3.0));
+        stair1 -= 0.02 * smoothstep(0.5, 1.0, fbm4(pos.zxy));
+        stair1 -= 0.01 * smoothstep(0.4, 0.8, fbm4(pos * 3.0));
         stair1 += 0.005;
     }
 
     if (stair2 < 0.1) {
-        stair2 -= 0.02 * smoothstep(0.5, 1.0, bumpMap4(pos.zxy));
-        stair2 -= 0.01 * smoothstep(0.4, 0.8, bumpMap4(pos * 3.0));
+        stair2 -= 0.02 * smoothstep(0.5, 1.0, fbm4(pos.zxy));
+        stair2 -= 0.01 * smoothstep(0.4, 0.8, fbm4(pos * 3.0));
         stair2 += 0.005;
     }
 
     if (stair3 < 0.1) {
-        stair3 -= 0.02 * smoothstep(0.5, 1.0, bumpMap4(pos.zxy));
-        stair3 -= 0.01 * smoothstep(0.4, 0.8, bumpMap4(pos * 3.0));
+        stair3 -= 0.02 * smoothstep(0.5, 1.0, fbm4(pos.zxy));
+        stair3 -= 0.01 * smoothstep(0.4, 0.8, fbm4(pos * 3.0));
         stair3 += 0.005;
     }
 
@@ -371,7 +340,55 @@ float SDF_templeAABB(vec3 pos) {
 }
 
 
+float SDF_cloud(vec3 pos) {
+    mat3 m = mat3( 0.00,  0.80,  0.60,
+                  -0.80,  0.36, -0.48,
+                  -0.60, -0.48,  0.64 );
+	vec3 q = pos - vec3(0.0f, 0.5f, 1.0f) * time / 300.0f;
+    float f = fbm4Mat(q, m);
+    float d = sdfTorus(pos, vec2(6.0f, 0.005f)) - f * 3.5f - 1.0f;
+	return d;
+}
+
+
+
 float getSceneSDFAO(vec3 pos) {
+
+
+
+#ifdef BEND_BOX
+    vec3 bent = sdfOpBend(pos, 0.05f * cos(time / 3000.0));
+    float d = sdfRoundBox(bent, vec3(0.0f, 5.0f, 0.0f), vec3(10.0f, 1.0f, 4.0f), 0.1f);
+    return d;
+#endif
+
+
+
+#ifdef TWIST_TORUS
+    mat3 m = mat3(1.0f, 0.0f, 0.0f, 0.0f, 0.0f, -1.0f, 0.0f, 1.0f, 0.0f);
+    vec3 twisted = sdfOpTwist(pos, 0.5f * cos(time / 3000.0));
+    float d = sdfTorus(m * twisted, vec2(2.0f, 0.8f));
+    return d;
+#endif
+
+
+
+#ifdef SINGLE_CLOUD
+    float d = SDF_cloud(pos);
+    return d;
+#endif
+
+
+
+#ifdef REPEATED_CLOUDS
+    vec3 q = sdfOpLimRepeatPos(pos, vec3(25.0f), ivec3(2), ivec3(2));
+    float d = SDF_cloud(q);
+    return d;
+#endif
+
+
+
+#ifdef TEMPLE_AND_HOUSE
     float plane = sdfPlane(pos, vec3(0.0f, 1.0f, 0.0f), 0.0f);
 
     float house = 0.0f;
@@ -396,10 +413,71 @@ float getSceneSDFAO(vec3 pos) {
                             sdfOpUnion(house, temple));
 
     return wholeSolidScene;
+#endif
+
+
+
+#ifdef TEMPLE_AND_LARGE_TERRAIN
+    float d = length(pos / vec3(10.0f) - vec3(0.0, -250.0, 0.0)) - 250.0;
+    float fbm = sdfRandomTerrain(pos / vec3(10.0f), d);
+
+    float temple = 0.0f;
+
+#ifdef USE_AABB
+    temple = SDF_templeAABB(pos);
+    if (temple < 0.42f) {
+        temple = SDF_temple(pos);
+    }
+#else
+    temple = SDF_temple(pos);
+#endif
+
+    float wholeSolidScene = sdfOpUnion(fbm, temple);
+    return wholeSolidScene;
+#endif
+
+
+
 }
 
 
 float getSceneSDF(vec3 pos) {
+
+
+
+#ifdef BEND_BOX
+    vec3 bent = sdfOpBend(pos, 0.05f * cos(time / 3000.0));
+    float d = sdfRoundBox(bent, vec3(0.0f, 5.0f, 0.0f), vec3(10.0f, 1.0f, 4.0f), 0.1f);
+    return d;
+#endif
+
+
+
+#ifdef TWIST_TORUS
+    mat3 m = mat3(1.0f, 0.0f, 0.0f, 0.0f, 0.0f, -1.0f, 0.0f, 1.0f, 0.0f);
+    vec3 twisted = sdfOpTwist(pos, 0.5f * cos(time / 3000.0));
+    float d = sdfTorus(m * twisted, vec2(2.0f, 0.8f));
+    return d;
+#endif
+
+
+
+#ifdef SINGLE_CLOUD
+    float d = SDF_cloud(pos);
+    return d;
+#endif
+
+
+
+#ifdef REPEATED_CLOUDS
+    vec3 q = sdfOpLimRepeatPos(pos, vec3(25.0f), ivec3(2), ivec3(2));
+    float d = SDF_cloud(q);
+    return d;
+#endif
+
+
+
+#ifdef TEMPLE_AND_HOUSE
     float plane = sdfPlane(pos, vec3(0.0f, 1.0f, 0.0f), 0.0f);
 
     float house = 0.0f;
@@ -424,9 +502,70 @@ float getSceneSDF(vec3 pos) {
                             sdfOpUnion(house, temple));
 
     return wholeSolidScene;
+#endif
+
+
+
+#ifdef TEMPLE_AND_LARGE_TERRAIN
+    float d = length(pos / vec3(10.0f) - vec3(0.0, -250.0, 0.0)) - 250.0;
+    float fbm = sdfRandomTerrain(pos / vec3(10.0f), d);
+
+    float temple = 0.0f;
+
+#ifdef USE_AABB
+    temple = SDF_templeAABB(pos);
+    if (temple < INTERSECT_DIST) {
+        temple = SDF_temple(pos);
+    }
+#else
+    temple = SDF_temple(pos);
+#endif
+
+    float wholeSolidScene = sdfOpUnion(fbm, temple);
+    return wholeSolidScene;
+#endif
+
+
+
 }
 
 ObjectDesc getSceneSDFMatOpaque(vec3 pos) {
+
+
+
+#ifdef BEND_BOX
+    vec3 bent = sdfOpBend(pos, 0.05f * cos(time / 3000.0));
+    float d = sdfRoundBox(bent, vec3(0.0f, 5.0f, 0.0f), vec3(10.0f, 1.0f, 4.0f), 0.1f);
+    return ObjectDesc(d, TORUS_MAT_ID);
+#endif
+
+
+
+#ifdef TWIST_TORUS
+    mat3 m = mat3(1.0f, 0.0f, 0.0f, 0.0f, 0.0f, -1.0f, 0.0f, 1.0f, 0.0f);
+    vec3 twisted = sdfOpTwist(pos, 0.5f * cos(time / 3000.0));
+    float d = sdfTorus(m * twisted, vec2(2.0f, 0.8f));
+    return ObjectDesc(d, TORUS_MAT_ID);
+#endif
+
+
+
+#ifdef SINGLE_CLOUD
+    float d = SDF_cloud(pos);
+    return ObjectDesc(d, CLOUD_MATERIAL_ID);
+#endif
+
+
+
+#ifdef REPEATED_CLOUDS
+    vec3 q = sdfOpLimRepeatPos(pos, vec3(25.0f), ivec3(2), ivec3(2));
+    float d = SDF_cloud(q);
+    return ObjectDesc(d, CLOUD_MATERIAL_ID);
+#endif
+
+
+
+#ifdef TEMPLE_AND_HOUSE
     float planeDist = sdfPlane(pos, vec3(0.0f, 1.0f, 0.0f), 0.0f);
     ObjectDesc plane = ObjectDesc(planeDist, PLANE_MAT_ID);
 
@@ -456,9 +595,73 @@ ObjectDesc getSceneSDFMatOpaque(vec3 pos) {
     ObjectDesc wholeSolidScene =    sdfOpUnionMat(plane,
                                     sdfOpUnionMat(house, temple));
     return wholeSolidScene;
+#endif
+
+
+
+#ifdef TEMPLE_AND_LARGE_TERRAIN
+    float d = length(pos / vec3(10.0f) - vec3(0.0, -250.0, 0.0)) - 250.0;
+    ObjectDesc fbm = ObjectDesc(sdfRandomTerrain(pos / vec3(10.0f), d), ROCK_MAT_ID);
+
+    ObjectDesc temple;
+
+#ifdef USE_AABB
+    float templeAABB = SDF_templeAABB(pos);
+    temple = ObjectDesc(templeAABB, AABB_MATERIAL_ID);
+    if (temple.dist < INTERSECT_DIST) {
+        float templeDist = SDF_temple(pos);
+        temple = ObjectDesc(templeDist, TEMPLE_MAT_ID);
+    }
+#else
+    float templeDist = SDF_temple(pos);
+    temple = ObjectDesc(templeDist, TEMPLE_MAT_ID);
+#endif
+
+    ObjectDesc wholeSolidScene = sdfOpUnionMat(fbm, temple);
+    return wholeSolidScene;
+#endif
+
+
+
 }
 
 ObjectDesc getSceneSDFMat(vec3 pos) {
+
+
+
+#ifdef BEND_BOX
+    vec3 bent = sdfOpBend(pos, 0.05f * cos(time / 3000.0));
+    float d = sdfRoundBox(bent, vec3(0.0f, 5.0f, 0.0f), vec3(10.0f, 1.0f, 4.0f), 0.1f);
+    return ObjectDesc(d, TORUS_MAT_ID);
+#endif
+
+
+
+#ifdef TWIST_TORUS
+    mat3 m = mat3(1.0f, 0.0f, 0.0f, 0.0f, 0.0f, -1.0f, 0.0f, 1.0f, 0.0f);
+    vec3 twisted = sdfOpTwist(pos, 0.5f * cos(time / 3000.0));
+    float d = sdfTorus(m * twisted, vec2(2.0f, 0.8f));
+    return ObjectDesc(d, TORUS_MAT_ID);
+#endif
+
+
+
+#ifdef SINGLE_CLOUD
+    float d = SDF_cloud(pos);
+    return ObjectDesc(d, CLOUD_MATERIAL_ID);
+#endif
+
+
+
+#ifdef REPEATED_CLOUDS
+    vec3 q = sdfOpLimRepeatPos(pos, vec3(25.0f), ivec3(2), ivec3(2));
+    float d = SDF_cloud(q);
+    return ObjectDesc(d, CLOUD_MATERIAL_ID);
+#endif
+
+
+
+#ifdef TEMPLE_AND_HOUSE
     float planeDist = sdfPlane(pos, vec3(0.0f, 1.0f, 0.0f), 0.0f);
     ObjectDesc plane = ObjectDesc(planeDist, PLANE_MAT_ID);
 
@@ -487,6 +690,34 @@ ObjectDesc getSceneSDFMat(vec3 pos) {
     ObjectDesc wholeSolidScene =    sdfOpUnionMat(plane,
                                     sdfOpUnionMat(house, temple));
     return wholeSolidScene;
+#endif
+
+
+
+#ifdef TEMPLE_AND_LARGE_TERRAIN
+    float d = length(pos / vec3(10.0f) - vec3(0.0, -250.0, 0.0)) - 250.0;
+    ObjectDesc fbm = ObjectDesc(sdfRandomTerrain(pos / vec3(10.0f), d), ROCK_MAT_ID);
+
+    ObjectDesc temple;
+
+#ifdef USE_AABB
+    float templeAABB = SDF_templeAABB(pos);
+    temple = ObjectDesc(templeAABB, AABB_MATERIAL_ID);
+    if (temple.dist < INTERSECT_DIST) {
+        float templeDist = SDF_temple(pos);
+        temple = ObjectDesc(templeDist, TEMPLE_MAT_ID);
+    }
+#else
+    float templeDist = SDF_temple(pos);
+    temple = ObjectDesc(templeDist, TEMPLE_MAT_ID);
+#endif
+
+    ObjectDesc wholeSolidScene = sdfOpUnionMat(fbm, temple);
+    return wholeSolidScene;
+#endif
+
+
+
 }
 
 
@@ -504,7 +735,7 @@ vec3 getSkyColor(vec3 rd) {
     uv *= mat2(0.8f, 0.6f, -0.6f, 0.8f) * 2.1f;
     cl += 0.5f * (sin(uv.x) + sin(uv.y));
     col += 0.1f * (-1.0f + 2.0f * smoothstep(-0.1f, 0.1f, cl - 0.4f));
-    col = mix(col, vec3(0.5f, 0.7f, 0.9f), exp(-10.0f * max(rd.y, 0.0f)));
+    col = mix(col, vec3(0.5f, 0.7f, 4.1f), exp(-10.0f * max(rd.y, 0.0f)));
 
     return col;
 }
@@ -531,10 +762,12 @@ void main() {
     vec3 ro = (invCameraMatrix * vec4(0, 0, 0, 1)).xyz;
     vec3 rd = getPixelDirection(screenUV);
 
+
     ObjectDesc hitObj = rayMarchingMat(ro, rd, 100.0f);
     float dist = hitObj.dist;
     if (dist > 100.0f) {
         vec3 col = getSkyColor(rd);
+        col = pow(col, vec3(1.0/2.2));
 #ifdef ANTIALIASING
         totalColor += col;
         continue;
@@ -546,6 +779,19 @@ void main() {
 
     // Lighting
     vec3 position = ro + rd * dist;
+    if (hitObj.matID == CLOUD_MATERIAL_ID) {
+        vec4 cloud = rayMarchingVolumetric(position, rd);
+        cloud.xyz = cloud.xyz + getSkyColor(rd) * cloud.a;
+        cloud.xyz = pow(cloud.xyz, vec3(1.0/2.2));
+#ifdef ANTIALIASING
+        totalColor += cloud.xyz;
+        continue;
+#else
+        outColor = vec4(cloud.xyz, 1.0f);
+        return;
+#endif
+    }
+
     vec3 normal = getSceneNormal(position);
 
     if (hitObj.matID == TEMPLE_MAT_ID) {
@@ -563,6 +809,10 @@ void main() {
     vec4 basecolor = objMaterial.basecolor;
     if (hitObj.matID == PLANE_MAT_ID) {
         basecolor.xyz = getPlaneColor(position);
+    }
+
+    if (hitObj.matID == ROCK_MAT_ID) {
+        basecolor = 0.25f * rockTexture(position.xz);
     }
 
     if (!objMaterial.opaque) {
@@ -598,7 +848,7 @@ void main() {
         // Shadows
         vec3 lightro = position;
         vec3 lightrd = lightDir;
-        float lightStartDist = 0.01f;
+        float lightStartDist = 0.1f;
         float lightDist = 100.0f;
         float shadow = sceneShadow(lightro, lightrd, lightStartDist, lightDist) + 0.15f;
 
@@ -618,7 +868,7 @@ void main() {
         // Shadows
         vec3 lightro = position;
         vec3 lightrd = lightDir;
-        float lightStartDist = 0.01f;
+        float lightStartDist = 0.1f;
         float lightDist = length(pointLightPositions[i] - position);
         float shadow = sceneShadow(lightro, lightrd, lightStartDist, lightDist) + 0.15f;
 
