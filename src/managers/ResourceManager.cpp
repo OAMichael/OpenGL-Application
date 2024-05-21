@@ -1,6 +1,8 @@
 #include "ResourceManager.hpp"
+#include "FileManager.hpp"
 #include "Logger.hpp"
 #include "stb_image.h"
+#include "stb_image_write.h"
 
 namespace Resources {
 
@@ -89,6 +91,64 @@ Image& ResourceManager::createImage(const char* filename, bool isHdr) {
 Image& ResourceManager::createImage(const std::string& filename, bool isHdr) {
     return createImage(filename.c_str(), isHdr);
 }
+
+bool ResourceManager::saveImage(const ResourceHandle handle, const std::string& filename, const std::string type, const int quality) {
+    if (filename.empty()) {
+        LOG_E("Filename must not be empty");
+        return false;
+    }
+
+    auto fileManager = FileSystem::FileManager::getInstance();
+
+    std::string fullPath = fileManager->getAbsolutePath(filename);
+    size_t pos = fullPath.find_last_of(".");
+    if (pos != std::string::npos && (pos + 1) < fullPath.length() && fullPath[pos + 1] != '/') {
+        std::string ext = fullPath.substr(pos + 1);
+        if (ext != "png" && ext != "jpg" && ext != "hdr") {
+            LOG_E("Invalid image type: %s", ext.c_str());
+            return false;
+        }
+    }
+    else {
+        fullPath += "." + type;
+    }
+
+    Image& image = getImage(handle);
+    if (image.bits != 8) {
+        if (image.bits != 8 * sizeof(float) || type != "hdr") {
+            LOG_E("Unsupported image component bits for saving or image type");
+            return false;
+        }
+    }
+
+    // Save as .hdr format
+    if (type == "hdr") {
+        if (!stbi_write_hdr(fullPath.c_str(), image.width, image.height, 1, reinterpret_cast<float*>(image.image.data()))) {
+            LOG_E("Failed to save image \'%s\' as hdr to \'%s\'", image.name.c_str(), fullPath.c_str());
+            return false;
+        }
+    }
+    else if (type == "png") {
+        if (!stbi_write_png(fullPath.c_str(), image.width, image.height, image.components, image.image.data(), image.width * image.components)) {
+            LOG_E("Failed to save image \'%s\' as png to \'%s\'", image.name.c_str(), fullPath.c_str());
+            return false;
+        }
+    }
+    else if (type == "jpg") {
+        if (!stbi_write_jpg(fullPath.c_str(), image.width, image.height, image.components, image.image.data(), quality)) {
+            LOG_E("Failed to save image \'%s\' as jpg to \'%s\'", image.name.c_str(), fullPath.c_str());
+            return false;
+        }
+    }
+    else {
+        LOG_E("Invalid image type: %s", type.c_str());
+        return false;
+    }
+
+    return true;
+}
+
+
 
 Sampler& ResourceManager::createSampler(const SamplerDesc& samplerDesc) {
     if (hasSampler(samplerDesc.name, samplerDesc.uri))
@@ -299,7 +359,7 @@ Texture& ResourceManager::createTexture(const char* filename, bool isHdr, Sample
     if (hasTexture(filename))
         return getTexture(filename);
 
-    auto& image = createImage(filename);
+    auto& image = createImage(filename, isHdr);
 
     TextureDesc texDesc;
     texDesc.factor = glm::vec4(1.0f);
@@ -829,47 +889,47 @@ Framebuffer& ResourceManager::getFramebuffer(const ResourceHandle handle) {
 }
 
 
-bool ResourceManager::hasImage(const std::string& name) {
+bool ResourceManager::hasImage(const std::string& name) const {
     auto it = images_.find(name);
     return it != images_.end();
 }
 
-bool ResourceManager::hasSampler(const std::string& name) {
+bool ResourceManager::hasSampler(const std::string& name) const {
     auto it = samplers_.find(name);
     return it != samplers_.end();
 }
 
-bool ResourceManager::hasTexture(const std::string& name) {
+bool ResourceManager::hasTexture(const std::string& name) const {
     auto it = textures_.find(name);
     return it != textures_.end();
 }
 
-bool ResourceManager::hasMaterial(const std::string& name) {
+bool ResourceManager::hasMaterial(const std::string& name) const {
     auto it = materials_.find(name);
     return it != materials_.end();
 }
 
-bool ResourceManager::hasBuffer(const std::string& name) {
+bool ResourceManager::hasBuffer(const std::string& name) const {
     auto it = buffers_.find(name);
     return it != buffers_.end();
 }
 
-bool ResourceManager::hasShader(const std::string& name) {
+bool ResourceManager::hasShader(const std::string& name) const {
     auto it = shaders_.find(name);
     return it != shaders_.end();
 }
 
-bool ResourceManager::hasFramebuffer(const std::string& name) {
+bool ResourceManager::hasFramebuffer(const std::string& name) const {
     auto it = framebuffers_.find(name);
     return it != framebuffers_.end();
 }
 
-bool ResourceManager::hasResource(const ResourceHandle handle) {
+bool ResourceManager::hasResource(const ResourceHandle handle) const {
     return allResources_.find(handle) != allResources_.end();
 }
 
 
-bool ResourceManager::hasImage(const std::string& name, const std::string& uri) {
+bool ResourceManager::hasImage(const std::string& name, const std::string& uri) const {
     auto nameIt = images_.find(name);
     if (nameIt == images_.end()) {
         return false;
@@ -885,7 +945,7 @@ bool ResourceManager::hasImage(const std::string& name, const std::string& uri) 
     return false;
 }
 
-bool ResourceManager::hasSampler(const std::string& name, const std::string& uri) {
+bool ResourceManager::hasSampler(const std::string& name, const std::string& uri) const {
     auto nameIt = samplers_.find(name);
     if (nameIt == samplers_.end()) {
         return false;
@@ -901,7 +961,7 @@ bool ResourceManager::hasSampler(const std::string& name, const std::string& uri
     return false;
 }
 
-bool ResourceManager::hasTexture(const std::string& name, const std::string& uri) {
+bool ResourceManager::hasTexture(const std::string& name, const std::string& uri) const {
     auto nameIt = textures_.find(name);
     if (nameIt == textures_.end()) {
         return false;
@@ -917,7 +977,7 @@ bool ResourceManager::hasTexture(const std::string& name, const std::string& uri
     return false;
 }
 
-bool ResourceManager::hasMaterial(const std::string& name, const std::string& uri) {
+bool ResourceManager::hasMaterial(const std::string& name, const std::string& uri) const {
     auto nameIt = materials_.find(name);
     if (nameIt == materials_.end()) {
         return false;
@@ -933,7 +993,7 @@ bool ResourceManager::hasMaterial(const std::string& name, const std::string& ur
     return false;
 }
 
-bool ResourceManager::hasBuffer(const std::string& name, const std::string& uri) {
+bool ResourceManager::hasBuffer(const std::string& name, const std::string& uri) const {
     auto nameIt = buffers_.find(name);
     if (nameIt == buffers_.end()) {
         return false;
@@ -949,7 +1009,7 @@ bool ResourceManager::hasBuffer(const std::string& name, const std::string& uri)
     return false;
 }
 
-bool ResourceManager::hasShader(const std::string& name, const std::string& uri) {
+bool ResourceManager::hasShader(const std::string& name, const std::string& uri) const {
     auto nameIt = shaders_.find(name);
     if (nameIt == shaders_.end()) {
         return false;
@@ -965,7 +1025,7 @@ bool ResourceManager::hasShader(const std::string& name, const std::string& uri)
     return false;
 }
 
-bool ResourceManager::hasFramebuffer(const std::string& name, const std::string& uri) {
+bool ResourceManager::hasFramebuffer(const std::string& name, const std::string& uri) const {
     auto nameIt = framebuffers_.find(name);
     if (nameIt == framebuffers_.end()) {
         return false;

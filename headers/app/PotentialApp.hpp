@@ -48,6 +48,8 @@ private:
     Resources::ResourceHandle previewTextureHandle_;
     uint64_t frameAfterInit_ = 0;
 
+    float fontScale_ = 1.0f;
+
 
     std::vector<Geometry::Model> Models_;
 

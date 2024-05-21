@@ -78,7 +78,10 @@ void PotentialApp::OnRenderFrame() {
         //resourceManager->updateBuffer("Matrices", (const unsigned char*)&ubo, sizeof(ubo));
 
         //sceneManager->drawEnvironment();
-        sceneManager->drawSDFScene(glm::inverse(Camera_.getView()), windowWidth_, windowHeight_, frameAfterInit_);
+        //sceneManager->drawSDFScene(glm::inverse(Camera_.getView()), windowWidth_, windowHeight_, frameAfterInit_);
+        std::string allStr = " !\"#$%&\'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~";
+        sceneManager->drawTextFT(allStr, 200, 600, fontScale_, glm::vec3(0.8f, 0.2f, 0.5f));
+        sceneManager->drawTextSDF(allStr, 200, 200, fontScale_, glm::vec3(0.8f, 0.2f, 0.5f));
 
         if (frameAfterInit_ < 100) {
             glEnable(GL_BLEND);
@@ -321,6 +324,17 @@ void PotentialApp::keyboardCallback(GLFWwindow* window, int key, int scancode, i
                 sceneManager->setEnableBloom(!sceneManager->getEnableBloom());
             }
             break;
+        case GLFW_KEY_EQUAL:
+            if (action == GLFW_PRESS) {
+                fontScale_ *= 1.1f;
+            }
+            break;
+        case GLFW_KEY_MINUS:
+            if (action == GLFW_PRESS) {
+                fontScale_ /= 1.1f;
+            }
+            break;
+
     }
 
 }
@@ -536,7 +550,9 @@ void PotentialApp::initRender() {
     ppi.windowHeight = windowHeight_;
     sceneManager->createPostProcess(ppi);
 
-    sceneManager->initializeFreeType(fileManager->getAbsolutePath("fonts://arial.ttf"));
+    sceneManager->initializeFreeType();
+    sceneManager->initializeFTTextRendering(fileManager->getAbsolutePath("fonts://arial.ttf"));
+    sceneManager->initializeSDFTextRendering(fileManager->getAbsolutePath("fonts://arial.ttf"));
     sceneManager->setTextProjectionMatrix(glm::ortho(0.0f, (float)windowWidth_, 0.0f, (float)windowHeight_));
 
     sceneManager->initializeSDFScene();

@@ -14,10 +14,10 @@
 
 // Different scenes
 
-#define TWIST_TORUS
+//#define TWIST_TORUS
 //#define BEND_BOX
 //#define SINGLE_CLOUD
-//#define REPEATED_CLOUDS
+#define REPEATED_CLOUDS
 //#define TEMPLE_AND_HOUSE
 //#define TEMPLE_AND_LARGE_TERRAIN
 
@@ -381,7 +381,7 @@ float getSceneSDFAO(vec3 pos) {
 
 
 #ifdef REPEATED_CLOUDS
-    vec3 q = sdfOpLimRepeatPos(pos, vec3(25.0f), ivec3(2), ivec3(2));
+    vec3 q = sdfOpLimRepeatPos(pos, vec3(25.0f), ivec3(20), ivec3(20));
     float d = SDF_cloud(q);
     return d;
 #endif
@@ -470,7 +470,7 @@ float getSceneSDF(vec3 pos) {
 
 
 #ifdef REPEATED_CLOUDS
-    vec3 q = sdfOpLimRepeatPos(pos, vec3(25.0f), ivec3(2), ivec3(2));
+    vec3 q = sdfOpLimRepeatPos(pos, vec3(25.0f), ivec3(20), ivec3(20));
     float d = SDF_cloud(q);
     return d;
 #endif
@@ -558,7 +558,7 @@ ObjectDesc getSceneSDFMatOpaque(vec3 pos) {
 
 
 #ifdef REPEATED_CLOUDS
-    vec3 q = sdfOpLimRepeatPos(pos, vec3(25.0f), ivec3(2), ivec3(2));
+    vec3 q = sdfOpLimRepeatPos(pos, vec3(25.0f), ivec3(20), ivec3(20));
     float d = SDF_cloud(q);
     return ObjectDesc(d, CLOUD_MATERIAL_ID);
 #endif
@@ -654,7 +654,7 @@ ObjectDesc getSceneSDFMat(vec3 pos) {
 
 
 #ifdef REPEATED_CLOUDS
-    vec3 q = sdfOpLimRepeatPos(pos, vec3(25.0f), ivec3(2), ivec3(2));
+    vec3 q = sdfOpLimRepeatPos(pos, vec3(25.0f), ivec3(20), ivec3(20));
     float d = SDF_cloud(q);
     return ObjectDesc(d, CLOUD_MATERIAL_ID);
 #endif

@@ -872,76 +872,15 @@ void SceneManager::cleanUp() {
     }
 
     rootNode_ = nullptr;
+    releaseFreeType();
 }
 
-bool SceneManager::initializeFreeType(const std::string& fontFilename, const unsigned fontHeight) {
-#ifndef __ANDROID__
-    FT_Library ft;
-    if (FT_Init_FreeType(&ft)) {
+
+bool SceneManager::initializeFreeType() {
+    if (FT_Init_FreeType(&freeTypeLibrary_)) {
         LOG_E("FreeType: could not init FreeType Library");
         return false;
     }
-
-    FT_Face face;
-    if (FT_New_Face(ft, fontFilename.c_str(), 0, &face)) {
-        LOG_E("FreeType: failed to load font");
-        return false;
-    }
-    FT_Set_Pixel_Sizes(face, 0, fontHeight);
-
-    glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
-
-    auto resourceManager = Resources::ResourceManager::getInstance();
-
-    for (unsigned char c = 32; c < 127; c++) {
-        if (FT_Load_Char(face, c, FT_LOAD_RENDER)) {
-            LOG_E("FreeType: failed to load glyph for \'%c\'", c);
-            continue;
-        }
-
-        Resources::ImageDesc charImageDesc;
-        charImageDesc.name = "image_" + std::string(1, c);
-        charImageDesc.format = GL_RED;
-        charImageDesc.width = face->glyph->bitmap.width;
-        charImageDesc.height = face->glyph->bitmap.rows;
-        charImageDesc.bits = 8;
-        charImageDesc.components = 1;
-        charImageDesc.p_data = face->glyph->bitmap.buffer;
-
-        auto& charImage = resourceManager->createImage(charImageDesc);
-
-
-        Resources::SamplerDesc charSamplerDesc;
-        charSamplerDesc.name = "sampler_" + std::string(1, c);
-        charSamplerDesc.minFilter = Resources::Sampler::Filter::LINEAR;
-        charSamplerDesc.magFilter = Resources::Sampler::Filter::LINEAR;
-        charSamplerDesc.wrapS = Resources::Sampler::WrapMode::CLAMP_TO_EDGE;
-        charSamplerDesc.wrapT = Resources::Sampler::WrapMode::CLAMP_TO_EDGE;
-
-        auto& charSampler = resourceManager->createSampler(charSamplerDesc);
-
-
-        Resources::TextureDesc charTextureDesc;
-        charTextureDesc.name = "texture_" + std::string(1, c);
-        charTextureDesc.format = GL_RED;
-        charTextureDesc.p_images[0] = &charImage;
-        charTextureDesc.p_sampler = &charSampler;
-
-        auto& charTexture = resourceManager->createTexture(charTextureDesc);
-
-
-        FreeTypeCharacter character = {
-            charTexture.handle,
-            glm::ivec2(face->glyph->bitmap.width, face->glyph->bitmap.rows),
-            glm::ivec2(face->glyph->bitmap_left, face->glyph->bitmap_top),
-            static_cast<unsigned int>(face->glyph->advance.x)
-        };
-        freeTypeChars_.insert(std::pair<char, FreeTypeCharacter>(c, character));
-    }
-
-    FT_Done_Face(face);
-    FT_Done_FreeType(ft);
-
 
     glGenVertexArrays(1, &VAOTextQuad_);
     glGenBuffers(1, &VBOTextQuad_);
@@ -953,7 +892,85 @@ bool SceneManager::initializeFreeType(const std::string& fontFilename, const uns
     glBindBuffer(GL_ARRAY_BUFFER, 0);
     glBindVertexArray(0);
 
+    freeTypeInitialized_ = true;
+    return true;
+}
+
+void SceneManager::releaseFreeType() {
+    if (freeTypeInitialized_) {
+        FT_Done_FreeType(freeTypeLibrary_);
+        freeTypeInitialized_ = false;
+    }
+}
+
+
+bool SceneManager::initializeFTTextRendering(const std::string& fontFilename, const unsigned fontHeight) {
+#ifndef __ANDROID__
+    if (!freeTypeInitialized_) {
+        LOG_E("Failed to initialize FreeType");
+        return false;
+    }
+
+    FT_Face face;
+    if (FT_New_Face(freeTypeLibrary_, fontFilename.c_str(), 0, &face)) {
+        LOG_E("FreeType: failed to load font");
+        return false;
+    }
+    FT_Set_Pixel_Sizes(face, 0, fontHeight);
+
+    auto resourceManager = Resources::ResourceManager::getInstance();
     auto fileManager = FileSystem::FileManager::getInstance();
+
+    Resources::SamplerDesc charSamplerDesc;
+    charSamplerDesc.name = "sampler_character";
+    charSamplerDesc.minFilter = Resources::Sampler::Filter::LINEAR;
+    charSamplerDesc.magFilter = Resources::Sampler::Filter::LINEAR;
+    charSamplerDesc.wrapS = Resources::Sampler::WrapMode::CLAMP_TO_EDGE;
+    charSamplerDesc.wrapT = Resources::Sampler::WrapMode::CLAMP_TO_EDGE;
+
+    auto& charSampler = resourceManager->createSampler(charSamplerDesc);
+
+    for (unsigned char c = 32; c < 127; c++) {
+        if (FT_Load_Char(face, c, FT_LOAD_RENDER)) {
+            LOG_E("FreeType: failed to load glyph for \'%c\'", c);
+            continue;
+        }
+
+        RenderCharacterInfo character{};
+        character.size = glm::ivec2(face->glyph->bitmap.width, face->glyph->bitmap.rows);
+        character.bearing = glm::ivec2(face->glyph->bitmap_left, face->glyph->bitmap_top);
+        character.advance = static_cast<unsigned int>(face->glyph->advance.x);
+
+
+        Resources::ImageDesc charImageDesc;
+        charImageDesc.name = "image_character_" + std::to_string(c);
+        charImageDesc.format = GL_RED;
+        charImageDesc.width = face->glyph->bitmap.width;
+        charImageDesc.height = face->glyph->bitmap.rows;
+        charImageDesc.bits = 8;
+        charImageDesc.components = 1;
+        charImageDesc.p_data = face->glyph->bitmap.buffer;
+
+        auto& charImage = resourceManager->createImage(charImageDesc);
+
+
+        std::string filename = "textures://chars/FreeType/" + std::to_string(c);
+        resourceManager->saveImage(charImage.handle, filename);
+
+
+        Resources::TextureDesc charTextureDesc;
+        charTextureDesc.name = "texture_character_" + std::to_string(c);
+        charTextureDesc.format = GL_RED;
+        charTextureDesc.p_images[0] = &charImage;
+        charTextureDesc.p_sampler = &charSampler;
+
+        auto& charTexture = resourceManager->createTexture(charTextureDesc);
+
+        character.textureHandle = charTexture.handle;
+        freeTypeChars_.insert(std::pair<char, RenderCharacterInfo>(c, character));
+    }
+
+    FT_Done_Face(face);
 
     Resources::ShaderDesc shdrDesc;
     shdrDesc.name = TEXT_RENDERING_SHADER_NAME;
@@ -968,19 +985,13 @@ bool SceneManager::initializeFreeType(const std::string& fontFilename, const uns
     return true;
 }
 
-void SceneManager::setTextProjectionMatrix(const glm::mat4 proj) {
+void SceneManager::drawTextFT(const std::string& text, float x, float y, float scale, glm::vec3 color) {
 #ifndef __ANDROID__
-    textProjMat_ = proj;
+    if (!freeTypeInitialized_) {
+        LOG_E("FreeType needs to be initialized before text rendering");
+        return;
+    }
 
-    auto resourceManager = Resources::ResourceManager::getInstance();
-    auto& shdr = resourceManager->getShader(textRenderingShaderHandle_);
-    shdr.use();
-    shdr.setMat4("uProj", textProjMat_);
-#endif
-}
-
-void SceneManager::drawText(const std::string& text, float x, float y, float scale, glm::vec3 color) {
-#ifndef __ANDROID__
     glDisable(GL_DEPTH_TEST);
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -995,7 +1006,7 @@ void SceneManager::drawText(const std::string& text, float x, float y, float sca
 
     std::string::const_iterator c;
     for (c = text.begin(); c != text.end(); c++) {
-        FreeTypeCharacter ch = freeTypeChars_[*c];
+        RenderCharacterInfo ch = freeTypeChars_[*c];
 
         float xpos = x + ch.bearing.x * scale;
         float ypos = y - (ch.size.y - ch.bearing.y) * scale;
@@ -1026,6 +1037,225 @@ void SceneManager::drawText(const std::string& text, float x, float y, float sca
     glDisable(GL_BLEND);
 #endif
 }
+
+bool SceneManager::initializeSDFTextRendering(const std::string& fontFilename, const unsigned fontHeight) {
+#ifndef __ANDROID__
+    if (!freeTypeInitialized_) {
+        LOG_E("Failed to initialize FreeType");
+        return false;
+    }
+
+    FT_Face face;
+    if (FT_New_Face(freeTypeLibrary_, fontFilename.c_str(), 0, &face)) {
+        LOG_E("FreeType: failed to load font");
+        return false;
+    }
+
+    int scaledFontsize = 4096;
+
+    auto resourceManager = Resources::ResourceManager::getInstance();
+    auto fileManager = FileSystem::FileManager::getInstance();
+
+    Resources::SamplerDesc charSamplerDesc;
+    charSamplerDesc.name = "sampler_character_sdf";
+    charSamplerDesc.minFilter = Resources::Sampler::Filter::LINEAR;
+    charSamplerDesc.magFilter = Resources::Sampler::Filter::LINEAR;
+    charSamplerDesc.wrapS = Resources::Sampler::WrapMode::CLAMP_TO_EDGE;
+    charSamplerDesc.wrapT = Resources::Sampler::WrapMode::CLAMP_TO_EDGE;
+
+    auto& charSampler = resourceManager->createSampler(charSamplerDesc);
+
+    for (unsigned char c = 32; c < 127; c++) {
+        FT_Set_Pixel_Sizes(face, 0, fontHeight);
+
+        if (FT_Load_Char(face, c, FT_LOAD_RENDER | FT_LOAD_MONOCHROME)) {
+            LOG_E("FreeType: failed to load glyph for \'%c\'", c);
+            continue;
+        }
+
+        RenderCharacterInfo character{};
+        character.size = glm::ivec2(face->glyph->bitmap.width + 2 * SDFCharacterPadding_, face->glyph->bitmap.rows + 2 * SDFCharacterPadding_);
+        character.bearing = glm::ivec2(face->glyph->bitmap_left, face->glyph->bitmap_top);
+        character.advance = static_cast<unsigned int>(face->glyph->advance.x);
+
+#if 1
+        std::string charPath = fileManager->getAbsolutePath("textures://chars/SDF/" + std::to_string(scaledFontsize) + "/" + std::to_string(c) + ".hdr");
+        auto& charTexture = resourceManager->createTexture(charPath, true, &charSampler);
+#else
+        int origWidth = face->glyph->bitmap.width;
+        int origHeight = face->glyph->bitmap.rows;
+
+        int sdfWidth = origWidth + 2 * SDFCharacterPadding_;
+        int sdfHeight = origHeight + 2 * SDFCharacterPadding_;
+        std::vector<float> imageData(sdfWidth * sdfHeight);
+
+        FT_Set_Pixel_Sizes(face, 0, scaledFontsize);
+
+        if (FT_Load_Char(face, c, FT_LOAD_RENDER)) {
+            LOG_E("FreeType: failed to load glyph for \'%c\'", c);
+            continue;
+        }
+
+        int scaledWidth = face->glyph->bitmap.width;
+        int scaledHeight = face->glyph->bitmap.rows;
+        uint8_t* scaledImage = face->glyph->bitmap.buffer;
+
+        float scaleW = (float)scaledWidth / origWidth;
+        float scaleH = (float)scaledHeight / origHeight;
+
+        float normalizingFactor = 1.0f / std::sqrt(scaledWidth * scaledWidth + scaledHeight * scaledHeight);
+
+        for (int j = -SDFCharacterPadding_; j < origHeight + SDFCharacterPadding_; ++j) {
+            for (int i = -SDFCharacterPadding_; i < origWidth + SDFCharacterPadding_; ++i) {
+                uint8_t currState = 0;
+
+                int scaledI = scaleW * (float)i;
+                int scaledJ = scaleH * (float)j;
+
+                if (scaledI >= 0 && scaledI < scaledWidth && scaledJ >= 0 && scaledJ < scaledHeight) {
+                    currState = scaledImage[scaledI + scaledJ * scaledWidth] > 0 ? 255 : 0;
+                }
+
+                float minDist = std::numeric_limits<float>::max();
+                for (int m = -1; m < scaledHeight + 1; ++m) {
+                    for (int n = -1; n < scaledWidth + 1; ++n) {
+                        uint8_t col = 0;
+                        if (n >= 0 && n < scaledWidth && m >= 0 && m < scaledHeight) {
+                            col = scaledImage[n + m * scaledWidth] > 0 ? 255 : 0;
+                        }
+
+                        if (col != currState) {
+                            float dx = scaledI - n;
+                            float dy = scaledJ - m;
+                            minDist = std::min(minDist, dx * dx + dy * dy);
+                        }
+                    }
+                }
+
+                float signedDist = std::sqrt(minDist) * normalizingFactor;
+                if (currState == 0) {
+                    signedDist *= -1.0f;
+                }
+
+                imageData[(i + SDFCharacterPadding_) + (j + SDFCharacterPadding_) * sdfWidth] = 0.5f * (1.0f + signedDist);
+            }
+        }
+
+        Resources::ImageDesc charImageDesc;
+        charImageDesc.name = "image_character_" + std::to_string(c) + "_sdf";
+        charImageDesc.format = GL_RED;
+        charImageDesc.width = sdfWidth;
+        charImageDesc.height = sdfHeight;
+        charImageDesc.bits = 8 * sizeof(float);
+        charImageDesc.components = 1;
+        charImageDesc.p_data = reinterpret_cast<uint8_t*>(imageData.data());
+
+        auto& charImage = resourceManager->createImage(charImageDesc);
+
+
+        std::string filename = "textures://chars/SDF/" + std::to_string(scaledFontsize) + "/" + std::to_string(c);
+        resourceManager->saveImage(charImage.handle, filename, "hdr");
+
+        Resources::TextureDesc charTextureDesc;
+        charTextureDesc.name = "texture_character_" + std::to_string(c) + "_sdf";
+        charTextureDesc.format = resourceManager->chooseDefaultInternalFormat(charImage.components, true);
+        charTextureDesc.p_images[0] = &charImage;
+        charTextureDesc.p_sampler = &charSampler;
+
+        auto& charTexture = resourceManager->createTexture(charTextureDesc);
+#endif
+        character.textureHandle = charTexture.handle;
+        SDFChars_.insert(std::pair<char, RenderCharacterInfo>(c, character));
+    }
+
+    FT_Done_Face(face);
+
+    Resources::ShaderDesc shdrDesc;
+    shdrDesc.name = SDF_TEXT_RENDERING_SHADER_NAME;
+    shdrDesc.vertFilename = fileManager->getAbsolutePath("shaders://PostProcess/RenderText.vert");
+    shdrDesc.fragFilename = fileManager->getAbsolutePath("shaders://SDF/SDFTextRendering.frag");
+    auto& shdr = resourceManager->createShader(shdrDesc);
+    SDFTextRenderingShaderHandle_ = shdr.handle;
+
+    shdr.use();
+    shdr.setInt("uTextSampler", 0);
+#endif
+    return true;
+}
+
+void SceneManager::drawTextSDF(const std::string& text, float x, float y, float scale, glm::vec3 color) {
+#ifndef __ANDROID__
+    if (!freeTypeInitialized_) {
+        LOG_E("FreeType needs to be initialized before text rendering");
+        return;
+    }
+
+    glDisable(GL_DEPTH_TEST);
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+    auto resourceManager = Resources::ResourceManager::getInstance();
+    auto& shdr = resourceManager->getShader(SDFTextRenderingShaderHandle_);
+    shdr.use();
+    shdr.setVec3("uTextColor", color);
+
+    glActiveTexture(GL_TEXTURE0);
+    glBindVertexArray(VAOTextQuad_);
+
+    std::string::const_iterator c;
+    for (c = text.begin(); c != text.end(); c++) {
+        RenderCharacterInfo ch = SDFChars_[*c];
+
+        float xpos = x + (ch.bearing.x - SDFCharacterPadding_) * scale;
+        float ypos = y - (ch.size.y - ch.bearing.y - SDFCharacterPadding_) * scale;
+
+        float w = ch.size.x * scale;
+        float h = ch.size.y * scale;
+
+        float vertices[6][4] = {
+            { xpos,     ypos + h,   0.0f, 0.0f },
+            { xpos,     ypos,       0.0f, 1.0f },
+            { xpos + w, ypos,       1.0f, 1.0f },
+
+            { xpos,     ypos + h,   0.0f, 0.0f },
+            { xpos + w, ypos,       1.0f, 1.0f },
+            { xpos + w, ypos + h,   1.0f, 0.0f }
+        };
+
+        auto& texture = resourceManager->getTexture(ch.textureHandle);
+        resourceManager->bindTexture(ch.textureHandle);
+        glBindBuffer(GL_ARRAY_BUFFER, VBOTextQuad_);
+        glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(vertices), vertices);
+        glBindBuffer(GL_ARRAY_BUFFER, 0);
+        glDrawArrays(GL_TRIANGLES, 0, 6);
+
+        x += (ch.advance >> 6) * scale;
+    }
+
+    glDisable(GL_BLEND);
+#endif
+}
+
+void SceneManager::setTextProjectionMatrix(const glm::mat4 proj) {
+#ifndef __ANDROID__
+    if (!freeTypeInitialized_) {
+        LOG_E("FreeType needs to be initialized before text rendering");
+        return;
+    }
+
+    textProjMat_ = proj;
+
+    auto resourceManager = Resources::ResourceManager::getInstance();
+    auto& shdrFT = resourceManager->getShader(textRenderingShaderHandle_);
+    shdrFT.use();
+    shdrFT.setMat4("uProj", textProjMat_);
+
+    auto& shdrSDF = resourceManager->getShader(SDFTextRenderingShaderHandle_);
+    shdrSDF.use();
+    shdrSDF.setMat4("uProj", textProjMat_);
+#endif
+}
+
 
 void SceneManager::initializeDefaultCube() {
     if (VAODefaultCube_ != 0) {

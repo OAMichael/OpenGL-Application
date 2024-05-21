@@ -18,6 +18,7 @@ inline constexpr const char* GAUSSIAN_BLUR_SHADER_NAME		= "Gaussian_Blur";
 inline constexpr const char* BLOOM_SHADER_NAME				= "Bloom";
 inline constexpr const char* BLOOM_FINAL_SHADER_NAME		= "Bloom_Final";
 inline constexpr const char* TEXT_RENDERING_SHADER_NAME		= "Render_Text";
+inline constexpr const char* SDF_TEXT_RENDERING_SHADER_NAME = "SDF_Render_Text";
 inline constexpr const char* IRRADIANCE_MAP_SHADER_NAME		= "Irradiance_Map";
 inline constexpr const char* PREFILTER_HDR_SHADER_NAME		= "Prefilter_HDR";
 inline constexpr const char* BRDF_LUT_SHADER_NAME			= "BRDF_LUT";
@@ -126,9 +127,15 @@ public:
 	inline const Resources::ResourceHandle getBRDFLUTSkyboxTextureHandle() const { return brdfLUTSkyboxTextureHandle_; }
 	inline const Resources::ResourceHandle getBRDFLUTEquirectTextureHandle() const { return brdfLUTEquirectTextureHandle_; }
 
-	bool initializeFreeType(const std::string& fontFilename, const unsigned fontHeight = 48);
+	bool initializeFreeType();
+	void releaseFreeType();
+
+	bool initializeFTTextRendering(const std::string& fontFilename, const unsigned fontHeight = 32);
+	void drawTextFT(const std::string& text, float x, float y, float scale, glm::vec3 color);
+	bool initializeSDFTextRendering(const std::string& fontFilename, const unsigned fontHeight = 32);
+	void drawTextSDF(const std::string& text, float x, float y, float scale, glm::vec3 color);
+
 	void setTextProjectionMatrix(const glm::mat4 proj);
-	void drawText(const std::string& text, float x, float y, float scale, glm::vec3 color);
 
 	void createPreviewScreen();
 	void drawPreviewScreen(const Resources::ResourceHandle textureHandle, const float alpha = 1.0f);
@@ -171,14 +178,21 @@ private:
 	unsigned maxMipLevelsPrefilterHDR_ = 5;
 	int brdfLUTSize_ = 512;
 
-	struct FreeTypeCharacter {
+
+	FT_Library freeTypeLibrary_;
+	bool freeTypeInitialized_ = false;
+	int SDFCharacterPadding_ = 16;
+
+	struct RenderCharacterInfo {
 		Resources::ResourceHandle textureHandle;
 		glm::ivec2 size;
 		glm::ivec2 bearing;
 		unsigned advance;
 	};
 
-	std::unordered_map<char, FreeTypeCharacter> freeTypeChars_;
+	std::unordered_map<char, RenderCharacterInfo> freeTypeChars_;
+	std::unordered_map<char, RenderCharacterInfo> SDFChars_;
+
 	unsigned VAOTextQuad_;
 	unsigned VBOTextQuad_;
 	glm::mat4 textProjMat_;
@@ -207,6 +221,7 @@ private:
 	Resources::ResourceHandle textRenderingShaderHandle_;
 	Resources::ResourceHandle previewScreenShaderHandle_;
 	Resources::ResourceHandle SDFSceneShaderHandle_;
+	Resources::ResourceHandle SDFTextRenderingShaderHandle_;
 
 	void initializeDefaultCube();
 	void drawDefaultCube();

@@ -115,6 +115,9 @@ public:
 	Image& createImage(const char* filename, bool isHdr = false);
 	Image& createImage(const std::string& filename, bool isHdr = false);
 
+	// Only .png, .jpg or .hdr
+	bool saveImage(const ResourceHandle handle, const std::string& filename, const std::string type = "png", const int quality = 100);
+
 	Sampler& createSampler(const SamplerDesc& samplerDesc);
 	
 	Texture& createTexture(const TextureDesc& textureDesc);
@@ -165,30 +168,30 @@ public:
 	Shader& getShader(const ResourceHandle handle);
 	Framebuffer& getFramebuffer(const ResourceHandle handle);
 
-	inline Image& getImage(const Image::DefaultImages defaultImage) { return *defaultImages_[defaultImage]; }
-	inline Sampler& getSampler(const Sampler::DefaultSamplers defaultSampler) { return *defaultSamplers_[defaultSampler]; };
-	inline Texture& getTexture(const Texture::DefaultTextures defaultTexture) { return *defaultTextures_[defaultTexture]; };
-	inline Material& getMaterial(const Material::DefaultMaterials defaultMaterial) { return *defaultMaterials_[defaultMaterial]; };
-	inline Framebuffer& getFramebuffer(const Framebuffer::DefaultFramebuffers defaultFramebuffer) { return *defaultFramebuffers_[defaultFramebuffer]; };
+	inline Image& getImage(const Image::DefaultImages defaultImage) const { return *defaultImages_[defaultImage]; }
+	inline Sampler& getSampler(const Sampler::DefaultSamplers defaultSampler) const { return *defaultSamplers_[defaultSampler]; };
+	inline Texture& getTexture(const Texture::DefaultTextures defaultTexture) const { return *defaultTextures_[defaultTexture]; };
+	inline Material& getMaterial(const Material::DefaultMaterials defaultMaterial) const { return *defaultMaterials_[defaultMaterial]; };
+	inline Framebuffer& getFramebuffer(const Framebuffer::DefaultFramebuffers defaultFramebuffer) const { return *defaultFramebuffers_[defaultFramebuffer]; };
 	// TODO: Buffer, Shader
 
-	bool hasImage(const std::string& name);
-	bool hasSampler(const std::string& name);
-	bool hasTexture(const std::string& name);
-	bool hasMaterial(const std::string& name);
-	bool hasBuffer(const std::string& name);
-	bool hasShader(const std::string& name);
-	bool hasFramebuffer(const std::string& name);
+	bool hasImage(const std::string& name) const;
+	bool hasSampler(const std::string& name) const;
+	bool hasTexture(const std::string& name) const;
+	bool hasMaterial(const std::string& name) const;
+	bool hasBuffer(const std::string& name) const;
+	bool hasShader(const std::string& name) const;
+	bool hasFramebuffer(const std::string& name) const;
 
-	bool hasResource(const ResourceHandle handle);
+	bool hasResource(const ResourceHandle handle) const;
 
-	bool hasImage(const std::string& name, const std::string& uri);
-	bool hasSampler(const std::string& name, const std::string& uri);
-	bool hasTexture(const std::string& name, const std::string& uri);
-	bool hasMaterial(const std::string& name, const std::string& uri);
-	bool hasBuffer(const std::string& name, const std::string& uri);
-	bool hasShader(const std::string& name, const std::string& uri);
-	bool hasFramebuffer(const std::string& name, const std::string& uri);
+	bool hasImage(const std::string& name, const std::string& uri) const;
+	bool hasSampler(const std::string& name, const std::string& uri) const;
+	bool hasTexture(const std::string& name, const std::string& uri) const;
+	bool hasMaterial(const std::string& name, const std::string& uri) const;
+	bool hasBuffer(const std::string& name, const std::string& uri) const;
+	bool hasShader(const std::string& name, const std::string& uri) const;
+	bool hasFramebuffer(const std::string& name, const std::string& uri) const;
 
 	unsigned chooseDefaultInternalFormat(const int components, bool isFloat = false) const;
 
