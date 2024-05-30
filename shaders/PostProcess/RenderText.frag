@@ -8,4 +8,4 @@ uniform vec3 uTextColor;
 
 void main() {
     outColor = vec4(uTextColor, texture(uTextSampler, inUv).r);
-}  
+}

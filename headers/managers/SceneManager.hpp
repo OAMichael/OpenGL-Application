@@ -134,6 +134,8 @@ public:
 	void drawTextFT(const std::string& text, float x, float y, float scale, glm::vec3 color);
 	bool initializeSDFTextRendering(const std::string& fontFilename, const unsigned fontHeight = 32);
 	void drawTextSDF(const std::string& text, float x, float y, float scale, glm::vec3 color);
+	bool initializeMSDFTextRendering(const std::string& fontFilename, const unsigned fontHeight = 32);
+	void drawTextMSDF(const std::string& text, float x, float y, float scale, glm::vec3 color);
 
 	void setTextProjectionMatrix(const glm::mat4 proj);
 
@@ -192,6 +194,7 @@ private:
 
 	std::unordered_map<char, RenderCharacterInfo> freeTypeChars_;
 	std::unordered_map<char, RenderCharacterInfo> SDFChars_;
+	std::unordered_map<char, RenderCharacterInfo> MSDFChars_;
 
 	unsigned VAOTextQuad_;
 	unsigned VBOTextQuad_;

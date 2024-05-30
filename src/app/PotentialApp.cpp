@@ -83,7 +83,12 @@ void PotentialApp::OnRenderFrame() {
                              " A B C D E F G H I J K L M N O P Q R S T U V W X Y Z [ \\ ] ^ _ `"
                              " a b c d e f g h i j k l m n o p q r s t u v w x y z { | } ~";
         sceneManager->drawTextFT(allStr, 200, 600, fontScale_, glm::vec3(0.8f, 0.2f, 0.5f));
-        sceneManager->drawTextSDF(allStr, 200, 200, fontScale_, glm::vec3(0.8f, 0.2f, 0.5f));
+        sceneManager->drawTextSDF(allStr, 200, 400, fontScale_, glm::vec3(0.8f, 0.2f, 0.5f));
+        sceneManager->drawTextMSDF(allStr, 200, 200, fontScale_, glm::vec3(0.8f, 0.2f, 0.5f));
+
+        sceneManager->drawTextFT("FT", 50, 600, 0.7, glm::vec3(0.8f, 0.9f, 0.5f));
+        sceneManager->drawTextFT("SDF", 50, 400, 0.7, glm::vec3(0.8f, 0.9f, 0.5f));
+        sceneManager->drawTextFT("MSDF", 50, 200, 0.7, glm::vec3(0.8f, 0.9f, 0.5f));
 
         if (frameAfterInit_ < 100) {
             glEnable(GL_BLEND);
@@ -555,6 +560,7 @@ void PotentialApp::initRender() {
     sceneManager->initializeFreeType();
     sceneManager->initializeFTTextRendering(fileManager->getAbsolutePath("fonts://arial.ttf"));
     sceneManager->initializeSDFTextRendering(fileManager->getAbsolutePath("fonts://arial.ttf"));
+    sceneManager->initializeMSDFTextRendering(fileManager->getAbsolutePath("fonts://arial.ttf"));
     sceneManager->setTextProjectionMatrix(glm::ortho(0.0f, (float)windowWidth_, 0.0f, (float)windowHeight_));
 
     sceneManager->initializeSDFScene();

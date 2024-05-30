@@ -953,10 +953,10 @@ bool SceneManager::initializeFTTextRendering(const std::string& fontFilename, co
 
         auto& charImage = resourceManager->createImage(charImageDesc);
 
-
+#if 0
         std::string filename = "textures://chars/FreeType/" + std::to_string(c);
         resourceManager->saveImage(charImage.handle, filename);
-
+#endif
 
         Resources::TextureDesc charTextureDesc;
         charTextureDesc.name = "texture_character_" + std::to_string(c);
@@ -1198,6 +1198,7 @@ void SceneManager::drawTextSDF(const std::string& text, float x, float y, float 
     auto& shdr = resourceManager->getShader(SDFTextRenderingShaderHandle_);
     shdr.use();
     shdr.setVec3("uTextColor", color);
+    shdr.setBool("uMSDF", false);
 
     glActiveTexture(GL_TEXTURE0);
     glBindVertexArray(VAOTextQuad_);
@@ -1211,6 +1212,119 @@ void SceneManager::drawTextSDF(const std::string& text, float x, float y, float 
 
         float w = ch.size.x * scale;
         float h = ch.size.y * scale;
+
+        float vertices[6][4] = {
+            { xpos,     ypos + h,   0.0f, 0.0f },
+            { xpos,     ypos,       0.0f, 1.0f },
+            { xpos + w, ypos,       1.0f, 1.0f },
+
+            { xpos,     ypos + h,   0.0f, 0.0f },
+            { xpos + w, ypos,       1.0f, 1.0f },
+            { xpos + w, ypos + h,   1.0f, 0.0f }
+        };
+
+        auto& texture = resourceManager->getTexture(ch.textureHandle);
+        resourceManager->bindTexture(ch.textureHandle);
+        glBindBuffer(GL_ARRAY_BUFFER, VBOTextQuad_);
+        glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(vertices), vertices);
+        glBindBuffer(GL_ARRAY_BUFFER, 0);
+        glDrawArrays(GL_TRIANGLES, 0, 6);
+
+        x += (ch.advance >> 6) * scale;
+    }
+
+    glDisable(GL_BLEND);
+#endif
+}
+
+bool SceneManager::initializeMSDFTextRendering(const std::string& fontFilename, const unsigned fontHeight) {
+#ifndef __ANDROID__
+    if (!freeTypeInitialized_) {
+        LOG_E("Failed to initialize FreeType");
+        return false;
+    }
+
+    FT_Face face;
+    if (FT_New_Face(freeTypeLibrary_, fontFilename.c_str(), 0, &face)) {
+        LOG_E("FreeType: failed to load font");
+        return false;
+    }
+    FT_Set_Pixel_Sizes(face, 0, fontHeight);
+
+    auto resourceManager = Resources::ResourceManager::getInstance();
+    auto fileManager = FileSystem::FileManager::getInstance();
+
+    Resources::SamplerDesc charSamplerDesc;
+    charSamplerDesc.name = "sampler_character_msdf";
+    charSamplerDesc.minFilter = Resources::Sampler::Filter::LINEAR;
+    charSamplerDesc.magFilter = Resources::Sampler::Filter::LINEAR;
+    charSamplerDesc.wrapS = Resources::Sampler::WrapMode::CLAMP_TO_EDGE;
+    charSamplerDesc.wrapT = Resources::Sampler::WrapMode::CLAMP_TO_EDGE;
+
+    auto& charSampler = resourceManager->createSampler(charSamplerDesc);
+
+    for (unsigned char c = 32; c < 127; c++) {
+        if (FT_Load_Char(face, c, FT_LOAD_RENDER)) {
+            LOG_E("FreeType: failed to load glyph for \'%c\'", c);
+            continue;
+        }
+
+        RenderCharacterInfo character{};
+        character.size = glm::ivec2(face->glyph->bitmap.width, face->glyph->bitmap.rows);
+        character.bearing = glm::ivec2(face->glyph->bitmap_left, face->glyph->bitmap_top);
+        character.advance = static_cast<unsigned int>(face->glyph->advance.x);
+
+        std::string charPath = fileManager->getAbsolutePath("textures://chars/MSDF/" + std::to_string(c) + ".png");
+        auto& charTexture = resourceManager->createTexture(charPath, false, &charSampler);
+
+        character.textureHandle = charTexture.handle;
+        MSDFChars_.insert(std::pair<char, RenderCharacterInfo>(c, character));
+    }
+
+    FT_Done_Face(face);
+
+    Resources::ShaderDesc shdrDesc;
+    shdrDesc.name = SDF_TEXT_RENDERING_SHADER_NAME;
+    shdrDesc.vertFilename = fileManager->getAbsolutePath("shaders://PostProcess/RenderText.vert");
+    shdrDesc.fragFilename = fileManager->getAbsolutePath("shaders://SDF/SDFTextRendering.frag");
+    auto& shdr = resourceManager->createShader(shdrDesc);
+    SDFTextRenderingShaderHandle_ = shdr.handle;
+
+    shdr.use();
+    shdr.setInt("uTextSampler", 0);
+#endif
+    return true;
+}
+
+void SceneManager::drawTextMSDF(const std::string& text, float x, float y, float scale, glm::vec3 color) {
+#ifndef __ANDROID__
+    if (!freeTypeInitialized_) {
+        LOG_E("FreeType needs to be initialized before text rendering");
+        return;
+    }
+
+    glDisable(GL_DEPTH_TEST);
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+    auto resourceManager = Resources::ResourceManager::getInstance();
+    auto& shdr = resourceManager->getShader(SDFTextRenderingShaderHandle_);
+    shdr.use();
+    shdr.setVec3("uTextColor", color);
+    shdr.setBool("uMSDF", true);
+
+    glActiveTexture(GL_TEXTURE0);
+    glBindVertexArray(VAOTextQuad_);
+
+    std::string::const_iterator c;
+    for (c = text.begin(); c != text.end(); c++) {
+        RenderCharacterInfo ch = MSDFChars_[*c];
+
+        float xpos = x + ch.bearing.x * scale * 1.15f;
+        float ypos = y - (ch.size.y - ch.bearing.y) * scale * 1.15f;
+
+        float w = ch.size.x * scale * 1.15f;
+        float h = ch.size.y * scale * 1.15f;
 
         float vertices[6][4] = {
             { xpos,     ypos + h,   0.0f, 0.0f },
