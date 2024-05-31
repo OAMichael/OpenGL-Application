@@ -17,9 +17,10 @@
 //#define TWIST_TORUS
 //#define BEND_BOX
 //#define SINGLE_CLOUD
-#define REPEATED_CLOUDS
+//#define REPEATED_CLOUDS
 //#define TEMPLE_AND_HOUSE
 //#define TEMPLE_AND_LARGE_TERRAIN
+#define SMOOTH_SHAPES
 
 
 uniform sampler2D uRockSampler;
@@ -41,6 +42,7 @@ const uint HOUSE_WINDOW_MAT_ID = 4;
 const uint TEMPLE_MAT_ID = 5;
 const uint ROCK_MAT_ID = 6;
 const uint TORUS_MAT_ID = 7;
+const uint SMOOTH_SHAPES_MAT_ID = 8;
 
 struct Material {
     vec4 basecolor;
@@ -57,7 +59,8 @@ Material materialPool[] = {
     { vec4(0.1f, 0.2f, 0.8f, 0.3f), false, 0.6f, 0.9f },        // Windows
     { vec4(0.76f, 0.7f, 0.5f, 1.0f), true, 1.0f, 0.0f },        // Temple
     { vec4(1.0f, 1.0f, 1.0f, 1.0f), true, 1.0f, 0.0f },         // Rocks
-    { vec4(0.123f, 0.54f, 0.76f, 1.0f), true, 0.8f, 0.2f }      // Torus
+    { vec4(0.123f, 0.54f, 0.76f, 1.0f), true, 0.8f, 0.2f },     // Torus
+    { vec4(0.5f, 0.54f, 0.76f, 1.0f), true, 0.8f, 0.2f }        // Smooth shapes
 };
 
 
@@ -438,6 +441,24 @@ float getSceneSDFAO(vec3 pos) {
 
 
 
+#ifdef SMOOTH_SHAPES
+    float cosT = cos(time / 10000.0f);
+    float sinT = sin(time / 10000.0f);
+
+    float cube = sdfBox(pos, vec3(1.0f, 4.0f * sinT, 0.0f), vec3(1.0f));
+    float sphere = sdfSphere(pos, vec3(-1.0f, 4.0f * cosT, 0.0f), 1.0f);
+
+    mat3 rotation = mat3(vec3(1, 0, 0), vec3(0, cosT, sinT), vec3(0, -sinT, cosT));
+    float torus = sdfTorus(rotation * pos, vec2(1.0f, 0.3f));
+
+    float wholeSolidScene = sdfOpUnionSmooth(torus,
+                            sdfOpUnionSmooth(cube, sphere, 0.5f), 0.5f);
+
+    return wholeSolidScene;
+#endif
+
+
+
 }
 
 
@@ -522,6 +543,24 @@ float getSceneSDF(vec3 pos) {
 #endif
 
     float wholeSolidScene = sdfOpUnion(fbm, temple);
+    return wholeSolidScene;
+#endif
+
+
+
+#ifdef SMOOTH_SHAPES
+    float cosT = cos(time / 10000.0f);
+    float sinT = sin(time / 10000.0f);
+
+    float cube = sdfBox(pos, vec3(1.0f, 4.0f * sinT, 0.0f), vec3(1.0f));
+    float sphere = sdfSphere(pos, vec3(-1.0f, 4.0f * cosT, 0.0f), 1.0f);
+
+    mat3 rotation = mat3(vec3(1, 0, 0), vec3(0, cosT, sinT), vec3(0, -sinT, cosT));
+    float torus = sdfTorus(rotation * pos, vec2(1.0f, 0.3f));
+
+    float wholeSolidScene = sdfOpUnionSmooth(torus,
+                            sdfOpUnionSmooth(cube, sphere, 0.5f), 0.5f);
+
     return wholeSolidScene;
 #endif
 
@@ -623,6 +662,24 @@ ObjectDesc getSceneSDFMatOpaque(vec3 pos) {
 
 
 
+#ifdef SMOOTH_SHAPES
+    float cosT = cos(time / 10000.0f);
+    float sinT = sin(time / 10000.0f);
+
+    float cube = sdfBox(pos, vec3(1.0f, 4.0f * sinT, 0.0f), vec3(1.0f));
+    float sphere = sdfSphere(pos, vec3(-1.0f, 4.0f * cosT, 0.0f), 1.0f);
+
+    mat3 rotation = mat3(vec3(1, 0, 0), vec3(0, cosT, sinT), vec3(0, -sinT, cosT));
+    float torus = sdfTorus(rotation * pos, vec2(1.0f, 0.3f));
+
+    float wholeSolidScene = sdfOpUnionSmooth(torus,
+                            sdfOpUnionSmooth(cube, sphere, 0.5f), 0.5f);
+
+    return ObjectDesc(wholeSolidScene, SMOOTH_SHAPES_MAT_ID);
+#endif
+
+
+
 }
 
 ObjectDesc getSceneSDFMat(vec3 pos) {
@@ -714,6 +771,24 @@ ObjectDesc getSceneSDFMat(vec3 pos) {
 
     ObjectDesc wholeSolidScene = sdfOpUnionMat(fbm, temple);
     return wholeSolidScene;
+#endif
+
+
+
+#ifdef SMOOTH_SHAPES
+    float cosT = cos(time / 10000.0f);
+    float sinT = sin(time / 10000.0f);
+
+    float cube = sdfBox(pos, vec3(1.0f, 4.0f * sinT, 0.0f), vec3(1.0f));
+    float sphere = sdfSphere(pos, vec3(-1.0f, 4.0f * cosT, 0.0f), 1.0f);
+
+    mat3 rotation = mat3(vec3(1, 0, 0), vec3(0, cosT, sinT), vec3(0, -sinT, cosT));
+    float torus = sdfTorus(rotation * pos, vec2(1.0f, 0.3f));
+
+    float wholeSolidScene = sdfOpUnionSmooth(torus,
+                            sdfOpUnionSmooth(cube, sphere, 0.5f), 0.5f);
+
+    return ObjectDesc(wholeSolidScene, SMOOTH_SHAPES_MAT_ID);
 #endif
 
 
