@@ -78,19 +78,24 @@ void PotentialApp::OnRenderFrame() {
         //resourceManager->updateBuffer("Matrices", (const unsigned char*)&ubo, sizeof(ubo));
 
         //sceneManager->drawEnvironment();
-        sceneManager->drawSDFScene(glm::inverse(Camera_.getView()), windowWidth_, windowHeight_, frameAfterInit_);
-        /*
+        //sceneManager->drawSDFScene(glm::inverse(Camera_.getView()), windowWidth_, windowHeight_, frameAfterInit_);
+
         std::string allStr = " ! \" # $ % & \' ( ) * + , - . / 0 1 2 3 4 5 6 7 8 9 : ; < = > ? @"
                              " A B C D E F G H I J K L M N O P Q R S T U V W X Y Z [ \\ ] ^ _ `"
                              " a b c d e f g h i j k l m n o p q r s t u v w x y z { | } ~";
-        sceneManager->drawTextFT(allStr, 200, 600, fontScale_, glm::vec3(0.8f, 0.2f, 0.5f));
-        sceneManager->drawTextSDF(allStr, 200, 400, fontScale_, glm::vec3(0.8f, 0.2f, 0.5f));
-        sceneManager->drawTextMSDF(allStr, 200, 200, fontScale_, glm::vec3(0.8f, 0.2f, 0.5f));
 
-        sceneManager->drawTextFT("FT", 50, 600, 0.7, glm::vec3(0.8f, 0.9f, 0.5f));
-        sceneManager->drawTextFT("SDF", 50, 400, 0.7, glm::vec3(0.8f, 0.9f, 0.5f));
-        sceneManager->drawTextFT("MSDF", 50, 200, 0.7, glm::vec3(0.8f, 0.9f, 0.5f));
-        */
+        std::string meme = "MIPT DREC is here";
+        sceneManager->drawTextFT(allStr, 200, 600, fontScale_, glm::vec3(0.8f, 0.2f, 0.5f));
+        sceneManager->drawTextSDF(meme, 200, 400, fontScale_, glm::vec3(0.8f, 0.2f, 0.5f));
+        sceneManager->drawTextMSDF(meme, 200, 200, fontScale_, glm::vec3(0.8f, 0.2f, 0.5f));
+
+        //sceneManager->drawTextFT("FT", 50, 600, 0.7, glm::vec3(0.8f, 0.9f, 0.5f));
+        //sceneManager->drawTextFT("SDF", 50, 400, 0.7, glm::vec3(0.8f, 0.9f, 0.5f));
+        //sceneManager->drawTextFT("MSDF", 50, 200, 0.7, glm::vec3(0.8f, 0.9f, 0.5f));
+
+        //sceneManager->drawTextMSDF("The quick brown fox jumps over the lazy dog", 300, 400, fontScale_, glm::vec3(0.8f, 0.2f, 0.5f));
+        //sceneManager->drawTextFT("Soft glow", 20, 420, 0.7, glm::vec3(0.8f, 0.9f, 0.5f));
+
         if (frameAfterInit_ < 100) {
             glEnable(GL_BLEND);
             glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);

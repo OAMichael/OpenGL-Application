@@ -14,13 +14,23 @@
 
 // Different scenes
 
+//#define PRIMITIVE_SPHERE
+//#define PRIMITIVE_BOX
+//#define PRIMITIVE_OPERATIONS
+//#define SMOOTH_SHAPES
 //#define TWIST_TORUS
 //#define BEND_BOX
+//#define INF_REPETITIONS
+//#define LIM_REPETITIONS
+//#define TRANSPARENCY
+//#define BUMP_MAPPING
 //#define SINGLE_CLOUD
-//#define REPEATED_CLOUDS
+#define REPEATED_CLOUDS
+//#define HOUSE
+//#define TEMPLE
 //#define TEMPLE_AND_HOUSE
+//#define SMALL_TERRAIN
 //#define TEMPLE_AND_LARGE_TERRAIN
-#define SMOOTH_SHAPES
 
 
 uniform sampler2D uRockSampler;
@@ -43,6 +53,8 @@ const uint TEMPLE_MAT_ID = 5;
 const uint ROCK_MAT_ID = 6;
 const uint TORUS_MAT_ID = 7;
 const uint SMOOTH_SHAPES_MAT_ID = 8;
+const uint REPETITION_BOXES_MAT_ID = 9;
+const uint NO_BUMP_MAP_BOX_MAT_ID = 10;
 
 struct Material {
     vec4 basecolor;
@@ -60,7 +72,9 @@ Material materialPool[] = {
     { vec4(0.76f, 0.7f, 0.5f, 1.0f), true, 1.0f, 0.0f },        // Temple
     { vec4(1.0f, 1.0f, 1.0f, 1.0f), true, 1.0f, 0.0f },         // Rocks
     { vec4(0.123f, 0.54f, 0.76f, 1.0f), true, 0.8f, 0.2f },     // Torus
-    { vec4(0.5f, 0.54f, 0.76f, 1.0f), true, 0.8f, 0.2f }        // Smooth shapes
+    { vec4(0.5f, 0.54f, 0.76f, 1.0f), true, 0.8f, 0.2f },       // Smooth shapes
+    { vec4(0.7f, 1.54f, 2.16f, 1.0f), true, 0.8f, 1.9f },       // Repeated boxes
+    { vec4(0.76f, 0.7f, 0.5f, 1.0f), true, 1.0f, 0.0f },        // Temple no bump map
 };
 
 
@@ -359,9 +373,67 @@ float getSceneSDFAO(vec3 pos) {
 
 
 
+#ifdef PRIMITIVE_BOX
+    return sdfBox(pos, vec3(0.0f), vec3(1.0f));
+#endif
+
+
+
+#ifdef PRIMITIVE_SPHERE
+    return sdfSphere(pos, vec3(0.0f), 1.0f);
+#endif
+
+
+
+#ifdef PRIMITIVE_OPERATIONS
+    float plane = sdfPlane(pos, vec3(0.0f, 1.0f, 0.0f), 0.0f);
+
+    float box1 = sdfBox(pos, vec3(1.0f, 1.0f, 0.0f), vec3(1.0f));
+    float box2 = sdfBox(pos, vec3(5.0f, 1.0f, 0.0f), vec3(1.0f));
+    float box3 = sdfBox(pos, vec3(9.0f, 1.0f, 0.0f), vec3(1.0f));
+    float box4 = sdfBox(pos, vec3(13.0f, 1.0f, 0.0f), vec3(1.0f));
+
+    float sphere1 = sdfSphere(pos, vec3(2.5f, 1.0f, 0.0f), 0.6f);
+    float sphere2 = sdfSphere(pos, vec3(5.3f, 1.0f, 0.0f), 0.6f);
+    float sphere3 = sdfSphere(pos, vec3(9.3f, 1.0f, 0.0f), 0.6f);
+    float sphere4 = sdfSphere(pos, vec3(13.3f, 1.0f, 0.0f), 0.6f);
+
+    float d1 = sdfOpUnion(box1, sphere1);
+    float d2 = sdfOpIntersect(box2, sphere2);
+    float d3 = sdfOpDiff(box3, sphere3);
+    float d4 = sdfOpDiff(sphere4, box4);
+
+    float wholeSolidScene = sdfOpUnion(plane,
+                            sdfOpUnion(d1,
+                            sdfOpUnion(d2,
+                            sdfOpUnion(d3, d4))));
+
+    return wholeSolidScene;
+#endif
+
+
+
+#ifdef SMOOTH_SHAPES
+    float cosT = cos(time / 10000.0f);
+    float sinT = sin(time / 10000.0f);
+
+    float cube = sdfBox(pos, vec3(1.0f, 4.0f * sinT, 0.0f), vec3(1.0f));
+    float sphere = sdfSphere(pos, vec3(-1.0f, 4.0f * cosT, 0.0f), 1.0f);
+
+    mat3 rotation = mat3(vec3(1, 0, 0), vec3(0, cosT, sinT), vec3(0, -sinT, cosT));
+    float torus = sdfTorus(rotation * pos, vec2(1.0f, 0.3f));
+
+    float wholeSolidScene = sdfOpUnionSmooth(torus,
+                            sdfOpUnionSmooth(cube, sphere, 0.5f), 0.5f);
+
+    return wholeSolidScene;
+#endif
+
+
+
 #ifdef BEND_BOX
     vec3 bent = sdfOpBend(pos, 0.05f * cos(time / 3000.0));
-    float d = sdfRoundBox(bent, vec3(0.0f, 5.0f, 0.0f), vec3(10.0f, 1.0f, 4.0f), 0.1f);
+    float d = sdfRoundBox(bent, vec3(0.0f, 0.0f, 0.0f), vec3(10.0f, 1.0f, 4.0f), 0.1f);
     return d;
 #endif
 
@@ -372,6 +444,44 @@ float getSceneSDFAO(vec3 pos) {
     vec3 twisted = sdfOpTwist(pos, 0.5f * cos(time / 3000.0));
     float d = sdfTorus(m * twisted, vec2(2.0f, 0.8f));
     return d;
+#endif
+
+
+
+#ifdef INF_REPETITIONS
+    vec3 q = sdfOpInfRepeatPos(pos, vec3(4.0f));
+    float size = 1.0f + (0.5f + 0.0001f * (pos.x + pos.y + pos.z)) * cos(time / 4000.0f);
+    float d = sdfRoundBox(q, vec3(0.0f, 0.0f, 0.0f), vec3(size), 0.1f);
+    return d;
+#endif
+
+
+
+#ifdef LIM_REPETITIONS
+    vec3 q = sdfOpLimRepeatPos(pos, vec3(4.0f), ivec3(3), ivec3(3));
+    float size = 1.0f + (0.5f + 0.0001f * (pos.x + pos.y + pos.z)) * cos(time / 4000.0f);
+    float d = sdfRoundBox(q, vec3(0.0f, 0.0f, 0.0f), vec3(size), 0.1f);
+    return d;
+#endif
+
+
+
+#ifdef TRANSPARENCY
+    float plane = sdfPlane(pos, vec3(0.0f, 1.0f, 0.0f), 0.0f);
+    float window = sdfRoundBox(pos, vec3(0.0f, 2.0f, 0.0f), vec3(4.0f, 4.0f, 1.0f), 0.1f);
+
+    float wholeSolidScene = sdfOpUnion(plane, window);
+    return wholeSolidScene;
+#endif
+
+
+
+#ifdef BUMP_MAPPING
+    float box1 = sdfRoundBox(pos, vec3(0.0f, 1.0f, 0.0f), vec3(4.0f, 2.0f, 6.0f), 0.1f);
+    float box2 = sdfRoundBox(pos, vec3(5.0f, 1.0f, 0.0f), vec3(4.0f, 2.0f, 6.0f), 0.1f);
+
+    float wholeSolidScene = sdfOpUnion(box1, box2);
+    return wholeSolidScene;
 #endif
 
 
@@ -387,6 +497,44 @@ float getSceneSDFAO(vec3 pos) {
     vec3 q = sdfOpLimRepeatPos(pos, vec3(25.0f), ivec3(20), ivec3(20));
     float d = SDF_cloud(q);
     return d;
+#endif
+
+
+
+#ifdef HOUSE
+    float plane = sdfPlane(pos, vec3(0.0f, 1.0f, 0.0f), 0.0f);
+    float house = 0.0f;
+
+#ifdef USE_AABB
+    house = SDF_houseAABB(pos - vec3(1.0f, 0.0f, 25.0f));
+    if (house < 0.42f) {
+        house = SDF_house(pos - vec3(1.0f, 0.0f, 25.0f));
+    }
+#else
+    house = SDF_house(pos - vec3(1.0f, 0.0f, 25.0f));
+#endif
+
+    float wholeSolidScene = sdfOpUnion(plane, house);
+    return wholeSolidScene;
+#endif
+
+
+
+#ifdef TEMPLE
+    float plane = sdfPlane(pos, vec3(0.0f, 1.0f, 0.0f), 0.0f);
+    float temple = 0.0f;
+
+#ifdef USE_AABB
+    temple = SDF_templeAABB(pos);
+    if (temple < 0.42f) {
+        temple = SDF_temple(pos);
+    }
+#else
+    temple = SDF_temple(pos);
+#endif
+
+    float wholeSolidScene = sdfOpUnion(plane, temple);
+    return wholeSolidScene;
 #endif
 
 
@@ -420,6 +568,14 @@ float getSceneSDFAO(vec3 pos) {
 
 
 
+#ifdef SMALL_TERRAIN
+    float d = length(pos - vec3(0.0, -250.0, 0.0)) - 250.0;
+    float fbm = sdfRandomTerrain(pos, d);
+    return fbm;
+#endif
+
+
+
 #ifdef TEMPLE_AND_LARGE_TERRAIN
     float d = length(pos / vec3(10.0f) - vec3(0.0, -250.0, 0.0)) - 250.0;
     float fbm = sdfRandomTerrain(pos / vec3(10.0f), d);
@@ -436,6 +592,53 @@ float getSceneSDFAO(vec3 pos) {
 #endif
 
     float wholeSolidScene = sdfOpUnion(fbm, temple);
+    return wholeSolidScene;
+#endif
+
+
+
+}
+
+
+float getSceneSDF(vec3 pos) {
+
+
+
+#ifdef PRIMITIVE_BOX
+    return sdfBox(pos, vec3(0.0f), vec3(1.0f));
+#endif
+
+
+
+#ifdef PRIMITIVE_SPHERE
+    return sdfSphere(pos, vec3(0.0f), 1.0f);
+#endif
+
+
+
+#ifdef PRIMITIVE_OPERATIONS
+    float plane = sdfPlane(pos, vec3(0.0f, 1.0f, 0.0f), 0.0f);
+
+    float box1 = sdfBox(pos, vec3(1.0f, 1.0f, 0.0f), vec3(1.0f));
+    float box2 = sdfBox(pos, vec3(5.0f, 1.0f, 0.0f), vec3(1.0f));
+    float box3 = sdfBox(pos, vec3(9.0f, 1.0f, 0.0f), vec3(1.0f));
+    float box4 = sdfBox(pos, vec3(13.0f, 1.0f, 0.0f), vec3(1.0f));
+
+    float sphere1 = sdfSphere(pos, vec3(2.5f, 1.0f, 0.0f), 0.6f);
+    float sphere2 = sdfSphere(pos, vec3(5.3f, 1.0f, 0.0f), 0.6f);
+    float sphere3 = sdfSphere(pos, vec3(9.3f, 1.0f, 0.0f), 0.6f);
+    float sphere4 = sdfSphere(pos, vec3(13.3f, 1.0f, 0.0f), 0.6f);
+
+    float d1 = sdfOpUnion(box1, sphere1);
+    float d2 = sdfOpIntersect(box2, sphere2);
+    float d3 = sdfOpDiff(box3, sphere3);
+    float d4 = sdfOpDiff(sphere4, box4);
+
+    float wholeSolidScene = sdfOpUnion(plane,
+                            sdfOpUnion(d1,
+                            sdfOpUnion(d2,
+                            sdfOpUnion(d3, d4))));
+
     return wholeSolidScene;
 #endif
 
@@ -459,16 +662,9 @@ float getSceneSDFAO(vec3 pos) {
 
 
 
-}
-
-
-float getSceneSDF(vec3 pos) {
-
-
-
 #ifdef BEND_BOX
     vec3 bent = sdfOpBend(pos, 0.05f * cos(time / 3000.0));
-    float d = sdfRoundBox(bent, vec3(0.0f, 5.0f, 0.0f), vec3(10.0f, 1.0f, 4.0f), 0.1f);
+    float d = sdfRoundBox(bent, vec3(0.0f, 0.0f, 0.0f), vec3(10.0f, 1.0f, 4.0f), 0.1f);
     return d;
 #endif
 
@@ -479,6 +675,44 @@ float getSceneSDF(vec3 pos) {
     vec3 twisted = sdfOpTwist(pos, 0.5f * cos(time / 3000.0));
     float d = sdfTorus(m * twisted, vec2(2.0f, 0.8f));
     return d;
+#endif
+
+
+
+#ifdef INF_REPETITIONS
+    vec3 q = sdfOpInfRepeatPos(pos, vec3(4.0f));
+    float size = 1.0f + (0.5f + 0.0001f * (pos.x + pos.y + pos.z)) * cos(time / 4000.0f);
+    float d = sdfRoundBox(q, vec3(0.0f, 0.0f, 0.0f), vec3(size), 0.1f);
+    return d;
+#endif
+
+
+
+#ifdef LIM_REPETITIONS
+    vec3 q = sdfOpLimRepeatPos(pos, vec3(4.0f), ivec3(3), ivec3(3));
+    float size = 1.0f + (0.5f + 0.0001f * (pos.x + pos.y + pos.z)) * cos(time / 4000.0f);
+    float d = sdfRoundBox(q, vec3(0.0f, 0.0f, 0.0f), vec3(size), 0.1f);
+    return d;
+#endif
+
+
+
+#ifdef TRANSPARENCY
+    float plane = sdfPlane(pos, vec3(0.0f, 1.0f, 0.0f), 0.0f);
+    float window = sdfRoundBox(pos, vec3(0.0f, 2.0f, 0.0f), vec3(4.0f, 4.0f, 1.0f), 0.1f);
+
+    float wholeSolidScene = sdfOpUnion(plane, window);
+    return wholeSolidScene;
+#endif
+
+
+
+#ifdef BUMP_MAPPING
+    float box1 = sdfRoundBox(pos, vec3(0.0f, 1.0f, 0.0f), vec3(4.0f, 2.0f, 6.0f), 0.1f);
+    float box2 = sdfRoundBox(pos, vec3(5.0f, 1.0f, 0.0f), vec3(4.0f, 2.0f, 6.0f), 0.1f);
+
+    float wholeSolidScene = sdfOpUnion(box1, box2);
+    return wholeSolidScene;
 #endif
 
 
@@ -494,6 +728,44 @@ float getSceneSDF(vec3 pos) {
     vec3 q = sdfOpLimRepeatPos(pos, vec3(25.0f), ivec3(20), ivec3(20));
     float d = SDF_cloud(q);
     return d;
+#endif
+
+
+
+#ifdef HOUSE
+    float plane = sdfPlane(pos, vec3(0.0f, 1.0f, 0.0f), 0.0f);
+    float house = 0.0f;
+
+#ifdef USE_AABB
+    house = SDF_houseAABB(pos - vec3(1.0f, 0.0f, 25.0f));
+    if (house < INTERSECT_DIST) {
+        house = SDF_house(pos - vec3(1.0f, 0.0f, 25.0f));
+    }
+#else
+    house = SDF_house(pos - vec3(1.0f, 0.0f, 25.0f));
+#endif
+
+    float wholeSolidScene = sdfOpUnion(plane, house);
+    return wholeSolidScene;
+#endif
+
+
+
+#ifdef TEMPLE
+    float plane = sdfPlane(pos, vec3(0.0f, 1.0f, 0.0f), 0.0f);
+    float temple = 0.0f;
+
+#ifdef USE_AABB
+    temple = SDF_templeAABB(pos);
+    if (temple < INTERSECT_DIST) {
+        temple = SDF_temple(pos);
+    }
+#else
+    temple = SDF_temple(pos);
+#endif
+
+    float wholeSolidScene = sdfOpUnion(plane, temple);
+    return wholeSolidScene;
 #endif
 
 
@@ -527,6 +799,14 @@ float getSceneSDF(vec3 pos) {
 
 
 
+#ifdef SMALL_TERRAIN
+    float d = length(pos - vec3(0.0, -250.0, 0.0)) - 250.0;
+    float fbm = sdfRandomTerrain(pos, d);
+    return fbm;
+#endif
+
+
+
 #ifdef TEMPLE_AND_LARGE_TERRAIN
     float d = length(pos / vec3(10.0f) - vec3(0.0, -250.0, 0.0)) - 250.0;
     float fbm = sdfRandomTerrain(pos / vec3(10.0f), d);
@@ -548,6 +828,54 @@ float getSceneSDF(vec3 pos) {
 
 
 
+}
+
+ObjectDesc getSceneSDFMatOpaque(vec3 pos) {
+
+
+
+#ifdef PRIMITIVE_BOX
+    return ObjectDesc(sdfBox(pos, vec3(0.0f), vec3(1.0f)), TORUS_MAT_ID);
+#endif
+
+
+
+#ifdef PRIMITIVE_SPHERE
+    return ObjectDesc(sdfSphere(pos, vec3(0.0f), 1.0f), TORUS_MAT_ID);
+#endif
+
+
+
+#ifdef PRIMITIVE_OPERATIONS
+    ObjectDesc plane = ObjectDesc(sdfPlane(pos, vec3(0.0f, 1.0f, 0.0f), 0.0f), PLANE_MAT_ID);
+
+    float box1 = sdfBox(pos, vec3(1.0f, 1.0f, 0.0f), vec3(1.0f));
+    float box2 = sdfBox(pos, vec3(5.0f, 1.0f, 0.0f), vec3(1.0f));
+    float box3 = sdfBox(pos, vec3(9.0f, 1.0f, 0.0f), vec3(1.0f));
+    float box4 = sdfBox(pos, vec3(13.0f, 1.0f, 0.0f), vec3(1.0f));
+
+    float sphere1 = sdfSphere(pos, vec3(2.5f, 1.0f, 0.0f), 0.6f);
+    float sphere2 = sdfSphere(pos, vec3(5.3f, 1.0f, 0.0f), 0.6f);
+    float sphere3 = sdfSphere(pos, vec3(9.3f, 1.0f, 0.0f), 0.6f);
+    float sphere4 = sdfSphere(pos, vec3(13.3f, 1.0f, 0.0f), 0.6f);
+
+    float d1 = sdfOpUnion(box1, sphere1);
+    float d2 = sdfOpIntersect(box2, sphere2);
+    float d3 = sdfOpDiff(box3, sphere3);
+    float d4 = sdfOpDiff(sphere4, box4);
+
+    float allOpsDist = sdfOpUnion(d1,
+                       sdfOpUnion(d2,
+                       sdfOpUnion(d3, d4)));
+
+    ObjectDesc allOps = ObjectDesc(allOpsDist, SMOOTH_SHAPES_MAT_ID);
+
+    ObjectDesc wholeSolidScene = sdfOpUnionMat(plane, allOps);
+    return wholeSolidScene;
+#endif
+
+
+
 #ifdef SMOOTH_SHAPES
     float cosT = cos(time / 10000.0f);
     float sinT = sin(time / 10000.0f);
@@ -561,20 +889,14 @@ float getSceneSDF(vec3 pos) {
     float wholeSolidScene = sdfOpUnionSmooth(torus,
                             sdfOpUnionSmooth(cube, sphere, 0.5f), 0.5f);
 
-    return wholeSolidScene;
+    return ObjectDesc(wholeSolidScene, SMOOTH_SHAPES_MAT_ID);
 #endif
-
-
-
-}
-
-ObjectDesc getSceneSDFMatOpaque(vec3 pos) {
 
 
 
 #ifdef BEND_BOX
     vec3 bent = sdfOpBend(pos, 0.05f * cos(time / 3000.0));
-    float d = sdfRoundBox(bent, vec3(0.0f, 5.0f, 0.0f), vec3(10.0f, 1.0f, 4.0f), 0.1f);
+    float d = sdfRoundBox(bent, vec3(0.0f, 0.0f, 0.0f), vec3(10.0f, 1.0f, 4.0f), 0.1f);
     return ObjectDesc(d, TORUS_MAT_ID);
 #endif
 
@@ -585,6 +907,44 @@ ObjectDesc getSceneSDFMatOpaque(vec3 pos) {
     vec3 twisted = sdfOpTwist(pos, 0.5f * cos(time / 3000.0));
     float d = sdfTorus(m * twisted, vec2(2.0f, 0.8f));
     return ObjectDesc(d, TORUS_MAT_ID);
+#endif
+
+
+
+#ifdef INF_REPETITIONS
+    vec3 q = sdfOpInfRepeatPos(pos, vec3(4.0f));
+    float size = 1.0f + (0.5f + 0.0001f * (pos.x + pos.y + pos.z)) * cos(time / 4000.0f);
+    float d = sdfRoundBox(q, vec3(0.0f, 0.0f, 0.0f), vec3(size), 0.1f);
+    return ObjectDesc(d, REPETITION_BOXES_MAT_ID);
+#endif
+
+
+
+#ifdef LIM_REPETITIONS
+    vec3 q = sdfOpLimRepeatPos(pos, vec3(4.0f), ivec3(3), ivec3(3));
+    float size = 1.0f + (0.5f + 0.0001f * (pos.x + pos.y + pos.z)) * cos(time / 4000.0f);
+    float d = sdfRoundBox(q, vec3(0.0f, 0.0f, 0.0f), vec3(size), 0.1f);
+    return ObjectDesc(d, REPETITION_BOXES_MAT_ID);
+#endif
+
+
+
+#ifdef TRANSPARENCY
+    float plane = sdfPlane(pos, vec3(0.0f, 1.0f, 0.0f), 0.0f);
+    return ObjectDesc(plane, PLANE_MAT_ID);
+#endif
+
+
+
+#ifdef BUMP_MAPPING
+    float box1Dist = sdfRoundBox(pos, vec3(0.0f, 1.0f, 0.0f), vec3(4.0f, 2.0f, 6.0f), 0.1f);
+    float box2Dist = sdfRoundBox(pos, vec3(5.0f, 1.0f, 0.0f), vec3(4.0f, 2.0f, 6.0f), 0.1f);
+
+    ObjectDesc box1 = ObjectDesc(box1Dist, TEMPLE_MAT_ID);
+    ObjectDesc box2 = ObjectDesc(box2Dist, NO_BUMP_MAP_BOX_MAT_ID);
+
+    ObjectDesc wholeSolidScene = sdfOpUnionMat(box1, box2);
+    return wholeSolidScene;
 #endif
 
 
@@ -600,6 +960,50 @@ ObjectDesc getSceneSDFMatOpaque(vec3 pos) {
     vec3 q = sdfOpLimRepeatPos(pos, vec3(25.0f), ivec3(20), ivec3(20));
     float d = SDF_cloud(q);
     return ObjectDesc(d, CLOUD_MATERIAL_ID);
+#endif
+
+
+
+#ifdef HOUSE
+    float planeDist = sdfPlane(pos, vec3(0.0f, 1.0f, 0.0f), 0.0f);
+    ObjectDesc plane = ObjectDesc(planeDist, PLANE_MAT_ID);
+    ObjectDesc house;
+
+#ifdef USE_AABB
+    float houseAABB = SDF_houseAABB(pos - vec3(1.0f, 0.0f, 25.0f));
+    house = ObjectDesc(houseAABB, AABB_MATERIAL_ID);
+    if (house.dist < 0) {
+        house = SDF_houseMatOpaque(pos - vec3(1.0f, 0.0f, 25.0f));
+    }
+#else
+    house = SDF_houseMatOpaque(pos - vec3(1.0f, 0.0f, 25.0f));
+#endif
+
+    ObjectDesc wholeSolidScene = sdfOpUnionMat(plane, house);
+    return wholeSolidScene;
+#endif
+
+
+
+#ifdef TEMPLE
+    float planeDist = sdfPlane(pos, vec3(0.0f, 1.0f, 0.0f), 0.0f);
+    ObjectDesc plane = ObjectDesc(planeDist, PLANE_MAT_ID);
+    ObjectDesc temple;
+
+#ifdef USE_AABB
+    float templeAABB = SDF_templeAABB(pos);
+    temple = ObjectDesc(templeAABB, AABB_MATERIAL_ID);
+    if (temple.dist < 0) {
+        float templeDist = SDF_temple(pos);
+        temple = ObjectDesc(templeDist, TEMPLE_MAT_ID);
+    }
+#else
+    float templeDist = SDF_temple(pos);
+    temple = ObjectDesc(templeDist, TEMPLE_MAT_ID);
+#endif
+
+    ObjectDesc wholeSolidScene = sdfOpUnionMat(plane, temple);
+    return wholeSolidScene;
 #endif
 
 
@@ -638,6 +1042,14 @@ ObjectDesc getSceneSDFMatOpaque(vec3 pos) {
 
 
 
+#ifdef SMALL_TERRAIN
+    float d = length(pos - vec3(0.0, -250.0, 0.0)) - 250.0;
+    float fbm = sdfRandomTerrain(pos, d);
+    return ObjectDesc(fbm, ROCK_MAT_ID);
+#endif
+
+
+
 #ifdef TEMPLE_AND_LARGE_TERRAIN
     float d = length(pos / vec3(10.0f) - vec3(0.0, -250.0, 0.0)) - 250.0;
     ObjectDesc fbm = ObjectDesc(sdfRandomTerrain(pos / vec3(10.0f), d), ROCK_MAT_ID);
@@ -662,6 +1074,54 @@ ObjectDesc getSceneSDFMatOpaque(vec3 pos) {
 
 
 
+}
+
+ObjectDesc getSceneSDFMat(vec3 pos) {
+
+
+
+#ifdef PRIMITIVE_BOX
+    return ObjectDesc(sdfBox(pos, vec3(0.0f), vec3(1.0f)), TORUS_MAT_ID);
+#endif
+
+
+
+#ifdef PRIMITIVE_SPHERE
+    return ObjectDesc(sdfSphere(pos, vec3(0.0f), 1.0f), TORUS_MAT_ID);
+#endif
+
+
+
+#ifdef PRIMITIVE_OPERATIONS
+    ObjectDesc plane = ObjectDesc(sdfPlane(pos, vec3(0.0f, 1.0f, 0.0f), 0.0f), PLANE_MAT_ID);
+
+    float box1 = sdfBox(pos, vec3(1.0f, 1.0f, 0.0f), vec3(1.0f));
+    float box2 = sdfBox(pos, vec3(5.0f, 1.0f, 0.0f), vec3(1.0f));
+    float box3 = sdfBox(pos, vec3(9.0f, 1.0f, 0.0f), vec3(1.0f));
+    float box4 = sdfBox(pos, vec3(13.0f, 1.0f, 0.0f), vec3(1.0f));
+
+    float sphere1 = sdfSphere(pos, vec3(2.5f, 1.0f, 0.0f), 0.6f);
+    float sphere2 = sdfSphere(pos, vec3(5.3f, 1.0f, 0.0f), 0.6f);
+    float sphere3 = sdfSphere(pos, vec3(9.3f, 1.0f, 0.0f), 0.6f);
+    float sphere4 = sdfSphere(pos, vec3(13.3f, 1.0f, 0.0f), 0.6f);
+
+    float d1 = sdfOpUnion(box1, sphere1);
+    float d2 = sdfOpIntersect(box2, sphere2);
+    float d3 = sdfOpDiff(box3, sphere3);
+    float d4 = sdfOpDiff(sphere4, box4);
+
+    float allOpsDist = sdfOpUnion(d1,
+                       sdfOpUnion(d2,
+                       sdfOpUnion(d3, d4)));
+
+    ObjectDesc allOps = ObjectDesc(allOpsDist, SMOOTH_SHAPES_MAT_ID);
+
+    ObjectDesc wholeSolidScene = sdfOpUnionMat(plane, allOps);
+    return wholeSolidScene;
+#endif
+
+
+
 #ifdef SMOOTH_SHAPES
     float cosT = cos(time / 10000.0f);
     float sinT = sin(time / 10000.0f);
@@ -680,15 +1140,9 @@ ObjectDesc getSceneSDFMatOpaque(vec3 pos) {
 
 
 
-}
-
-ObjectDesc getSceneSDFMat(vec3 pos) {
-
-
-
 #ifdef BEND_BOX
     vec3 bent = sdfOpBend(pos, 0.05f * cos(time / 3000.0));
-    float d = sdfRoundBox(bent, vec3(0.0f, 5.0f, 0.0f), vec3(10.0f, 1.0f, 4.0f), 0.1f);
+    float d = sdfRoundBox(bent, vec3(0.0f, 0.0f, 0.0f), vec3(10.0f, 1.0f, 4.0f), 0.1f);
     return ObjectDesc(d, TORUS_MAT_ID);
 #endif
 
@@ -699,6 +1153,49 @@ ObjectDesc getSceneSDFMat(vec3 pos) {
     vec3 twisted = sdfOpTwist(pos, 0.5f * cos(time / 3000.0));
     float d = sdfTorus(m * twisted, vec2(2.0f, 0.8f));
     return ObjectDesc(d, TORUS_MAT_ID);
+#endif
+
+
+
+#ifdef INF_REPETITIONS
+    vec3 q = sdfOpInfRepeatPos(pos, vec3(4.0f));
+    float size = 1.0f + (0.5f + 0.0001f * (pos.x + pos.y + pos.z)) * cos(time / 4000.0f);
+    float d = sdfRoundBox(q, vec3(0.0f, 0.0f, 0.0f), vec3(size), 0.1f);
+    return ObjectDesc(d, REPETITION_BOXES_MAT_ID);
+#endif
+
+
+
+#ifdef LIM_REPETITIONS
+    vec3 q = sdfOpLimRepeatPos(pos, vec3(4.0f), ivec3(3), ivec3(3));
+    float size = 1.0f + (0.5f + 0.0001f * (pos.x + pos.y + pos.z)) * cos(time / 4000.0f);
+    float d = sdfRoundBox(q, vec3(0.0f, 0.0f, 0.0f), vec3(size), 0.1f);
+    return ObjectDesc(d, REPETITION_BOXES_MAT_ID);
+#endif
+
+
+
+#ifdef TRANSPARENCY
+    float planeDist = sdfPlane(pos, vec3(0.0f, 1.0f, 0.0f), 0.0f);
+    float windowDist = sdfRoundBox(pos, vec3(0.0f, 2.0f, 0.0f), vec3(4.0f, 4.0f, 1.0f), 0.1f);
+
+    ObjectDesc plane = ObjectDesc(planeDist, PLANE_MAT_ID);
+    ObjectDesc window = ObjectDesc(windowDist, HOUSE_WINDOW_MAT_ID);
+
+    return sdfOpUnionMat(plane, window);
+#endif
+
+
+
+#ifdef BUMP_MAPPING
+    float box1Dist = sdfRoundBox(pos, vec3(0.0f, 1.0f, 0.0f), vec3(4.0f, 2.0f, 6.0f), 0.1f);
+    float box2Dist = sdfRoundBox(pos, vec3(5.0f, 1.0f, 0.0f), vec3(4.0f, 2.0f, 6.0f), 0.1f);
+
+    ObjectDesc box1 = ObjectDesc(box1Dist, TEMPLE_MAT_ID);
+    ObjectDesc box2 = ObjectDesc(box2Dist, NO_BUMP_MAP_BOX_MAT_ID);
+
+    ObjectDesc wholeSolidScene = sdfOpUnionMat(box1, box2);
+    return wholeSolidScene;
 #endif
 
 
@@ -714,6 +1211,49 @@ ObjectDesc getSceneSDFMat(vec3 pos) {
     vec3 q = sdfOpLimRepeatPos(pos, vec3(25.0f), ivec3(20), ivec3(20));
     float d = SDF_cloud(q);
     return ObjectDesc(d, CLOUD_MATERIAL_ID);
+#endif
+
+
+
+#ifdef HOUSE
+    float planeDist = sdfPlane(pos, vec3(0.0f, 1.0f, 0.0f), 0.0f);
+    ObjectDesc plane = ObjectDesc(planeDist, PLANE_MAT_ID);
+    ObjectDesc house;
+
+#ifdef USE_AABB
+    float houseAABB = SDF_houseAABB(pos - vec3(1.0f, 0.0f, 25.0f));
+    house = ObjectDesc(houseAABB, AABB_MATERIAL_ID);
+    if (house.dist < 0) {
+        house = SDF_houseMat(pos - vec3(1.0f, 0.0f, 25.0f));
+    }
+#else
+    house = SDF_houseMat(pos - vec3(1.0f, 0.0f, 25.0f));
+#endif
+
+    ObjectDesc wholeSolidScene = sdfOpUnionMat(plane, house);
+    return wholeSolidScene;
+#endif
+
+
+
+#ifdef TEMPLE
+    float planeDist = sdfPlane(pos, vec3(0.0f, 1.0f, 0.0f), 0.0f);
+    ObjectDesc plane = ObjectDesc(planeDist, PLANE_MAT_ID);
+    ObjectDesc temple;
+
+#ifdef USE_AABB
+    float templeAABB = SDF_templeAABB(pos);
+    temple = ObjectDesc(templeAABB, AABB_MATERIAL_ID);
+    if (temple.dist < 0) {
+        float templeDist = SDF_temple(pos);
+        temple = ObjectDesc(templeDist, TEMPLE_MAT_ID);
+    }
+#else
+    float templeDist = SDF_temple(pos);
+    temple = ObjectDesc(templeDist, TEMPLE_MAT_ID);
+#endif
+    ObjectDesc wholeSolidScene = sdfOpUnionMat(plane, temple);
+    return wholeSolidScene;
 #endif
 
 
@@ -751,6 +1291,14 @@ ObjectDesc getSceneSDFMat(vec3 pos) {
 
 
 
+#ifdef SMALL_TERRAIN
+    float d = length(pos - vec3(0.0, -250.0, 0.0)) - 250.0;
+    float fbm = sdfRandomTerrain(pos, d);
+    return ObjectDesc(fbm, ROCK_MAT_ID);
+#endif
+
+
+
 #ifdef TEMPLE_AND_LARGE_TERRAIN
     float d = length(pos / vec3(10.0f) - vec3(0.0, -250.0, 0.0)) - 250.0;
     ObjectDesc fbm = ObjectDesc(sdfRandomTerrain(pos / vec3(10.0f), d), ROCK_MAT_ID);
@@ -771,24 +1319,6 @@ ObjectDesc getSceneSDFMat(vec3 pos) {
 
     ObjectDesc wholeSolidScene = sdfOpUnionMat(fbm, temple);
     return wholeSolidScene;
-#endif
-
-
-
-#ifdef SMOOTH_SHAPES
-    float cosT = cos(time / 10000.0f);
-    float sinT = sin(time / 10000.0f);
-
-    float cube = sdfBox(pos, vec3(1.0f, 4.0f * sinT, 0.0f), vec3(1.0f));
-    float sphere = sdfSphere(pos, vec3(-1.0f, 4.0f * cosT, 0.0f), 1.0f);
-
-    mat3 rotation = mat3(vec3(1, 0, 0), vec3(0, cosT, sinT), vec3(0, -sinT, cosT));
-    float torus = sdfTorus(rotation * pos, vec2(1.0f, 0.3f));
-
-    float wholeSolidScene = sdfOpUnionSmooth(torus,
-                            sdfOpUnionSmooth(cube, sphere, 0.5f), 0.5f);
-
-    return ObjectDesc(wholeSolidScene, SMOOTH_SHAPES_MAT_ID);
 #endif
 
 
