@@ -417,14 +417,14 @@ float getSceneSDFAO(vec3 pos) {
     float cosT = cos(time / 10000.0f);
     float sinT = sin(time / 10000.0f);
 
-    float cube = sdfBox(pos, vec3(1.0f, 4.0f * sinT, 0.0f), vec3(1.0f));
+    float cube = sdfBox(pos, vec3(1.0f, -4.0f * cosT, 0.0f), vec3(1.0f));
     float sphere = sdfSphere(pos, vec3(-1.0f, 4.0f * cosT, 0.0f), 1.0f);
 
     mat3 rotation = mat3(vec3(1, 0, 0), vec3(0, cosT, sinT), vec3(0, -sinT, cosT));
     float torus = sdfTorus(rotation * pos, vec2(1.0f, 0.3f));
 
-    float wholeSolidScene = sdfOpUnionSmooth(torus,
-                            sdfOpUnionSmooth(cube, sphere, 0.5f), 0.5f);
+    float wholeSolidScene = sdfOpDiffSmooth(
+                            sdfOpUnionSmooth(torus, sphere, 0.5f), cube, 0.5f);
 
     return wholeSolidScene;
 #endif
@@ -648,14 +648,14 @@ float getSceneSDF(vec3 pos) {
     float cosT = cos(time / 10000.0f);
     float sinT = sin(time / 10000.0f);
 
-    float cube = sdfBox(pos, vec3(1.0f, 4.0f * sinT, 0.0f), vec3(1.0f));
+    float cube = sdfBox(pos, vec3(1.0f, -4.0f * cosT, 0.0f), vec3(1.0f));
     float sphere = sdfSphere(pos, vec3(-1.0f, 4.0f * cosT, 0.0f), 1.0f);
 
     mat3 rotation = mat3(vec3(1, 0, 0), vec3(0, cosT, sinT), vec3(0, -sinT, cosT));
     float torus = sdfTorus(rotation * pos, vec2(1.0f, 0.3f));
 
-    float wholeSolidScene = sdfOpUnionSmooth(torus,
-                            sdfOpUnionSmooth(cube, sphere, 0.5f), 0.5f);
+    float wholeSolidScene = sdfOpDiffSmooth(
+                            sdfOpUnionSmooth(torus, sphere, 0.5f), cube, 0.5f);
 
     return wholeSolidScene;
 #endif
@@ -880,14 +880,14 @@ ObjectDesc getSceneSDFMatOpaque(vec3 pos) {
     float cosT = cos(time / 10000.0f);
     float sinT = sin(time / 10000.0f);
 
-    float cube = sdfBox(pos, vec3(1.0f, 4.0f * sinT, 0.0f), vec3(1.0f));
+    float cube = sdfBox(pos, vec3(1.0f, -4.0f * cosT, 0.0f), vec3(1.0f));
     float sphere = sdfSphere(pos, vec3(-1.0f, 4.0f * cosT, 0.0f), 1.0f);
 
     mat3 rotation = mat3(vec3(1, 0, 0), vec3(0, cosT, sinT), vec3(0, -sinT, cosT));
     float torus = sdfTorus(rotation * pos, vec2(1.0f, 0.3f));
 
-    float wholeSolidScene = sdfOpUnionSmooth(torus,
-                            sdfOpUnionSmooth(cube, sphere, 0.5f), 0.5f);
+    float wholeSolidScene = sdfOpDiffSmooth(
+                            sdfOpUnionSmooth(torus, sphere, 0.5f), cube, 0.5f);
 
     return ObjectDesc(wholeSolidScene, SMOOTH_SHAPES_MAT_ID);
 #endif
@@ -1126,14 +1126,14 @@ ObjectDesc getSceneSDFMat(vec3 pos) {
     float cosT = cos(time / 10000.0f);
     float sinT = sin(time / 10000.0f);
 
-    float cube = sdfBox(pos, vec3(1.0f, 4.0f * sinT, 0.0f), vec3(1.0f));
+    float cube = sdfBox(pos, vec3(1.0f, -4.0f * cosT, 0.0f), vec3(1.0f));
     float sphere = sdfSphere(pos, vec3(-1.0f, 4.0f * cosT, 0.0f), 1.0f);
 
     mat3 rotation = mat3(vec3(1, 0, 0), vec3(0, cosT, sinT), vec3(0, -sinT, cosT));
     float torus = sdfTorus(rotation * pos, vec2(1.0f, 0.3f));
 
-    float wholeSolidScene = sdfOpUnionSmooth(torus,
-                            sdfOpUnionSmooth(cube, sphere, 0.5f), 0.5f);
+    float wholeSolidScene = sdfOpDiffSmooth(
+                            sdfOpUnionSmooth(torus, sphere, 0.5f), cube, 0.5f);
 
     return ObjectDesc(wholeSolidScene, SMOOTH_SHAPES_MAT_ID);
 #endif

@@ -3,6 +3,7 @@
 
 #include <unordered_map>
 #include <array>
+#include <chrono>
 
 #include "Image.hpp"
 #include "Sampler.hpp"
@@ -107,6 +108,12 @@ public:
 			instancePtr = new ResourceManager();
 
 		return instancePtr;
+	}
+
+	static uint64_t getTimeSinceProgramStartMS() {
+		using namespace std::chrono;
+		static uint64_t start = duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
+		return duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count() - start;
 	}
 
 	void Init();
